@@ -1,13 +1,19 @@
 const INVISIBLE_CHARS = new RegExp("[\\u00A0\\uFEFF\\u200B]", "g");
 
+// Master DT display/matching format (v0.2.0-prepilot rev2): separators are
+// normalized to spaces BEFORE the trailing "DT" suffix is stripped, so
+// "SCM-LIM-992-DT" and "SCM LIM 992 DT" both resolve to "SCM LIM 992" —
+// stripping the suffix first (the previous order) missed the hyphenated
+// case because "-DT" has no whitespace before "DT" to match against.
 export function normalizeDtId(value) {
   if (value === undefined || value === null) return "";
 
   let normalized = String(value).replace(INVISIBLE_CHARS, " ").trim().toUpperCase();
 
-  normalized = normalized.replace(/\s+DT$/, "");
   normalized = normalized.replace(/-/g, " ");
   normalized = normalized.replace(/\s+/g, " ").trim();
+  normalized = normalized.replace(/\s+DT$/, "");
+  normalized = normalized.trim();
 
   return normalized;
 }

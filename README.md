@@ -30,15 +30,38 @@ The first page has two drop zones: **Day Shift Input** and **Night Shift Input**
    timestamp and classifies its real shift independently.
 3. As soon as files are added, the app reads them in the browser, detects
    the profile (HYNC / SLNC / ESG), cleans the rows, and groups the results
-   under **Cleaning Results** by **Profile + Date + Shift**.
+   for output by **Profile + Date + Declared Bucket** — the bucket you
+   dropped the file into, not the row-level detected shift.
 4. Click **Clear / Reset** to remove all uploaded files and start over.
 
-Each Cleaning Group has its own expandable panel with a validation report,
-summary tables (by Contractor / PILE ID / Source / Grade), an unmatched-DT
-table, a clean data preview, and a **Copy This Group** button. A
-**Copy All Groups** button at the bottom copies every group's rows at once.
-Both produce tab-separated values (TSV) with no header row by default —
-paste directly into Excel.
+A **Start Cleaning / Refresh Cleaning** button sits above the results area
+(labeled "Start Cleaning" before any run, "Refresh Cleaning" afterward). It
+re-runs cleaning against whatever files are currently selected — no
+re-upload needed — using the current List DT cache and the current decimal
+separator. It's disabled whenever no files are selected. This is the same
+manual re-run path already used automatically after **Update List DT** and
+after an Unmatched DT correction; the button just lets you trigger it
+yourself at any time (e.g. after editing List DT elsewhere).
+
+**Cleaning Results** is organized as an **Overview** page plus one page per
+detected profile — only HYNC / SLNC / ESG pages that actually have uploaded
+files appear. The Overview page shows a summary table (rows, net tonnage,
+missing Contractor/Source/Grade counts, shift warning count, skipped-row
+count) per Profile + Date + Bucket group, plus a **Copy All Groups** button
+that copies every profile's rows at once.
+
+Each profile page shows, per Profile + Date + Bucket group: a validation
+report, a main **Operational Summary** table (PILE ID / Source / Contractor /
+Rows / Net Total / Remark — see "Operational Summary and PILE ID integrity"
+below), the by-Contractor / PILE ID / Source / Grade tables tucked under a
+collapsible "Additional Breakdown" (kept for reference, no longer the primary
+summary), an unmatched-DT table, a Shift Warning Rows table, a clean data
+preview, and a **Copy This Profile** button that copies every row in that
+group. All rows for the same profile/date/bucket stay together in one
+copyable block, even if some of them have a row-level detected shift that
+differs from the declared bucket — see "What the warnings mean" below. Both
+copy actions produce tab-separated values (TSV) with no header row by
+default — paste directly into Excel.
 
 ## Updating List DT
 
@@ -55,6 +78,118 @@ the app never calls this endpoint automatically. On success, the new list is
 cached in the browser's `localStorage` and any files already uploaded are
 automatically re-cleaned so contractor values reflect the update.
 
+## Excel decimal format
+
+A **Excel Decimal Format** selector sits at the top of the page, with two
+options: `1.20` (dot) and `1,20` (comma) — pick whichever your Excel's
+regional settings expect. Your choice is saved in the browser's
+`localStorage` and always wins over the `decimalSeparator` value in
+`config/app-config.json` (that config value is only the first-run default,
+before you've ever picked one yourself). Changing the selector immediately
+re-formats, with no re-upload needed:
+
+- Clean Data Preview,
+- **Copy This Profile** and **Copy All Groups** TSV output,
+- Validation Report tonnage metrics (Raw/Clean tonnage, Tonnage difference),
+- and every Net Total column (Operational Summary and the Additional
+  Breakdown tables).
+
+In every case, Net and Grade are written as plain decimal numbers with
+exactly 2 decimal places, with no thousands separator and no leading
+apostrophe or other text-forcing — so they paste into Excel as native
+numbers, not text. Grade is stripped down to its numeric value only; a raw
+value like `NI:1.20` copies as `1.20` (or `1,20`), never with the `NI:`
+prefix or its parentheses.
+
+## Unmatched DT Correction
+
+The Overview page has an **Unmatched DT Correction** section listing every
+DT ID across the currently uploaded files whose Contractor is "Unmatched" —
+one row per unique DT ID, a text input for the contractor name, and a
+Status column.
+
+**Unknown DT is standardized before display or save.** The table shows the
+clean master DT id, not the raw source value — e.g. a source cell reading
+`SCM LIM 992 DT` displays as `SCM LIM 992`. This standardization (uppercase,
+trimmed, trailing "DT" suffix removed, `-`/space separators unified, extra
+spaces collapsed) is the same `normalizeDtId()` rule used everywhere else in
+the app, and the *same* standardized `dt_id` is used consistently for the
+table display, the local List DT cache, the pending sync queue, and the
+Google Sheet POST payload — never the raw "... DT" value. The raw source
+value is still available as a hover tooltip on the DT cell for diagnostics.
+
+Type a contractor name into one or more rows and click **Update**. Before
+writing anything, each correction is checked against the current List DT
+cache/bundled map *and* the pending sync queue:
+
+- **New** dt_id → written to the local List DT cache immediately, added to
+  the pending sync queue, and all currently uploaded files are re-cleaned
+  right away (no re-upload) so the corrected Contractor shows up.
+- **Duplicate** (same normalized dt_id, same contractor already known
+  locally) → not re-added; Status shows "Already exists / duplicate
+  skipped".
+- **Conflict** (same normalized dt_id, a *different* contractor already
+  known locally) → not written, never silently overwritten; Status shows
+  "Conflict: existing contractor differs" so it stays visible for manual
+  review.
+
+## Local pending sync and Google Sheet sync
+
+DT corrections always apply locally first — cleaning is never blocked
+waiting on a network call. Whether a correction has also reached the shared
+Google Sheet is tracked separately:
+
+- Every newly-applied correction is recorded in a local **pending sync**
+  queue. The Unmatched DT Correction section shows the current pending count
+  and a **Sync Pending DT** button.
+- Clicking **Update** or **Sync Pending DT** is the *only* way a sync to
+  Google Sheets is attempted — the app never auto-syncs on a timer or in a
+  background loop.
+- The sync POSTs to the same endpoint used for **Update List DT**:
+
+  ```json
+  { "action": "appendListDt", "data": [{ "dt_id": "SCM LIM 992", "contractor": "..." }] }
+  ```
+
+  using **`Content-Type: text/plain;charset=utf-8`** (not
+  `application/json`) — Google Apps Script Web Apps can trigger a CORS
+  preflight on `application/json` that the endpoint may not handle, so
+  `text/plain` keeps this a CORS-simple request. Only the standardized
+  `dt_id` is ever sent, never a raw "... DT" value.
+- The Apps Script's `appendListDt` mode is expected to do its own
+  server-side duplicate prevention and report back per-DT-ID outcomes:
+  `appended` / `updated_blank` (treated as synced — removed from the
+  pending queue), `duplicate_skipped` (Google Sheet already had this exact
+  dt_id + contractor — also removed from pending, Status shows "Already
+  exists on Google Sheet"), `conflicts` (Sheet has a different contractor —
+  **kept pending**, Status shows the conflict, never silently overwritten),
+  and `errors` (kept pending with the endpoint's message). If the response
+  doesn't use this shape at all, or isn't valid JSON, or the request fails
+  for any reason (offline, CORS, endpoint doesn't support POST), the app
+  does **not** fake success — the entry stays in the pending queue and
+  Status shows "Saved locally, pending Google Sheet sync." Cleaning and
+  contractor matching keep working normally either way; only the shared
+  sheet is out of sync until a sync actually succeeds.
+- This app does not modify the Apps Script itself — only how the web app
+  calls it and interprets its response.
+
+## Operational Summary and PILE ID integrity
+
+Each profile page's main table is now the **Operational Summary**: one row
+per PILE ID + Source + Contractor combination, with Rows, Net Total, and a
+Remark column that flags operational issues directly on the row instead of
+requiring a cross-reference to a separate issue table — Unknown DT, Missing
+Source, Missing Grade, Missing PILE ID, and/or "PILE ID has multiple
+Sources".
+
+**PILE ID integrity rule:** within one Profile + Date + Bucket group, a
+single PILE ID must resolve to exactly one Source. If it resolves to more
+than one, every Operational Summary row for that PILE ID is flagged "PILE ID
+has multiple Sources" (also counted in the Validation Report as "PILE ID /
+Source conflicts") — this is a data-quality signal, not something the app
+silently resolves for you. The reverse is expected and fine: one Source
+legitimately spanning several PILE IDs is never flagged.
+
 ## Offline behavior
 
 The app is offline-first and never requires network access to clean files:
@@ -70,18 +205,21 @@ The app is offline-first and never requires network access to clean files:
 
 ## What the warnings mean
 
-- **Mixed shift detected inside "file"** — one uploaded file contains rows
-  from both Day Shift and Night Shift; the app has already split them into
-  separate Cleaning Groups rather than guessing which shift the file
-  belongs to.
-- **"file": detected shift X does not match declared bucket Y** — a row's
-  own timestamp puts it in a different shift than the bucket you dropped
-  the file into. This is expected when a file legitimately starts a few
-  minutes before/after the shift boundary; check the group it landed in.
+- **N row(s) have timestamps outside the declared shift window.** — shown
+  on the relevant profile page for a Profile + Date + Bucket group. Some
+  rows' own timestamps land in a different shift than the bucket you
+  dropped the file into (e.g. a file that legitimately starts a few minutes
+  before/after the shift boundary, or one file containing a genuine mix of
+  Day/Night rows). These boundary rows are **not** split into a separate
+  group or hidden — they stay inside the declared operational output group
+  so operators can still copy/paste one contiguous block, and they are
+  listed in that page's **Shift Warning Rows** table for review. The app
+  never silently drops or re-buckets them.
 - **N row(s) in "file" appear to be detail rows but have an invalid or
   missing timestamp and were excluded** — a real data quality issue: rows
   that look like genuine tickets (they have a ticket number and, for ESG, a
-  weight) but no usable date/time. These rows are not in any Cleaning Group.
+  weight) but no usable date/time. These rows are not included in any
+  Profile + Date + Bucket output group.
 - **N non-detail/report row(s) in "file" were skipped** (blue, informational)
   — not a problem. ESG source files are repeated header/subtotal report
   blocks, not a single flat table; this message just confirms the app
@@ -105,3 +243,18 @@ The app is offline-first and never requires network access to clean files:
 - No automated test suite; correctness has been validated against the three
   reference sample files in `samples/` (see `docs/LEGACY_PARITY_PROFILE.md`
   for the target row counts and tonnage).
+- If a single uploaded file's rows span more than one calendar date, its
+  skipped-row and lost-row counts (Overview page) are attributed in full to
+  every Profile + Date + Bucket group that file contributes rows to, rather
+  than split proportionally. Row-level data and tonnage are unaffected;
+  only these two informational counts can double-count in that edge case.
+- The List DT Google Sheet endpoint is expected to support the
+  `appendListDt` action with the bucketed appended/updated_blank/
+  duplicate_skipped/conflicts/errors response (see "Local pending sync and
+  Google Sheet sync" above). If it doesn't — or returns a different shape —
+  the app treats the sync as unsupported rather than faking success, and
+  every DT correction stays in the local pending-sync queue indefinitely.
+  Either way this does not block cleaning or contractor matching.
+- Pending DT corrections and their sync status are stored per browser
+  (`localStorage`), the same as the List DT cache itself — they are not
+  shared across machines until a sync to Google Sheets actually succeeds.

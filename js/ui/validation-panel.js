@@ -1,3 +1,5 @@
+import { formatDecimal } from "../core/output-formatter.js";
+
 export function renderValidationPlaceholder(container) {
   container.innerHTML = "";
 
@@ -26,23 +28,32 @@ function createMetricRow(label, value) {
   return row;
 }
 
-export function renderValidation(container, validation) {
+export function renderValidation(container, validation, decimalSeparator = ".") {
   const wrap = document.createElement("div");
   wrap.className = "validation-metrics";
 
   wrap.appendChild(createMetricRow("Raw rows", validation.rawRowCount));
   wrap.appendChild(createMetricRow("Clean rows", validation.cleanRowCount));
   wrap.appendChild(createMetricRow("Lost rows", validation.lostRowCount));
-  wrap.appendChild(createMetricRow("Raw tonnage", validation.rawTonnage.toFixed(2)));
-  wrap.appendChild(createMetricRow("Clean tonnage", validation.cleanTonnage.toFixed(2)));
   wrap.appendChild(
-    createMetricRow("Tonnage difference", validation.tonnageDifference.toFixed(2))
+    createMetricRow("Raw tonnage", formatDecimal(validation.rawTonnage, decimalSeparator))
+  );
+  wrap.appendChild(
+    createMetricRow("Clean tonnage", formatDecimal(validation.cleanTonnage, decimalSeparator))
+  );
+  wrap.appendChild(
+    createMetricRow(
+      "Tonnage difference",
+      formatDecimal(validation.tonnageDifference, decimalSeparator)
+    )
   );
   wrap.appendChild(createMetricRow("Duplicate NO.NOTA", validation.duplicateNotaCount));
   wrap.appendChild(createMetricRow("Missing Contractor", validation.missingContractorCount));
   wrap.appendChild(createMetricRow("Missing Source", validation.missingSourceCount));
   wrap.appendChild(createMetricRow("Missing Grade", validation.missingGradeCount));
   wrap.appendChild(createMetricRow("Unmatched DT rows", validation.unmatchedDtCount));
+  wrap.appendChild(createMetricRow("Shift warning rows", validation.shiftWarningCount));
+  wrap.appendChild(createMetricRow("PILE ID / Source conflicts", validation.pileIdSourceConflictCount));
 
   container.appendChild(wrap);
 }

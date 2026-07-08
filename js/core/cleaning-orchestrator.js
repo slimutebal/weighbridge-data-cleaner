@@ -47,6 +47,7 @@ export async function runCleaning(bucketedFiles) {
         warnings.push({
           type: "lost-rows",
           fileName: file.name,
+          profile: profileId,
           message: `${result.lostRows.length} row(s) in "${file.name}" appear to be detail rows but have an invalid or missing timestamp and were excluded.`,
         });
       }
@@ -56,50 +57,44 @@ export async function runCleaning(bucketedFiles) {
         warnings.push({
           type: "skipped-non-detail",
           fileName: file.name,
+          profile: profileId,
           message: `${skippedRows.length} non-detail/report row(s) in "${file.name}" were skipped (headers, subtotal, blank, or metadata rows).`,
         });
       }
 
-      const shiftsInFile = new Set();
+      // Operational grouping is Profile + Date + Declared Bucket (v0.2.0).
+      // Row-level detected shift (IV-1) is still computed and kept on every
+      // row; rows whose detected shift differs from the bucket are not
+      // split into a separate group — they surface as shift warnings within
+      // this same group instead (see computeGroupValidation).
+      const groupKeysTouched = new Set();
 
       result.cleanRows.forEach((row) => {
         const shift = classifyShift(row._timestamp, profileId, shiftRules);
         row.Shift = shift;
-        shiftsInFile.add(shift);
 
-        const key = `${profileId}|${row.TANGGAL}|${shift}`;
+        const key = `${profileId}|${row.TANGGAL}|${bucket}`;
+        groupKeysTouched.add(key);
         if (!groupMap.has(key)) {
           groupMap.set(key, {
             profile: profileId,
             date: row.TANGGAL,
-            shift,
+            bucket,
             rows: [],
             sourceFiles: new Set(),
-            buckets: new Set(),
+            skippedRowsCount: 0,
+            lostRowsCount: 0,
           });
         }
         const group = groupMap.get(key);
         group.rows.push(row);
         group.sourceFiles.add(file.name);
-        group.buckets.add(bucket);
       });
 
-      if (shiftsInFile.size > 1) {
-        warnings.push({
-          type: "mixed-shift",
-          fileName: file.name,
-          message: `Mixed shift detected inside "${file.name}". Rows have been split into separate Profile + Date + Shift groups.`,
-        });
-      }
-
-      shiftsInFile.forEach((shift) => {
-        if (shift !== bucket) {
-          warnings.push({
-            type: "bucket-mismatch",
-            fileName: file.name,
-            message: `"${file.name}": detected shift ${shift} does not match declared bucket ${bucket}.`,
-          });
-        }
+      groupKeysTouched.forEach((key) => {
+        const group = groupMap.get(key);
+        group.skippedRowsCount += skippedRows.length;
+        group.lostRowsCount += result.lostRows.length;
       });
     } catch (error) {
       fileErrors.push({ fileName: file.name, message: error.message });
@@ -107,18 +102,22 @@ export async function runCleaning(bucketedFiles) {
   }
 
   const groups = Array.from(groupMap.values())
-    .map((group) => ({
-      profile: group.profile,
-      date: group.date,
-      shift: group.shift,
-      rows: group.rows,
-      sourceFiles: Array.from(group.sourceFiles),
-      buckets: Array.from(group.buckets),
-      validation: computeGroupValidation(group),
-      summary: buildGroupSummary(group),
-    }))
+    .map((group) => {
+      const validation = computeGroupValidation(group);
+      return {
+        profile: group.profile,
+        date: group.date,
+        bucket: group.bucket,
+        rows: group.rows,
+        sourceFiles: Array.from(group.sourceFiles),
+        skippedRowsCount: group.skippedRowsCount,
+        lostRowsCount: group.lostRowsCount,
+        validation,
+        summary: buildGroupSummary(group, validation),
+      };
+    })
     .sort((a, b) =>
-      `${a.profile}${a.date}${a.shift}`.localeCompare(`${b.profile}${b.date}${b.shift}`)
+      `${a.profile}${a.date}${a.bucket}`.localeCompare(`${b.profile}${b.date}${b.bucket}`)
     );
 
   return {

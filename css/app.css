@@ -256,6 +256,44 @@ body {
   font-weight: bold;
 }
 
+.group-chip-warning {
+  background: #fdecea;
+  color: #a12e26;
+  font-weight: bold;
+}
+
+.result-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #d9dfe4;
+}
+
+.result-tab-btn {
+  padding: 8px 16px;
+  border: 1px solid #d9dfe4;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: #eef1f4;
+  color: #52606d;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.result-tab-btn:hover {
+  background: #e4e7eb;
+}
+
+.result-tab-btn-active {
+  background: #ffffff;
+  color: #1f2933;
+  font-weight: bold;
+  border-color: #d9dfe4;
+  position: relative;
+  top: 2px;
+}
+
 .group-details-body {
   padding-top: 12px;
   border-top: 1px solid #e4e7eb;
@@ -316,4 +354,84 @@ body {
 
 .preview-table {
   font-size: 0.8rem;
+}
+
+.operational-summary-table th:last-child,
+.operational-summary-table td:last-child {
+  color: #a12e26;
+  font-weight: bold;
+}
+
+.operational-summary-row-flagged {
+  background: #fdecea;
+}
+
+.additional-breakdown-details {
+  margin: 8px 0 16px;
+  border: 1px solid #e4e7eb;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.additional-breakdown-details summary {
+  cursor: pointer;
+  color: #52606d;
+  font-size: 0.9rem;
+}
+
+.decimal-format-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin: 0 auto 16px;
+  max-width: 1200px;
+  background: #ffffff;
+  border: 1px solid #d9dfe4;
+  border-radius: 6px;
+}
+
+.decimal-format-selector label {
+  font-size: 0.9rem;
+  color: #52606d;
+}
+
+.decimal-format-selector select {
+  padding: 4px 8px;
+  border: 1px solid #9aa5b1;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1f2933;
+}
+
+.pending-sync-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.sync-message-warn {
+  color: #a12e26;
+}
+
+.dt-status-ok {
+  color: #1a7f37;
+}
+
+.dt-status-duplicate {
+  color: #52606d;
+}
+
+.dt-status-conflict {
+  color: #a12e26;
+  font-weight: bold;
+}
+
+.dt-status-error {
+  color: #92400e;
+}
+
+.refresh-cleaning-row {
+  margin: 0 0 16px;
 }
