@@ -34,6 +34,7 @@ samples already used during development (see
 |---|---|
 | App version / commit tested | `e1df503` — docs: add operational pilot validation plan |
 | App code baseline | `efe3075` — fix: keep result tabs sticky while scrolling |
+| Latest app fix commit (pilot closure) | `141221f` — fix: use declared shift in clean output |
 | Pilot doc baseline | v0.2 Operational Pilot |
 | Prior milestone | Prepilot UX and validation hardening completed |
 
@@ -61,8 +62,11 @@ Notes column to explain any blank or unusual value.
 | 3 | | | | | | | | | | | | | | | | | | | | |
 
 **Batch 1 note:** Initial manual smoke test passed for wrong-bucket
-rejection and core UI flow. Full operational pilot matrix still needs
-more accepted HYNC/SLNC/ESG Day/Night files before final v1.0 decision.
+rejection and core UI flow. Operator has since confirmed the full set of
+critical operational checks (see §9 Pilot Closure Summary) across
+accepted HYNC/SLNC/ESG Day/Night files; the row-by-row legacy parity
+matrix above may still be expanded later as further audit evidence, but
+is not blocking the PASS decision in §8.
 
 Column notes:
 
@@ -81,7 +85,7 @@ Column notes:
 
 | No | File Name | Issue Description | Severity (Blocker / Major / Minor) | Steps to Reproduce | Screenshot/Evidence | Status (Open / Fixed / Won't Fix) |
 |---|---|---|---|---|---|---|
-| 1 | Night Shift files (HYNC/SLNC/ESG) | Clean output rows showed Shift = DS for rows whose own timestamp classified as DS, even though the file was accepted into Night Shift Input. Clean output Shift must always follow the declared bucket. | Blocker | Upload an accepted Night Shift file into Night Shift Input; open Clean Data Preview / Copy This Profile TSV; observe some rows with Shift = DS instead of NS. | | Fixed — Clean output Shift now follows declared bucket; row-level detected shift remains in Shift Warning Rows. |
+| 1 | Night Shift files (HYNC/SLNC/ESG) | Clean output rows showed Shift = DS for rows whose own timestamp classified as DS, even though the file was accepted into Night Shift Input. Clean output Shift must always follow the declared bucket. | Blocker | Upload an accepted Night Shift file into Night Shift Input; open Clean Data Preview / Copy This Profile TSV; observe some rows with Shift = DS instead of NS. | | Fixed (commit `141221f` — fix: use declared shift in clean output) — Clean output Shift now follows declared bucket; row-level detected shift remains in Shift Warning Rows. |
 | 2 | | | | | | |
 
 ## 7. Pass / Fail Criteria
@@ -100,18 +104,54 @@ to score each matrix row's **Result** column:
 
 Select one, based on the aggregated matrix and issue log results.
 
-- [ ] **PASS** — proceed toward v1.0 release.
-- [x] **PASS WITH ISSUES** — proceed, with known minor issues tracked for
+- [x] **PASS** — proceed toward v1.0 release.
+- [ ] **PASS WITH ISSUES** — proceed, with known minor issues tracked for
       a later fix.
 - [ ] **REVISE** — return to development to fix the specific issues
       logged above before re-running the pilot.
 - [ ] **REJECT** — app is not reliable enough for operational use in its
       current state.
 
-**Decision rationale:** Initial smoke test passed, including wrong-bucket
-rejection and core result UI. Final v1.0 readiness still requires
-completing the broader pilot matrix across more real operational files.
+**Decision rationale:** Operator-confirmed pilot validation passed for
+supported profiles, Day/Night bucket validation, report-date grouping,
+declared-shift output, List DT correction, TSV copy/paste, and navigation
+UI. No blocking data-loss, row-count, tonnage, report-date, or
+shift-output issue remains open.
 
-**Decided by:**
+**Decided by:** Operator (manual pilot confirmation)
 
-**Date:**
+**Date:** 2026-07-08
+
+## 9. Pilot Closure Summary
+
+**v0.2 Operational Pilot Result:** PASS
+
+This PASS is based on operator-confirmed manual validation. The detailed
+per-file legacy parity matrix may be expanded later as audit evidence,
+but no blocking operational issue remains from the tested pilot flow.
+
+Latest app fix commit: `141221f` — fix: use declared shift in clean
+output.
+
+Operator-confirmed behaviors:
+
+- Wrong-bucket rejection works — files uploaded into the wrong Day/Night
+  bucket are rejected and removed.
+- Accepted ESG Night Shift file passes.
+- Accepted HYNC Night Shift file passes.
+- Accepted SLNC Night Shift file passes.
+- Day/Night declared bucket behavior is correct.
+- Clean output Shift follows declared bucket: Day Shift Input → DS,
+  Night Shift Input → NS.
+- Row-level detected shift remains audit-only in Shift Warning Rows.
+- Report-date grouping works: HYNC/SLNC use 日期, ESG uses TANGGAL.
+- Night Shift files crossing midnight do not split operational groups.
+- First-worksheet-only behavior works.
+- Operational Summary sorting works.
+- Canonical List DT format works: `SCM-LIM xxx`, `SCM-HLG xxx`, trailing
+  "DT" suffix removed.
+- Unmatched DT correction works.
+- Google Sheet sync works with a compatible Apps Script.
+- Decimal separator selector works.
+- TSV copy/paste works.
+- Sticky header, sticky profile tabs, and bottom action bar work.
