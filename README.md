@@ -6,6 +6,20 @@ See `docs/INFRASTRUCTURE_BLUEPRINT.md` for the confirmed infrastructure referenc
 `docs/CLEANING_LOGIC_SPEC.md` for the exact cleaning rules per profile, and
 `docs/LEGACY_PARITY_PROFILE.md` for the legacy baseline this app targets.
 
+## v0.2 Operational Pilot
+
+Before v1.0, the app goes through an operational pilot that validates real
+operational files (not just the fixed reference samples) against the
+legacy workbook, run manually by a tester:
+
+- [docs/PILOT_TEST_GUIDE.md](docs/PILOT_TEST_GUIDE.md) — step-by-step manual
+  test procedure.
+- [docs/PILOT_VALIDATION_LOG.md](docs/PILOT_VALIDATION_LOG.md) — validation
+  matrix, issue log, and pass/fail decision record.
+- [docs/PILOT_EXIT_CRITERIA.md](docs/PILOT_EXIT_CRITERIA.md) — the
+  PASS / PASS WITH ISSUES / REVISE / REJECT criteria used to score the
+  pilot.
+
 ## Opening the app locally
 
 This is a static HTML/CSS/JavaScript app — no build step, no server-side code.
