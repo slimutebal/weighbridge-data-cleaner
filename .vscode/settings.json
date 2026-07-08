@@ -8,5 +8,6 @@
     "*.xlsm": "default"
   },
   "liveServer.settings.port": 5501,
-  "liveServer.settings.root": "/"
+  "liveServer.settings.root": "/",
+  "claude-code.initialPermissionMode": "plan"
 }
