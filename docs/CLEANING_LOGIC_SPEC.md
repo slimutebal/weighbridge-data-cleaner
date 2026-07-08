@@ -127,9 +127,18 @@ contractor     - Resolved via joinContractor() (§10) using normalized
 date           - Calendar date (TANGGAL) the weigh-in occurred on, in
                  YYYY-MM-DD form for internal grouping.
 
-shift          - "DS" or "NS", per classifyShift() (§10), evaluated
-                 per row against the profile's configured
-                 dayShiftStart/dayShiftEnd window.
+shift          - Clean output "Shift" column is always the group's
+                 declared operational bucket ("DS" for Day Shift Input,
+                 "NS" for Night Shift Input) for every row in that group,
+                 never the row's own detected shift (v0.2 pilot fix).
+                 Row-level detected shift — "DS" or "NS" per
+                 classifyShift() (§10), evaluated per row against the
+                 profile's configured dayShiftStart/dayShiftEnd window —
+                 is preserved separately in an internal `_detectedShift`
+                 field for validation/audit use only: Shift Warning Rows,
+                 the validation report's shift warning count, and
+                 wrong-bucket validation. It must never overwrite the
+                 clean output Shift value.
 
 source         - Parsed from 规格 (HYNC/SLNC) or KODE ORE (ESG) via
                  parseSource() (§10).
@@ -439,6 +448,16 @@ IV-5  Unmatched DT rows are reported with enough detail (raw NO. DT,
 
 IV-6  Invalid Date/Time rows are reported explicitly as their own issue
       table, distinct from "lost rows" caused by other filtering.
+
+IV-7  Clean output "Shift" (v0.2 pilot fix) is always the group's
+      declared operational bucket (Profile + Date + Declared Bucket, as
+      actually implemented in cleaning-orchestrator.js), not the row's
+      own detected shift from IV-1 — this supersedes the group-splitting
+      language in IV-2 above, which was never implemented; mismatches
+      are surfaced as Shift Warning Rows within the same group instead.
+      Detected shift remains available only as an internal
+      `_detectedShift` field for Shift Warning Rows, the validation
+      report's shift warning count, and wrong-bucket validation.
 ```
 
 ---

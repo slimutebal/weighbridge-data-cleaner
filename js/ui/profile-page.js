@@ -214,7 +214,7 @@ function renderShiftWarningRows(container, group) {
     [
       String(row["NO.NOTA"]),
       row.Datetime instanceof Date ? formatFullDatetime(row.Datetime) : "",
-      String(row.Shift ?? ""),
+      String(row._detectedShift ?? ""),
       group.bucket,
     ].forEach((text) => {
       const td = document.createElement("td");

@@ -14,10 +14,12 @@ export function computeGroupValidation(group) {
   const missingSourceRows = rows.filter((row) => !row.Source);
   const missingGradeRows = rows.filter((row) => !row.Grade);
 
-  // Row-level detected shift (IV-1) is preserved per row; rows whose detected
-  // shift differs from the group's declared bucket are surfaced as a warning
-  // here rather than split into a separate copy group (see DECISIONS.md).
-  const shiftWarningRows = rows.filter((row) => row.Shift !== group.bucket);
+  // Row-level detected shift (IV-1) is preserved per row in _detectedShift
+  // (clean output Shift is always the declared bucket, v0.2 pilot fix); rows
+  // whose detected shift differs from the group's declared bucket are
+  // surfaced as a warning here rather than split into a separate copy group
+  // (see DECISIONS.md).
+  const shiftWarningRows = rows.filter((row) => row._detectedShift !== group.bucket);
 
   // PILE ID integrity (v0.2.0-prepilot): within one operational group, a
   // single PILE ID must resolve to exactly one Source. A Source mapping to

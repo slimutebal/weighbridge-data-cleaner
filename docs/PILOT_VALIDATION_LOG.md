@@ -81,7 +81,7 @@ Column notes:
 
 | No | File Name | Issue Description | Severity (Blocker / Major / Minor) | Steps to Reproduce | Screenshot/Evidence | Status (Open / Fixed / Won't Fix) |
 |---|---|---|---|---|---|---|
-| 1 | | | | | | |
+| 1 | Night Shift files (HYNC/SLNC/ESG) | Clean output rows showed Shift = DS for rows whose own timestamp classified as DS, even though the file was accepted into Night Shift Input. Clean output Shift must always follow the declared bucket. | Blocker | Upload an accepted Night Shift file into Night Shift Input; open Clean Data Preview / Copy This Profile TSV; observe some rows with Shift = DS instead of NS. | | Fixed — Clean output Shift now follows declared bucket; row-level detected shift remains in Shift Warning Rows. |
 | 2 | | | | | | |
 
 ## 7. Pass / Fail Criteria

@@ -70,8 +70,14 @@ export async function runCleaning(bucketedFiles) {
       const groupKeysTouched = new Set();
 
       result.cleanRows.forEach((row) => {
-        const shift = classifyShift(row._timestamp, profileId, shiftRules);
-        row.Shift = shift;
+        // Clean output Shift is always the declared bucket (v0.2 pilot fix:
+        // Night Shift Input files must show Shift = NS for every row, even
+        // if a row's own timestamp falls on the DS side of the boundary).
+        // Row-level detected shift is preserved separately in
+        // _detectedShift for Shift Warning Rows / validation / wrong-bucket
+        // use — it must never overwrite the clean output Shift field.
+        row._detectedShift = classifyShift(row._timestamp, profileId, shiftRules);
+        row.Shift = bucket;
 
         const key = `${profileId}|${row.TANGGAL}|${bucket}`;
         groupKeysTouched.add(key);
