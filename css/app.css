@@ -1,41 +1,295 @@
+/* ==========================================================================
+   Theme variables
+   Semantic CSS custom properties only — no hardcoded colors below this
+   block. Theme is selected via data-theme="light" | "dark" | "auto" on
+   <html> (see js/ui/theme-selector.js). "auto" follows the OS preference
+   through the prefers-color-scheme media query below; "light" and "dark"
+   force a specific palette regardless of OS setting.
+   ========================================================================== */
+
 :root {
   /* Fallback only, used before main.js measures the real rendered header
      height (v0.2.0-prepilot revision 7) — see the ResizeObserver in
      js/main.js, which keeps this in sync with header wrapping/zoom/width
      changes so the tab bar's stuck offset never hardcodes a guessed value. */
   --sticky-header-height: 84px;
+
+  color-scheme: light;
+
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef1f4;
+  --color-text: #1f2933;
+  --color-text-muted: #52606d;
+  --color-border: #d9dfe4;
+  --color-border-strong: #9aa5b1;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-contrast: #ffffff;
+  --color-primary-bg-tint: #dbeafe;
+  --color-primary-text-strong: #1e3a8a;
+
+  --color-danger: #a12e26;
+  --color-danger-bg: #fdecea;
+  --color-danger-border: #f5b8b0;
+
+  --color-warning: #92400e;
+  --color-warning-bg: #fffbea;
+  --color-warning-border: #f0e4a0;
+
+  --color-success: #1a7f37;
+  --color-success-bg: #eaf7ee;
+  --color-success-border: #bfe3c8;
+
+  --color-info: #2c5c8a;
+  --color-info-bg: #eef4fb;
+  --color-info-border: #bcd6ee;
+
+  --color-shadow: rgba(31, 41, 51, 0.08);
+  --color-shadow-strong: rgba(31, 41, 51, 0.2);
+  --color-overlay: rgba(31, 41, 51, 0.5);
+
+  --color-table-header: #52606d;
+  --color-table-header-bg: #f6f7f9;
+  --color-input-bg: #ffffff;
+  --color-focus-ring: #3b82f6;
+  --color-chip-neutral-bg: #e5e7eb;
+
+  /* Glassmorphism surfaces (v1.0.1-predeploy). --glass-bg is for large
+     panels (cards, tab bar, modal); --glass-bg-strong is for elements
+     that must stay legible while sticky/overlaid (header, bottom action
+     bar, modal). Large data tables intentionally do NOT use these — see
+     .summary-table-wrap / .groups-table, which stay on opaque
+     --color-surface so numbers stay readable through the blurred chrome. */
+  --glass-bg: rgba(255, 255, 255, 0.68);
+  --glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(148, 163, 184, 0.38);
+  --glass-shadow: 0 8px 32px rgba(31, 41, 51, 0.14);
+  --glass-blur: 16px;
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  --app-bg-gradient:
+    radial-gradient(circle at 12% 8%, rgba(191, 219, 254, 0.55), transparent 42%),
+    radial-gradient(circle at 88% 4%, rgba(199, 234, 255, 0.5), transparent 40%),
+    linear-gradient(180deg, #eef2f7 0%, #e6ebf2 100%);
+
+  /* Day/Night bucket accents (v1.0.1-predeploy) — subtle warm vs. cool
+     distinction layered on top of the shared glass surface (.shift-bucket
+     in the Upload buckets block below), not a replacement for it. */
+  --shift-day-accent: #d97706;
+  --shift-day-bg: linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(217, 119, 6, 0) 55%);
+  --shift-night-accent: #4f46e5;
+  --shift-night-bg: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(79, 70, 229, 0) 55%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #14181d;
+  --color-surface: #1c2128;
+  --color-surface-muted: #232933;
+  --color-text: #e6e9ec;
+  --color-text-muted: #9aa5b1;
+  --color-border: #2d333c;
+  --color-border-strong: #3f4753;
+
+  --color-primary: #5b9df7;
+  --color-primary-hover: #7db0f8;
+  --color-primary-contrast: #0b1220;
+  --color-primary-bg-tint: #1e3a5c;
+  --color-primary-text-strong: #bcd9ff;
+
+  --color-danger: #f87171;
+  --color-danger-bg: #3a1f1f;
+  --color-danger-border: #6b2e2e;
+
+  --color-warning: #fbbf24;
+  --color-warning-bg: #3a3018;
+  --color-warning-border: #5c4a1f;
+
+  --color-success: #4ade80;
+  --color-success-bg: #16321f;
+  --color-success-border: #235c34;
+
+  --color-info: #7dbef0;
+  --color-info-bg: #1c2a3a;
+  --color-info-border: #2f4a63;
+
+  --color-shadow: rgba(0, 0, 0, 0.4);
+  --color-shadow-strong: rgba(0, 0, 0, 0.6);
+  --color-overlay: rgba(0, 0, 0, 0.65);
+
+  --color-table-header: #9aa5b1;
+  --color-table-header-bg: #1c2128;
+  --color-input-bg: #1c2128;
+  --color-focus-ring: #7db0f8;
+  --color-chip-neutral-bg: #2d333c;
+
+  --glass-bg: rgba(15, 23, 42, 0.72);
+  --glass-bg-strong: rgba(15, 23, 42, 0.86);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --glass-blur: 18px;
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --app-bg-gradient:
+    radial-gradient(circle at 12% 8%, rgba(37, 63, 102, 0.42), transparent 42%),
+    radial-gradient(circle at 88% 4%, rgba(30, 41, 59, 0.45), transparent 40%),
+    linear-gradient(180deg, #0b0f16 0%, #10151d 100%);
+
+  --shift-day-accent: #fbbf24;
+  --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
+  --shift-night-accent: #818cf8;
+  --shift-night-bg: linear-gradient(135deg, rgba(129, 140, 248, 0.18), rgba(129, 140, 248, 0) 55%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    color-scheme: dark;
+
+    --color-bg: #14181d;
+    --color-surface: #1c2128;
+    --color-surface-muted: #232933;
+    --color-text: #e6e9ec;
+    --color-text-muted: #9aa5b1;
+    --color-border: #2d333c;
+    --color-border-strong: #3f4753;
+
+    --color-primary: #5b9df7;
+    --color-primary-hover: #7db0f8;
+    --color-primary-contrast: #0b1220;
+    --color-primary-bg-tint: #1e3a5c;
+    --color-primary-text-strong: #bcd9ff;
+
+    --color-danger: #f87171;
+    --color-danger-bg: #3a1f1f;
+    --color-danger-border: #6b2e2e;
+
+    --color-warning: #fbbf24;
+    --color-warning-bg: #3a3018;
+    --color-warning-border: #5c4a1f;
+
+    --color-success: #4ade80;
+    --color-success-bg: #16321f;
+    --color-success-border: #235c34;
+
+    --color-info: #7dbef0;
+    --color-info-bg: #1c2a3a;
+    --color-info-border: #2f4a63;
+
+    --color-shadow: rgba(0, 0, 0, 0.4);
+    --color-shadow-strong: rgba(0, 0, 0, 0.6);
+    --color-overlay: rgba(0, 0, 0, 0.65);
+
+    --color-table-header: #9aa5b1;
+    --color-table-header-bg: #1c2128;
+    --color-input-bg: #1c2128;
+    --color-focus-ring: #7db0f8;
+    --color-chip-neutral-bg: #2d333c;
+
+    --glass-bg: rgba(15, 23, 42, 0.72);
+    --glass-bg-strong: rgba(15, 23, 42, 0.86);
+    --glass-border: rgba(255, 255, 255, 0.09);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --glass-blur: 18px;
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    --app-bg-gradient:
+      radial-gradient(circle at 12% 8%, rgba(37, 63, 102, 0.42), transparent 42%),
+      radial-gradient(circle at 88% 4%, rgba(30, 41, 59, 0.45), transparent 40%),
+      linear-gradient(180deg, #0b0f16 0%, #10151d 100%);
+
+    --shift-day-accent: #fbbf24;
+    --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
+    --shift-night-accent: #818cf8;
+    --shift-night-bg: linear-gradient(135deg, rgba(129, 140, 248, 0.18), rgba(129, 140, 248, 0) 55%);
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 0 24px;
-  background: #f6f7f9;
-  color: #1f2933;
+  background: var(--app-bg-gradient);
+  background-attachment: fixed;
+  min-height: 100vh;
+  color: var(--color-text);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
+
+/* Visible in both themes; matches the global focus ring color so keyboard
+   navigation is never lost against either palette. */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+.drop-zone:focus-visible,
+.result-tab-btn:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   App header (toolbar)
+   ========================================================================== */
 
 /* Sticky top header (v0.2.0-prepilot revision 4): stays visible while
    scrolling long cleaning results. body's spacing moved from margin to
-   padding so the header can sit flush at top:0 with no gap once stuck. */
+   padding so the header can sit flush at top:0 with no gap once stuck.
+
+   v1.0.1-predeploy: #app-header is now the full-bleed sticky glass bar —
+   its `margin: 0 -24px` exactly cancels body's `padding: 0 24px` so the
+   background spans the full viewport width (matching
+   #bottom-action-bar-container) without resorting to 100vw, which would
+   risk a horizontal scrollbar from the vertical scrollbar gutter.
+   #app-header-inner carries the old max-width/padding/flex layout so the
+   title/controls stay aligned with the rest of the page content. */
 #app-header {
   position: sticky;
   top: 0;
   z-index: 100;
+  margin: 0 -24px;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+#app-header-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px 0 16px;
-  background: #f6f7f9;
+  padding: 16px 24px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid #d9dfe4;
 }
 
 #app-header h1 {
   margin: 0;
   font-size: 1.3rem;
+  color: var(--color-text);
+}
+
+#app-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+#app-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  object-fit: contain;
 }
 
 #app-header-controls {
@@ -43,19 +297,6 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-}
-
-#reset-btn {
-  padding: 8px 16px;
-  border: 1px solid #9aa5b1;
-  border-radius: 4px;
-  background: #ffffff;
-  color: #1f2933;
-  cursor: pointer;
-}
-
-#reset-btn:hover {
-  background: #e4e7eb;
 }
 
 #app {
@@ -66,6 +307,89 @@ body {
   padding: 20px 0 96px;
 }
 
+/* ==========================================================================
+   Buttons
+   Shared base + primary / secondary / danger variants, each with a
+   consistent disabled state. Selectors target existing buttons by their
+   container/id so no JS/DOM changes were needed to apply these styles.
+   ========================================================================== */
+
+#reset-btn,
+#bottom-action-bar button,
+.result-section button,
+#list-dt-page button,
+.summary-table-wrap > button,
+.pending-sync-row button,
+.wrong-bucket-modal button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* Primary: main affirmative actions (Update List DT, Start/Refresh
+   Cleaning, Copy All Groups, Copy This Profile, unmatched-DT Update,
+   modal OK). */
+#bottom-action-bar button,
+.result-section button,
+#list-dt-page button,
+.summary-table-wrap > button,
+.wrong-bucket-modal button {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+#bottom-action-bar button:hover:not(:disabled),
+.result-section button:hover:not(:disabled),
+#list-dt-page button:hover:not(:disabled),
+.summary-table-wrap > button:hover:not(:disabled),
+.wrong-bucket-modal button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+/* Secondary: supplementary/retry action (Sync Pending DT). */
+.pending-sync-row button {
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-strong);
+  color: var(--color-text);
+}
+
+.pending-sync-row button:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+/* Danger: destructive action (Clear / Reset). */
+#reset-btn {
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+#reset-btn:hover {
+  background: var(--color-danger-border);
+}
+
+#reset-btn:disabled,
+#bottom-action-bar button:disabled,
+.result-section button:disabled,
+#list-dt-page button:disabled,
+.summary-table-wrap > button:disabled,
+.pending-sync-row button:disabled {
+  border-color: var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-border-strong);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Bottom action bar
+   ========================================================================== */
+
 /* Sticky bottom action bar (v0.2.0-prepilot revision 4): primary operator
    copy/refresh location, pinned to the viewport regardless of scroll. */
 #bottom-action-bar-container {
@@ -74,9 +398,11 @@ body {
   right: 0;
   bottom: 0;
   z-index: 100;
-  background: #ffffff;
-  border-top: 1px solid #d9dfe4;
-  box-shadow: 0 -2px 8px rgba(31, 41, 51, 0.08);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-top: 1px solid var(--glass-border);
+  box-shadow: 0 -4px 24px var(--color-shadow);
 }
 
 #bottom-action-bar {
@@ -91,24 +417,12 @@ body {
 
 #bottom-action-bar button {
   padding: 10px 20px;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  background: #3b82f6;
-  color: #ffffff;
-  cursor: pointer;
   font-size: 0.95rem;
 }
 
-#bottom-action-bar button:hover:not(:disabled) {
-  background: #2563eb;
-}
-
-#bottom-action-bar button:disabled {
-  border-color: #9aa5b1;
-  background: #f0f2f5;
-  color: #9aa5b1;
-  cursor: not-allowed;
-}
+/* ==========================================================================
+   Upload buckets (cards)
+   ========================================================================== */
 
 .shift-buckets-row {
   display: grid;
@@ -124,42 +438,80 @@ body {
 }
 
 .shift-bucket {
-  background: #ffffff;
-  border: 1px solid #d9dfe4;
-  border-radius: 6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
   padding: 16px;
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+}
+
+/* Day/Night accents (v1.0.1-predeploy): a subtle warm/cool tint layered
+   over the shared glass background above, plus a left border and a small
+   heading marker, so the two cards read apart at a glance without adding
+   noise or touching the (already-readable, opaque) .drop-zone inside. */
+.shift-bucket--day {
+  border-left: 3px solid var(--shift-day-accent);
+  background-image: var(--shift-day-bg);
+}
+
+.shift-bucket--night {
+  border-left: 3px solid var(--shift-night-accent);
+  background-image: var(--shift-night-bg);
 }
 
 .shift-bucket h2 {
   margin-top: 0;
   font-size: 1.1rem;
+  color: var(--color-text);
+}
+
+.shift-bucket--day h2::before,
+.shift-bucket--night h2::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.shift-bucket--day h2::before {
+  background: var(--shift-day-accent);
+}
+
+.shift-bucket--night h2::before {
+  background: var(--shift-night-accent);
 }
 
 .shift-bucket-hint {
   margin: 0 0 12px;
   font-size: 0.85rem;
-  color: #52606d;
+  color: var(--color-text-muted);
 }
 
 .drop-zone {
-  border: 2px dashed #9aa5b1;
+  border: 2px dashed var(--color-border-strong);
   border-radius: 6px;
   padding: 24px 16px;
   text-align: center;
-  color: #52606d;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .drop-zone:hover,
-.drop-zone:focus {
-  border-color: #3b82f6;
+.drop-zone:focus-visible {
+  border-color: var(--color-primary);
   outline: none;
 }
 
 .drop-zone-active {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg-tint);
 }
 
 .visually-hidden-input {
@@ -176,7 +528,7 @@ body {
 }
 
 .file-list-empty {
-  color: #9aa5b1;
+  color: var(--color-border-strong);
   font-size: 0.85rem;
   margin: 0;
 }
@@ -190,70 +542,78 @@ body {
 .file-list-item {
   padding: 4px 0;
   font-size: 0.9rem;
-  border-bottom: 1px solid #e4e7eb;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .file-list-item:last-child {
   border-bottom: none;
 }
 
+/* ==========================================================================
+   Result sections / cards
+   ========================================================================== */
+
 .result-section {
-  background: #ffffff;
-  border: 1px solid #d9dfe4;
-  border-radius: 6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
   padding: 16px;
   margin-bottom: 16px;
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
 }
 
 .result-section h3 {
   margin-top: 0;
   font-size: 1rem;
+  color: var(--color-text);
 }
 
 .placeholder-text {
-  color: #9aa5b1;
+  color: var(--color-border-strong);
   font-size: 0.9rem;
   margin: 0;
 }
 
-.result-section button {
-  margin-right: 8px;
-  padding: 8px 16px;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  background: #3b82f6;
-  color: #ffffff;
-  cursor: pointer;
+/* Overview groups table can get wide (10 columns); allow horizontal
+   scroll on narrow screens without breaking the sticky layout around it. */
+.result-tab-panel {
+  overflow-x: auto;
 }
 
-.result-section button:hover:not(:disabled) {
-  background: #2563eb;
-}
-
-.result-section button:disabled {
-  border-color: #9aa5b1;
-  background: #f0f2f5;
-  color: #9aa5b1;
-  cursor: not-allowed;
-}
-
+/* Kept on opaque --color-surface (not glass) even though it sits inside
+   a glass .result-tab-panel — table readability must win over the glass
+   effect (see acceptance criteria in v1.0.1-predeploy). */
 .groups-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .groups-table th,
 .groups-table td {
   text-align: left;
-  padding: 6px 8px;
-  border-bottom: 1px solid #e4e7eb;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .groups-table thead th {
-  border-bottom: 2px solid #d9dfe4;
-  color: #52606d;
+  background: var(--color-table-header-bg);
+  border-bottom: 2px solid var(--color-border);
+  color: var(--color-table-header);
 }
+
+.groups-table tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+
+/* ==========================================================================
+   Warning / info / error panels
+   ========================================================================== */
 
 .warning-list {
   list-style: none;
@@ -262,38 +622,49 @@ body {
 }
 
 .warning-list li {
-  background: #fffbea;
-  border: 1px solid #f0e4a0;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-left: 4px solid var(--color-warning);
   border-radius: 4px;
   padding: 8px 12px;
   margin-bottom: 6px;
   font-size: 0.85rem;
-  color: #7a6a1f;
+  color: var(--color-warning);
 }
 
 .warning-list-error li {
-  background: #fdecea;
-  border-color: #f5b8b0;
-  color: #a12e26;
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  border-left-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .warning-list-info li {
-  background: #eef4fb;
-  border-color: #bcd6ee;
-  color: #2c5c8a;
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  border-left-color: var(--color-info);
+  color: var(--color-info);
 }
 
+/* ==========================================================================
+   Profile groups (details/summary) and chips
+   ========================================================================== */
+
 .group-details {
-  border: 1px solid #d9dfe4;
-  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
   margin-bottom: 12px;
   padding: 8px 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 .group-details summary {
   cursor: pointer;
   font-weight: bold;
   padding: 6px 0;
+  color: var(--color-text);
 }
 
 .group-summary-line {
@@ -307,7 +678,8 @@ body {
 .group-chip {
   display: inline-block;
   white-space: nowrap;
-  background: #eef1f4;
+  background: var(--color-chip-neutral-bg);
+  color: var(--color-text);
   border-radius: 4px;
   padding: 2px 8px;
   font-size: 0.85rem;
@@ -315,27 +687,32 @@ body {
 }
 
 .group-chip-profile {
-  background: #dbeafe;
-  color: #1e3a8a;
+  background: var(--color-primary-bg-tint);
+  color: var(--color-primary-text-strong);
   font-weight: bold;
 }
 
 .group-chip-date {
-  background: #e5e7eb;
+  background: var(--color-chip-neutral-bg);
+  color: var(--color-text);
   font-variant-numeric: tabular-nums;
 }
 
 .group-chip-shift {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
   font-weight: bold;
 }
 
 .group-chip-warning {
-  background: #fdecea;
-  color: #a12e26;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   font-weight: bold;
 }
+
+/* ==========================================================================
+   Sticky profile tabs
+   ========================================================================== */
 
 /* Sticky profile tabs (v0.2.0-prepilot revision 7): stick directly below
    the sticky app header so Overview/HYNC/SLNC/ESG stay reachable while
@@ -350,44 +727,54 @@ body {
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 16px;
-  padding-top: 8px;
-  background: #f6f7f9;
-  border-bottom: 2px solid #d9dfe4;
+  padding: 8px 8px 0;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 2px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .result-tab-btn {
   padding: 8px 16px;
-  border: 1px solid #d9dfe4;
+  border: 1px solid var(--color-border);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
-  background: #eef1f4;
-  color: #52606d;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
   cursor: pointer;
   font-size: 0.9rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .result-tab-btn:hover {
-  background: #e4e7eb;
+  background: var(--color-border);
 }
 
 .result-tab-btn-active {
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-weight: bold;
-  border-color: #d9dfe4;
+  border-color: var(--color-border);
+  border-top: 2px solid var(--color-primary);
   position: relative;
   top: 2px;
 }
 
+/* ==========================================================================
+   Group details body: validation metrics, summary tables, previews
+   ========================================================================== */
+
 .group-details-body {
   padding-top: 12px;
-  border-top: 1px solid #e4e7eb;
+  border-top: 1px solid var(--color-border);
   margin-top: 8px;
 }
 
 .group-details-body h4 {
   margin: 16px 0 8px;
   font-size: 0.95rem;
+  color: var(--color-text);
 }
 
 .validation-metrics {
@@ -401,40 +788,56 @@ body {
   display: flex;
   justify-content: space-between;
   padding: 4px 8px;
-  background: #f6f7f9;
+  background: var(--color-surface-muted);
   border-radius: 4px;
 }
 
 .metric-label {
-  color: #52606d;
+  color: var(--color-text-muted);
 }
 
 .metric-value {
   font-weight: bold;
+  color: var(--color-text);
 }
 
+/* Near-solid card, deliberately not glass: these wrap the operator-facing
+   data tables (Operational Summary, Clean Data Preview, Shift Warning
+   Rows, Unmatched DT, List DT), which must stay fully readable even
+   though they usually sit inside a glass .result-section/.group-details
+   parent. */
 .summary-table-wrap {
   overflow-x: auto;
   margin-bottom: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 4px;
 }
 
 .summary-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
+  color: var(--color-text);
 }
 
 .summary-table th,
 .summary-table td {
   text-align: left;
-  padding: 4px 8px;
-  border-bottom: 1px solid #e4e7eb;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .summary-table thead th {
-  border-bottom: 2px solid #d9dfe4;
-  color: #52606d;
+  background: var(--color-table-header-bg);
+  border-bottom: 2px solid var(--color-border);
+  color: var(--color-table-header);
+}
+
+.summary-table tbody tr:hover {
+  background: var(--color-surface-muted);
 }
 
 .preview-table {
@@ -443,26 +846,32 @@ body {
 
 .operational-summary-table th:last-child,
 .operational-summary-table td:last-child {
-  color: #a12e26;
+  color: var(--color-danger);
   font-weight: bold;
+  white-space: normal;
 }
 
 .operational-summary-row-flagged {
-  background: #fdecea;
+  background: var(--color-danger-bg);
 }
 
 .additional-breakdown-details {
   margin: 8px 0 16px;
-  border: 1px solid #e4e7eb;
+  border: 1px solid var(--glass-border);
   border-radius: 6px;
   padding: 8px 12px;
+  background: var(--glass-bg-strong);
 }
 
 .additional-breakdown-details summary {
   cursor: pointer;
-  color: #52606d;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
+
+/* ==========================================================================
+   Header controls: decimal format / theme selectors
+   ========================================================================== */
 
 .decimal-format-selector,
 .theme-mode-selector {
@@ -470,25 +879,29 @@ body {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: #ffffff;
-  border: 1px solid #d9dfe4;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
   border-radius: 6px;
 }
 
 .decimal-format-selector label,
 .theme-mode-selector label {
   font-size: 0.9rem;
-  color: #52606d;
+  color: var(--color-text-muted);
 }
 
 .decimal-format-selector select,
 .theme-mode-selector select {
   padding: 4px 8px;
-  border: 1px solid #9aa5b1;
+  border: 1px solid var(--color-border-strong);
   border-radius: 4px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--color-input-bg);
+  color: var(--color-text);
 }
+
+/* ==========================================================================
+   Unmatched DT Correction
+   ========================================================================== */
 
 .pending-sync-row {
   display: flex;
@@ -498,43 +911,71 @@ body {
 }
 
 .sync-message-warn {
-  color: #a12e26;
+  color: var(--color-danger);
 }
 
 .dt-status-ok {
-  color: #1a7f37;
+  color: var(--color-success);
 }
 
 .dt-status-duplicate {
-  color: #52606d;
+  color: var(--color-text-muted);
 }
 
 .dt-status-conflict {
-  color: #a12e26;
+  color: var(--color-danger);
   font-weight: bold;
 }
 
 .dt-status-error {
-  color: #92400e;
+  color: var(--color-warning);
 }
+
+.summary-table input[type="text"] {
+  width: 100%;
+  min-width: 140px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.summary-table input[type="text"]:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-border-strong);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Wrong shift bucket rejection modal
+   ========================================================================== */
 
 /* Wrong shift bucket rejection modal (v0.2.0-prepilot revision 5). */
 .wrong-bucket-modal {
   max-width: 480px;
   width: calc(100% - 48px);
-  border: 1px solid #d9dfe4;
-  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
   padding: 20px 24px;
-  box-shadow: 0 8px 24px rgba(31, 41, 51, 0.2);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: var(--color-text);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
 }
 
 .wrong-bucket-modal::backdrop {
-  background: rgba(31, 41, 51, 0.5);
+  background: var(--color-overlay);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 .wrong-bucket-modal h3 {
   margin: 0 0 8px;
-  color: #a12e26;
+  color: var(--color-danger);
 }
 
 .wrong-bucket-block + .wrong-bucket-block {
@@ -543,30 +984,23 @@ body {
 
 .wrong-bucket-modal hr {
   border: none;
-  border-top: 1px solid #e4e7eb;
+  border-top: 1px solid var(--color-border);
   margin: 16px 0;
 }
 
 .wrong-bucket-line {
   margin: 4px 0;
   font-size: 0.9rem;
+  color: var(--color-text);
 }
 
 .wrong-bucket-instruction {
   margin: 12px 0 0;
   font-weight: bold;
+  color: var(--color-text);
 }
 
 .wrong-bucket-modal button {
   margin-top: 16px;
   padding: 8px 20px;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  background: #3b82f6;
-  color: #ffffff;
-  cursor: pointer;
-}
-
-.wrong-bucket-modal button:hover {
-  background: #2563eb;
 }

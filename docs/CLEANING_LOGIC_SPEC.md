@@ -188,7 +188,8 @@ Type, Buyer, Net, PILE ID, Source, Grade, Profile
 6. classifyShift(Datetime, HYNC shift window) → row-level Shift
    (improved validation, §12).
    Separately compute legacyShift per file per §11.
-7. cleanPileId(备注 / PILE ID) → PILE ID.
+7. cleanPileId(备注 / PILE ID) → PILE ID, then canonicalizeHyncPileId()
+   (LC-16) to normalize SCHY/EX hyphenation.
 8. cleanDtId(车号) then normalizeDtId() at join time → NO. DT.
 9. parseSource(规格) → Source.
 10. parseGrade(规格) → Grade.
@@ -220,7 +221,9 @@ All other steps (raw field mapping, date/time parsing, shift
 classification, DT/PILE ID cleaning, source/grade parsing, Net conversion,
 List DT join, validation, and reporting) are identical to HYNC, because
 HYNC and SLNC share the same raw Chinese weighbridge structure (parity
-profile §4.2, §6).
+profile §4.2, §6) — except step 7's canonicalizeHyncPileId() call
+(LC-16), which is HYNC-only and must not run for SLNC. SLNC's PILE ID
+goes through cleanPileId() only, same as before.
 ```
 
 ---
@@ -318,6 +321,28 @@ cleanPileId(value):
     reads the same field (§5) so detection and output use one consistent
     reading of 备注 / PILE ID.
 
+canonicalizeHyncPileId(value) — HYNC only (LC-16, v1.0.1-predeploy):
+  - applied after cleanPileId(), and only in the HYNC pipeline (§7) —
+    never for SLNC or ESG.
+  - if the cleaned value matches SCHY[-EX]-<digits> in any
+    spacing/hyphen combination, rewrite it to the canonical hyphenated
+    form:
+      SCHY02687        → SCHY-02687
+      SCHY-02687       → SCHY-02687   (already canonical)
+      SCHY 02687       → SCHY-02687
+      SCHYEX02687      → SCHY-EX-02687
+      SCHY-EX02687     → SCHY-EX-02687
+      SCHY EX 02687    → SCHY-EX-02687
+      SCHY-EX-02687    → SCHY-EX-02687   (already canonical)
+  - the numeric part (including any leading zeroes) is preserved
+    exactly as provided, never reparsed as a number.
+  - a value that does not match this shape is returned unchanged
+    (trimmed only) — it is never forced into the pattern.
+  - never called for SLNC/ESG, so their PILE IDs pass through
+    cleanPileId() only and are unaffected by this rule, e.g.:
+      SCESG-EX-000169  → SCESG-EX-000169   (unchanged, ESG)
+      SCSL-EX-0000017  → SCSL-EX-0000017   (unchanged, SLNC)
+
 joinContractor(normalizedDtId):
   - look up normalizedDtId against the normalized List DT map
   - on match → Contractor = matched contractor
@@ -409,6 +434,17 @@ LC-15 收货单位 (HYNC/SLNC) and PENERIMA/Pembeli (ESG) must not be wired
       available as raw/reference data only if retained at all; treating
       them as the Buyer source is a legacy-incompatible mistake, not a
       valid alternative implementation.
+
+LC-16 HYNC PILE ID hyphenation is canonicalized via
+      canonicalizeHyncPileId() (§10) after cleanPileId(), applied to
+      every HYNC output surface (Clean Data Preview, Operational
+      Summary, TSV export, PILE ID integrity validation):
+      SCHY02687 / SCHY 02687 / SCHY-02687 → SCHY-02687;
+      SCHYEX02687 / SCHY-EX02687 / SCHY EX 02687 / SCHY-EX-02687 →
+      SCHY-EX-02687. The numeric part (including leading zeroes) is
+      never altered. This is HYNC-only (SCHY marker) — SLNC (SCSL) and
+      ESG PILE ID formatting are unaffected and must never be routed
+      through canonicalizeHyncPileId().
 ```
 
 ---

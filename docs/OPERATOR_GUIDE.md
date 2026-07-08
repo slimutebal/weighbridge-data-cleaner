@@ -38,9 +38,15 @@ these three profiles.
 
    Pick whichever matches your Excel's regional settings. Your choice is
    saved in the browser and applies to previews and copied output.
-5. Optionally choose a **Theme** (Auto / Light / Dark) in the header. Your
-   choice is saved, but note that theme support is currently a placeholder
-   — selecting Light or Dark has no visual effect yet.
+5. Optionally choose a **Theme** in the header:
+   - **Auto** — follows your system's Light/Dark setting and updates live
+     if you change it.
+   - **Light** — forces light mode regardless of system setting.
+   - **Dark** — forces dark mode regardless of system setting.
+
+   Your choice applies immediately (no reload needed) and is saved in the
+   browser, so it's remembered next time you open the app. Default is
+   Auto.
 
 ## 4. Upload workflow
 
@@ -192,9 +198,8 @@ and **Refresh Cleaning** afterward:
 - No login.
 - No ODBC / real-time weighbridge connection.
 - No XLSX export yet — output is TSV-to-clipboard only.
-- Theme mode may be placeholder/limited if full styling is not
-  implemented (Light/Dark selection is saved but currently has no visual
-  effect).
+- Theme mode (Auto/Light/Dark) is implemented and functional; further
+  visual refinement can still continue after v1.0.
 - Additional real-file pilot evidence can continue to be appended to
   `docs/PILOT_VALIDATION_LOG.md`.
 

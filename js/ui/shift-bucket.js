@@ -17,7 +17,13 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
   }
 
   const root = document.createElement("div");
-  root.className = "shift-bucket";
+  // Day/Night visual accent (v1.0.1-predeploy) — purely a CSS class for
+  // .shift-bucket--day / .shift-bucket--night in css/app.css; does not
+  // affect wrong-bucket validation, which is computed separately in
+  // js/core/shift-bucket-validator.js.
+  const accentClass =
+    bucketId === "DS" ? "shift-bucket--day" : bucketId === "NS" ? "shift-bucket--night" : "";
+  root.className = ["shift-bucket", accentClass].filter(Boolean).join(" ");
   root.id = id;
 
   const heading = document.createElement("h2");

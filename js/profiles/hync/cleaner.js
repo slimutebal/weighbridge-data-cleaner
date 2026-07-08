@@ -6,6 +6,7 @@ import {
 import { combineDateAndTime, toDateKey, parseCellDateTime } from "../../core/datetime-utils.js";
 import {
   cleanPileId,
+  canonicalizeHyncPileId,
   parseSourceGrade,
   deriveType,
   deriveBuyerHyncSlnc,
@@ -87,7 +88,10 @@ export function clean(workbook, { joinContractor, listDt }) {
     const reportDate = parseCellDateTime(reportDateRaw) || timestamp;
 
     const remark = markerColumn !== -1 ? row[markerColumn] : "";
-    const pileId = cleanPileId(remark);
+    // HYNC-only hyphen canonicalization (v1.0.1-predeploy) — see
+    // canonicalizeHyncPileId in normalizers.js. SLNC/ESG deliberately do
+    // not call this.
+    const pileId = canonicalizeHyncPileId(cleanPileId(remark));
     const dtIdRaw = dtIdColumn !== undefined ? row[dtIdColumn] : "";
     const netRaw = netColumn !== undefined ? row[netColumn] : 0;
     const spec = specColumn !== undefined ? row[specColumn] : "";

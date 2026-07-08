@@ -56,6 +56,27 @@ export function cleanPileId(value) {
   return String(value).replace(INVISIBLE_CHARS, " ").trim();
 }
 
+// HYNC-only (v1.0.1-predeploy). Source SCHY PILE IDs spell the hyphen
+// between SCHY/EX/number inconsistently ("SCHY02687", "SCHY 02687",
+// "SCHY-02687" all appear); this canonicalizes all of them to the
+// SCHY-<number> / SCHY-EX-<number> form. Only ever called from
+// js/profiles/hync/cleaner.js — SLNC (SCSL) and ESG PILE IDs are already
+// legacy-compatible and must never pass through this function. Anything
+// that doesn't match the expected SCHY[-EX]-<digits> shape is returned
+// unchanged (trimmed only) rather than forced into the pattern, so it
+// can never mangle an unrelated/malformed value. The numeric part is
+// captured and reused verbatim, so leading zeroes are never stripped.
+const HYNC_PILE_ID_PATTERN = /^SCHY[\s-]*(EX)?[\s-]*(\d+)$/i;
+
+export function canonicalizeHyncPileId(value) {
+  const trimmed = (value === undefined || value === null ? "" : String(value)).trim();
+  const match = trimmed.match(HYNC_PILE_ID_PATTERN);
+  if (!match) return trimmed;
+
+  const [, ex, number] = match;
+  return ex ? `SCHY-EX-${number}` : `SCHY-${number}`;
+}
+
 export function parseSourceGrade(value) {
   const trimmed = value === undefined || value === null ? "" : String(value).trim();
   if (!trimmed) return { source: "", grade: "" };

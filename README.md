@@ -47,7 +47,7 @@ reliably — the app's JavaScript modules and configuration files require a real
 
 The top header stays visible while scrolling (`position: sticky`) and holds
 every global control: the app title, the **Excel Decimal Format** selector,
-a **Theme** mode placeholder (Auto / Light / Dark — see below), and
+a **Theme** mode selector (Auto / Light / Dark — see below), and
 **Clear / Reset**.
 
 A bottom action bar stays pinned to the viewport (`position: fixed`) below
@@ -61,10 +61,16 @@ reachable without scrolling back up or down through a long result set.
 under the active profile tab in one action (previously one button per
 group); it's disabled on the Overview tab and whenever no results exist.
 
-The **Theme** selector is a placeholder for now: it persists your choice
-(`localStorage`, default Auto) so it's ready to read once full dark/light
-styling is implemented, but selecting Light or Dark today has no visual
-effect and does not alter any existing layout or logic.
+The **Theme** selector is fully functional: **Auto** follows the OS/browser
+`prefers-color-scheme` setting (and updates live if the OS setting changes),
+**Light** forces the light palette, and **Dark** forces the dark palette,
+regardless of OS setting. The whole UI — header, tabs, bottom action bar,
+cards, tables, forms, and the wrong-bucket modal — is themed via CSS custom
+properties in `css/app.css`, applied instantly through a `data-theme`
+attribute on `<html>` (`js/ui/theme-selector.js`) with no reload needed.
+Your choice is saved (`localStorage`, default Auto) and restored on the
+next visit. Theming is purely visual — it does not alter any cleaning
+logic, layout structure, or existing behavior.
 
 The **Overview / HYNC / SLNC / ESG** result tabs are also sticky
 (v0.2.0-prepilot revision 7): they sit directly below the app header and
