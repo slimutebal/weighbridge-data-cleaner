@@ -14,6 +14,24 @@ function summarizeBy(rows, key) {
   return Array.from(map.values()).sort((a, b) => b.netTotal - a.netTotal);
 }
 
+// Sort A-Z by PILE ID, then Source, then Contractor (v0.2.0-prepilot
+// revision 3) so an operator scanning the report can find a PILE ID by eye
+// instead of hunting through a tonnage-ranked list. Blank/missing PILE ID
+// sorts to the bottom regardless of Source/Contractor.
+function compareOperationalSummaryEntries(a, b) {
+  const aBlank = !a.pileId;
+  const bBlank = !b.pileId;
+  if (aBlank !== bBlank) return aBlank ? 1 : -1;
+
+  const pileIdCompare = a.pileId.localeCompare(b.pileId);
+  if (pileIdCompare !== 0) return pileIdCompare;
+
+  const sourceCompare = (a.source || "").localeCompare(b.source || "");
+  if (sourceCompare !== 0) return sourceCompare;
+
+  return (a.contractor || "").localeCompare(b.contractor || "");
+}
+
 // Main operator-facing summary (v0.2.0-prepilot): one row per PILE ID +
 // Source + Contractor combination, with a Remark column calling out
 // operational issues on that combination rather than requiring the operator
@@ -46,7 +64,7 @@ function buildOperationalSummary(rows, conflictingPileIds) {
       if (entry.pileId && conflictSet.has(entry.pileId)) remarks.push("PILE ID has multiple Sources");
       return { ...entry, remark: remarks.join("; ") };
     })
-    .sort((a, b) => b.netTotal - a.netTotal);
+    .sort(compareOperationalSummaryEntries);
 }
 
 export function buildGroupSummary(group, validation) {

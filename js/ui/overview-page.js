@@ -1,6 +1,4 @@
-import { rowsToTsv } from "../core/tsv-exporter.js";
 import { formatDecimal } from "../core/output-formatter.js";
-import { copyToClipboard } from "./clipboard-utils.js";
 import {
   getPendingSyncEntries,
   addPendingSyncEntries,
@@ -360,15 +358,8 @@ export function renderOverview(
 
   renderSummaryTable(container, groups, decimalSeparator);
 
-  const copyAllBtn = document.createElement("button");
-  copyAllBtn.type = "button";
-  copyAllBtn.textContent = "Copy All Groups";
-  copyAllBtn.addEventListener("click", () => {
-    const allRows = groups.flatMap((group) => group.rows);
-    const tsv = rowsToTsv(allRows, { includeHeader: false, decimalSeparator });
-    copyToClipboard(tsv, copyAllBtn);
-  });
-  container.appendChild(copyAllBtn);
+  // Copy All Groups now lives in the sticky bottom action bar
+  // (v0.2.0-prepilot revision 4), not here — avoids a duplicate button.
 
   const sectionContainer = document.createElement("div");
   container.appendChild(sectionContainer);

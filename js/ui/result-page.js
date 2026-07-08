@@ -1,30 +1,20 @@
 import { renderOverview, resetUnmatchedDtDrafts } from "./overview-page.js";
 import { renderProfilePage } from "./profile-page.js";
+import { mountActionBar } from "./action-bar.js";
+import { rowsToTsv } from "../core/tsv-exporter.js";
+import { copyToClipboard } from "./clipboard-utils.js";
 
 const PROFILE_ORDER = ["HYNC", "SLNC", "ESG"];
 
 export function mountResultPage(
   container,
-  { decimalSeparator = ".", listDtEndpoint, onRecleanRequested } = {}
+  { decimalSeparator = ".", listDtEndpoint, onRecleanRequested, actionBarContainer } = {}
 ) {
   let currentDecimalSeparator = decimalSeparator;
   let hasFilesSelected = false;
 
   const heading = document.createElement("h2");
   heading.textContent = "Cleaning Results";
-
-  // Re-runs cleaning against whatever files are currently selected, without
-  // requiring re-upload — reuses the same currently-selected files, current
-  // List DT cache, and current decimal separator setting. Label reflects
-  // whether a cleaning run has already produced results.
-  const refreshRow = document.createElement("div");
-  refreshRow.className = "refresh-cleaning-row";
-  const refreshBtn = document.createElement("button");
-  refreshBtn.type = "button";
-  refreshBtn.addEventListener("click", () => {
-    if (onRecleanRequested) onRecleanRequested();
-  });
-  refreshRow.appendChild(refreshBtn);
 
   const statusSection = document.createElement("div");
   statusSection.className = "result-section";
@@ -41,7 +31,6 @@ export function mountResultPage(
   panelContainer.className = "result-section result-tab-panel";
 
   container.appendChild(heading);
-  container.appendChild(refreshRow);
   container.appendChild(statusSection);
   container.appendChild(tabsNav);
   container.appendChild(panelContainer);
@@ -49,9 +38,38 @@ export function mountResultPage(
   let currentResult = { groups: [], warnings: [], fileErrors: [], listDtInfo: null };
   let activeTab = "overview";
 
-  function renderRefreshButton() {
-    refreshBtn.textContent = currentResult.groups.length ? "Refresh Cleaning" : "Start Cleaning";
-    refreshBtn.disabled = !hasFilesSelected;
+  // The bottom action bar is the primary place operators trigger
+  // Refresh/Copy actions (v0.2.0-prepilot revision 4) — re-runs cleaning
+  // against whatever files are currently selected, without requiring
+  // re-upload, using the current List DT cache and decimal separator.
+  const actionBar = mountActionBar(actionBarContainer, {
+    onRefresh: () => {
+      if (onRecleanRequested) onRecleanRequested();
+    },
+    onCopyAll: (button) => {
+      const allRows = currentResult.groups.flatMap((group) => group.rows);
+      const tsv = rowsToTsv(allRows, { includeHeader: false, decimalSeparator: currentDecimalSeparator });
+      copyToClipboard(tsv, button);
+    },
+    onCopyProfile: (button) => {
+      if (activeTab === "overview") return;
+      const profileRows = currentResult.groups
+        .filter((group) => group.profile === activeTab)
+        .flatMap((group) => group.rows);
+      const tsv = rowsToTsv(profileRows, {
+        includeHeader: false,
+        decimalSeparator: currentDecimalSeparator,
+      });
+      copyToClipboard(tsv, button);
+    },
+  });
+
+  function updateActionBar() {
+    actionBar.update({
+      hasFiles: hasFilesSelected,
+      hasResults: currentResult.groups.length > 0,
+      isProfileTab: activeTab !== "overview",
+    });
   }
 
   function renderListDtStatus(listDtInfo) {
@@ -91,6 +109,7 @@ export function mountResultPage(
         activeTab = tabId;
         renderTabs();
         renderPanel();
+        updateActionBar();
       });
       tabsNav.appendChild(btn);
     });
@@ -113,10 +132,10 @@ export function mountResultPage(
     activeTab = "overview";
     hasFilesSelected = false;
     resetUnmatchedDtDrafts();
-    renderRefreshButton();
     renderListDtStatus(null);
     renderTabs();
     renderPanel();
+    updateActionBar();
   }
 
   function showGroups(result) {
@@ -126,10 +145,10 @@ export function mountResultPage(
       fileErrors: result.fileErrors || [],
       listDtInfo: result.listDtInfo || null,
     };
-    renderRefreshButton();
     renderListDtStatus(currentResult.listDtInfo);
     renderTabs();
     renderPanel();
+    updateActionBar();
   }
 
   function setDecimalSeparator(value) {
@@ -139,7 +158,7 @@ export function mountResultPage(
 
   function setHasFiles(hasFiles) {
     hasFilesSelected = Boolean(hasFiles);
-    renderRefreshButton();
+    updateActionBar();
   }
 
   reset();

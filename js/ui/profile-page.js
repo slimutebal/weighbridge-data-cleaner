@@ -1,7 +1,10 @@
-import { rowsToTsv } from "../core/tsv-exporter.js";
-import { formatDateOnly, formatDecimal, extractNumericGrade } from "../core/output-formatter.js";
+import {
+  formatDateOnly,
+  formatFullDatetime,
+  formatDecimal,
+  extractNumericGrade,
+} from "../core/output-formatter.js";
 import { renderValidation } from "./validation-panel.js";
-import { copyToClipboard } from "./clipboard-utils.js";
 
 const PREVIEW_COLUMNS = [
   "TANGGAL",
@@ -210,7 +213,7 @@ function renderShiftWarningRows(container, group) {
     const tr = document.createElement("tr");
     [
       String(row["NO.NOTA"]),
-      row.Datetime instanceof Date ? formatDateOnly(row.Datetime) : "",
+      row.Datetime instanceof Date ? formatFullDatetime(row.Datetime) : "",
       String(row.Shift ?? ""),
       group.bucket,
     ].forEach((text) => {
@@ -362,14 +365,10 @@ function renderProfileGroup(group, decimalSeparator) {
   renderShiftWarningRows(body, group);
   renderPreview(body, group.rows, decimalSeparator);
 
-  const copyBtn = document.createElement("button");
-  copyBtn.type = "button";
-  copyBtn.textContent = "Copy This Profile";
-  copyBtn.addEventListener("click", () => {
-    const tsv = rowsToTsv(group.rows, { includeHeader: false, decimalSeparator });
-    copyToClipboard(tsv, copyBtn);
-  });
-  body.appendChild(copyBtn);
+  // Copying now happens from the sticky bottom action bar's "Copy This
+  // Profile" button, which copies every group under the active profile tab
+  // (v0.2.0-prepilot revision 4) — no per-group copy button here anymore,
+  // avoiding a duplicate/confusing control with a different, narrower scope.
 
   details.appendChild(body);
   return details;

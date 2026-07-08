@@ -9,15 +9,20 @@
 <body>
   <header id="app-header">
     <h1>Weighbridge Data Cleaner</h1>
-    <button id="reset-btn" type="button">Clear / Reset</button>
+    <div id="app-header-controls">
+      <div id="decimal-format-page" aria-label="Excel Decimal Format"></div>
+      <div id="theme-mode-page" aria-label="Theme Mode"></div>
+      <button id="reset-btn" type="button">Clear / Reset</button>
+    </div>
   </header>
 
   <main id="app">
-    <section id="decimal-format-page" aria-label="Excel Decimal Format"></section>
     <section id="list-dt-page" class="result-section" aria-label="List DT"></section>
     <section id="import-page" aria-label="Import"></section>
     <section id="result-page" aria-label="Cleaning Results"></section>
   </main>
+
+  <div id="bottom-action-bar-container"></div>
 
   <script src="./lib/sheetjs/xlsx.full.min.js"></script>
   <script type="module" src="./js/main.js"></script>

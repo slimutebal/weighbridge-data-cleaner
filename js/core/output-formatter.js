@@ -6,6 +6,18 @@ export function formatDateOnly(date) {
   return `${y}-${m}-${d}`;
 }
 
+// Used only by warning/audit tables (e.g. Shift Warning Rows) that need to
+// show the exact row timestamp for review. Clean output (TANGGAL, Datetime
+// in the preview/TSV) must stay on formatDateOnly — see README.md.
+export function formatFullDatetime(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const datePart = formatDateOnly(date);
+  const h = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+  const s = String(date.getSeconds()).padStart(2, "0");
+  return `${datePart} ${h}:${mi}:${s}`;
+}
+
 function detectAutoDecimalSeparator() {
   return (1.1).toLocaleString().includes(",") ? "," : ".";
 }

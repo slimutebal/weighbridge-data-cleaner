@@ -19,6 +19,29 @@ Opening `index.html` directly by double-clicking it (`file://`) will not work
 reliably — the app's JavaScript modules and configuration files require a real
 `http://` origin to load.
 
+## Sticky header and bottom action bar
+
+The top header stays visible while scrolling (`position: sticky`) and holds
+every global control: the app title, the **Excel Decimal Format** selector,
+a **Theme** mode placeholder (Auto / Light / Dark — see below), and
+**Clear / Reset**.
+
+A bottom action bar stays pinned to the viewport (`position: fixed`) below
+all cleaning results and holds the three primary operator actions:
+**Start Cleaning / Refresh Cleaning**, **Copy All Groups**, and **Copy This
+Profile**. These used to be scattered across the results area (a refresh
+row above the tabs, a copy button on the Overview page, a copy button on
+each individual date/bucket group) — they now live in one place so they're
+reachable without scrolling back up or down through a long result set.
+**Copy This Profile** now copies *every* Profile + Date + Bucket group
+under the active profile tab in one action (previously one button per
+group); it's disabled on the Overview tab and whenever no results exist.
+
+The **Theme** selector is a placeholder for now: it persists your choice
+(`localStorage`, default Auto) so it's ready to read once full dark/light
+styling is implemented, but selecting Light or Dark today has no visual
+effect and does not alter any existing layout or logic.
+
 ## Uploading Day Shift / Night Shift files
 
 The first page has two drop zones: **Day Shift Input** and **Night Shift Input**.
@@ -34,8 +57,38 @@ The first page has two drop zones: **Day Shift Input** and **Night Shift Input**
    dropped the file into, not the row-level detected shift.
 4. Click **Clear / Reset** to remove all uploaded files and start over.
 
-A **Start Cleaning / Refresh Cleaning** button sits above the results area
-(labeled "Start Cleaning" before any run, "Refresh Cleaning" afterward). It
+## Operational report date and worksheet scope
+
+The **Date** in Profile + Date + Bucket always comes from the source
+workbook's own report-date column, never from a row's own weigh-in
+timestamp:
+
+- HYNC / SLNC: the raw **日期** column.
+- ESG: the raw **TANGGAL** column.
+
+This matters for Night Shift files, whose row timestamps legitimately cross
+midnight (e.g. some rows at 23:50, others at 00:15 the next calendar day).
+Because grouping uses the report-date column and not the timestamp, a Night
+Shift file stays in **one** operational group as long as its report-date
+column holds one value — it is never split into two date groups just
+because individual rows' clock times rolled over midnight.
+
+The row-level timestamp (毛重时间 / JAM TIMBANG ISI) is still fully
+preserved and used for: row-level shift detection, the **Shift Warning
+Rows** table (shown as a full date+time, e.g. `2026-07-07 23:52:10`, since
+that's exactly what needs reviewing there), and the **Datetime** output
+column. The clean output **TANGGAL** column itself is always date-only
+(e.g. `2026-07-07`) and always reflects the report-date column, not the
+timestamp.
+
+**Only the first worksheet of each uploaded workbook is processed for
+detail rows.** HYNC/SLNC workbooks typically carry `汇总表` / `1 HARI`
+summary sheets after the detail sheet, and ESG workbooks carry a summary
+sheet after the detail report — these later sheets are never scanned for
+raw rows, regardless of their content.
+
+The **Start Cleaning / Refresh Cleaning** button in the bottom action bar
+(labeled "Start Cleaning" before any run, "Refresh Cleaning" afterward)
 re-runs cleaning against whatever files are currently selected — no
 re-upload needed — using the current List DT cache and the current decimal
 separator. It's disabled whenever no files are selected. This is the same
@@ -47,21 +100,23 @@ yourself at any time (e.g. after editing List DT elsewhere).
 detected profile — only HYNC / SLNC / ESG pages that actually have uploaded
 files appear. The Overview page shows a summary table (rows, net tonnage,
 missing Contractor/Source/Grade counts, shift warning count, skipped-row
-count) per Profile + Date + Bucket group, plus a **Copy All Groups** button
-that copies every profile's rows at once.
+count) per Profile + Date + Bucket group. The bottom action bar's **Copy
+All Groups** copies every profile's rows at once, from any tab.
 
 Each profile page shows, per Profile + Date + Bucket group: a validation
 report, a main **Operational Summary** table (PILE ID / Source / Contractor /
 Rows / Net Total / Remark — see "Operational Summary and PILE ID integrity"
 below), the by-Contractor / PILE ID / Source / Grade tables tucked under a
 collapsible "Additional Breakdown" (kept for reference, no longer the primary
-summary), an unmatched-DT table, a Shift Warning Rows table, a clean data
-preview, and a **Copy This Profile** button that copies every row in that
-group. All rows for the same profile/date/bucket stay together in one
-copyable block, even if some of them have a row-level detected shift that
-differs from the declared bucket — see "What the warnings mean" below. Both
-copy actions produce tab-separated values (TSV) with no header row by
-default — paste directly into Excel.
+summary), an unmatched-DT table, a Shift Warning Rows table, and a clean
+data preview. All rows for the same profile/date/bucket stay together in
+one copyable block, even if some of them have a row-level detected shift
+that differs from the declared bucket — see "What the warnings mean" below.
+The bottom action bar's **Copy This Profile** copies every group shown on
+the active profile tab (all of that profile's dates/buckets at once) when
+you're on a HYNC/SLNC/ESG tab; it's disabled on Overview. Both copy actions
+produce tab-separated values (TSV) with no header row by default — paste
+directly into Excel.
 
 ## Updating List DT
 
@@ -80,7 +135,7 @@ automatically re-cleaned so contractor values reflect the update.
 
 ## Excel decimal format
 
-A **Excel Decimal Format** selector sits at the top of the page, with two
+An **Excel Decimal Format** selector sits in the sticky top header, with two
 options: `1.20` (dot) and `1,20` (comma) — pick whichever your Excel's
 regional settings expect. Your choice is saved in the browser's
 `localStorage` and always wins over the `decimalSeparator` value in
@@ -180,7 +235,9 @@ per PILE ID + Source + Contractor combination, with Rows, Net Total, and a
 Remark column that flags operational issues directly on the row instead of
 requiring a cross-reference to a separate issue table — Unknown DT, Missing
 Source, Missing Grade, Missing PILE ID, and/or "PILE ID has multiple
-Sources".
+Sources". Rows are sorted A-Z by PILE ID, then Source, then Contractor (not
+by tonnage) so an operator can find a specific PILE ID by eye; rows with a
+blank/missing PILE ID always sort to the bottom.
 
 **PILE ID integrity rule:** within one Profile + Date + Bucket group, a
 single PILE ID must resolve to exactly one Source. If it resolves to more
@@ -243,11 +300,14 @@ The app is offline-first and never requires network access to clean files:
 - No automated test suite; correctness has been validated against the three
   reference sample files in `samples/` (see `docs/LEGACY_PARITY_PROFILE.md`
   for the target row counts and tonnage).
-- If a single uploaded file's rows span more than one calendar date, its
-  skipped-row and lost-row counts (Overview page) are attributed in full to
-  every Profile + Date + Bucket group that file contributes rows to, rather
-  than split proportionally. Row-level data and tonnage are unaffected;
-  only these two informational counts can double-count in that edge case.
+- If a single uploaded file's report-date column (日期 / TANGGAL) itself
+  holds more than one distinct value across its rows — a genuinely unusual
+  file, not the normal case of row timestamps crossing midnight, which no
+  longer causes a split — its skipped-row and lost-row counts (Overview
+  page) are attributed in full to every Profile + Date + Bucket group that
+  file contributes rows to, rather than split proportionally. Row-level
+  data and tonnage are unaffected; only these two informational counts can
+  double-count in that edge case.
 - The List DT Google Sheet endpoint is expected to support the
   `appendListDt` action with the bucketed appended/updated_blank/
   duplicate_skipped/conflicts/errors response (see "Local pending sync and

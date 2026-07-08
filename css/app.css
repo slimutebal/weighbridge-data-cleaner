@@ -1,20 +1,40 @@
 body {
   font-family: Arial, sans-serif;
-  margin: 24px;
+  margin: 0;
+  padding: 0 24px;
   background: #f6f7f9;
   color: #1f2933;
 }
 
+/* Sticky top header (v0.2.0-prepilot revision 4): stays visible while
+   scrolling long cleaning results. body's spacing moved from margin to
+   padding so the header can sit flush at top:0 with no gap once stuck. */
 #app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   max-width: 1200px;
-  margin: 0 auto 16px;
+  margin: 0 auto;
+  padding: 20px 0 16px;
+  background: #f6f7f9;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #d9dfe4;
 }
 
 #app-header h1 {
   margin: 0;
+  font-size: 1.3rem;
+}
+
+#app-header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 #reset-btn {
@@ -33,6 +53,53 @@ body {
 #app {
   max-width: 1200px;
   margin: 0 auto;
+  /* Bottom padding clears the fixed bottom action bar so it never covers
+     the last bit of content. */
+  padding: 20px 0 96px;
+}
+
+/* Sticky bottom action bar (v0.2.0-prepilot revision 4): primary operator
+   copy/refresh location, pinned to the viewport regardless of scroll. */
+#bottom-action-bar-container {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: #ffffff;
+  border-top: 1px solid #d9dfe4;
+  box-shadow: 0 -2px 8px rgba(31, 41, 51, 0.08);
+}
+
+#bottom-action-bar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+#bottom-action-bar button {
+  padding: 10px 20px;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+#bottom-action-bar button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+#bottom-action-bar button:disabled {
+  border-color: #9aa5b1;
+  background: #f0f2f5;
+  color: #9aa5b1;
+  cursor: not-allowed;
 }
 
 .shift-buckets-row {
@@ -379,24 +446,25 @@ body {
   font-size: 0.9rem;
 }
 
-.decimal-format-selector {
+.decimal-format-selector,
+.theme-mode-selector {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  margin: 0 auto 16px;
-  max-width: 1200px;
+  padding: 6px 12px;
   background: #ffffff;
   border: 1px solid #d9dfe4;
   border-radius: 6px;
 }
 
-.decimal-format-selector label {
+.decimal-format-selector label,
+.theme-mode-selector label {
   font-size: 0.9rem;
   color: #52606d;
 }
 
-.decimal-format-selector select {
+.decimal-format-selector select,
+.theme-mode-selector select {
   padding: 4px 8px;
   border: 1px solid #9aa5b1;
   border-radius: 4px;
@@ -430,8 +498,4 @@ body {
 
 .dt-status-error {
   color: #92400e;
-}
-
-.refresh-cleaning-row {
-  margin: 0 0 16px;
 }

@@ -2,6 +2,7 @@ import { mountImportPage } from "./ui/import-page.js";
 import { mountResultPage } from "./ui/result-page.js";
 import { mountListDtPage } from "./ui/list-dt-page.js";
 import { mountDecimalFormatSelector } from "./ui/decimal-format-selector.js";
+import { mountThemeSelector, loadStoredThemeMode } from "./ui/theme-selector.js";
 import { runCleaning } from "./core/cleaning-orchestrator.js";
 import { loadAppConfig } from "./core/app-settings.js";
 import { resolveDecimalSeparator } from "./core/output-formatter.js";
@@ -15,15 +16,18 @@ const decimalSeparator =
   loadStoredDecimalSeparator() || resolveDecimalSeparator(appConfig.decimalSeparator);
 
 const decimalFormatContainer = document.getElementById("decimal-format-page");
+const themeModeContainer = document.getElementById("theme-mode-page");
 const listDtContainer = document.getElementById("list-dt-page");
 const importContainer = document.getElementById("import-page");
 const resultContainer = document.getElementById("result-page");
+const actionBarContainer = document.getElementById("bottom-action-bar-container");
 const resetBtn = document.getElementById("reset-btn");
 
 const resultPage = mountResultPage(resultContainer, {
   decimalSeparator,
   listDtEndpoint: appConfig.listDtEndpoint,
   onRecleanRequested: () => handleFilesChange(lastBucketedFiles),
+  actionBarContainer,
 });
 
 mountDecimalFormatSelector(decimalFormatContainer, {
@@ -32,6 +36,10 @@ mountDecimalFormatSelector(decimalFormatContainer, {
     storeDecimalSeparator(value);
     resultPage.setDecimalSeparator(value);
   },
+});
+
+mountThemeSelector(themeModeContainer, {
+  initialValue: loadStoredThemeMode() || "auto",
 });
 
 let lastBucketedFiles = [];
