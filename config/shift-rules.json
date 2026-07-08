@@ -1,0 +1,14 @@
+{
+  "HYNC": {
+    "dayShiftStart": "06:00",
+    "dayShiftEnd": "18:00"
+  },
+  "SLNC": {
+    "dayShiftStart": "06:00",
+    "dayShiftEnd": "18:00"
+  },
+  "ESG": {
+    "dayShiftStart": "07:00",
+    "dayShiftEnd": "19:00"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "appName": "Weighbridge Data Cleaner",
+  "version": "0.1.0",
+  "listDtEndpoint": "https://script.google.com/macros/s/AKfycbwoakor1_LBN52GYBACijgorUEE5cPqjrnR_ncmCBzJH2YKf6Yl42Ys2m3VpSVoSuFs/exec",
+  "defaultIncludeHeader": false,
+  "clipboardFormat": "tsv"
+}

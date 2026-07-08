@@ -1,0 +1,11 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 24px;
+  background: #f6f7f9;
+  color: #1f2933;
+}
+
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+}

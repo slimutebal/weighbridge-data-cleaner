@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "workbench.editorAssociations": {
+    "*.xlsx": "default",
+    "*.xlsm": "default"
+  },
+  "liveServer.settings.port": 5501,
+  "liveServer.settings.root": "/"
+}
