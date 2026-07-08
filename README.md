@@ -19,7 +19,7 @@ Opening `index.html` directly by double-clicking it (`file://`) will not work
 reliably — the app's JavaScript modules and configuration files require a real
 `http://` origin to load.
 
-## Sticky header and bottom action bar
+## Sticky header, tabs, and bottom action bar
 
 The top header stays visible while scrolling (`position: sticky`) and holds
 every global control: the app title, the **Excel Decimal Format** selector,
@@ -41,6 +41,16 @@ The **Theme** selector is a placeholder for now: it persists your choice
 (`localStorage`, default Auto) so it's ready to read once full dark/light
 styling is implemented, but selecting Light or Dark today has no visual
 effect and does not alter any existing layout or logic.
+
+The **Overview / HYNC / SLNC / ESG** result tabs are also sticky
+(v0.2.0-prepilot revision 7): they sit directly below the app header and
+stay there while you scroll through a long validation, summary, preview, or
+warning table, so switching profile pages never requires scrolling back to
+the top. The tab bar's stuck position is computed from the header's actual
+rendered height (`--sticky-header-height`, kept in sync by a
+`ResizeObserver` in `js/main.js`) rather than a hardcoded pixel value, so it
+still lines up correctly if the header wraps onto two lines at a narrow
+width or its height otherwise changes.
 
 ## Uploading Day Shift / Night Shift files
 

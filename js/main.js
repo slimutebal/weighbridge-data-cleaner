@@ -85,4 +85,26 @@ resetBtn.addEventListener("click", () => {
   lastBucketedFiles = [];
 });
 
+// Keeps --sticky-header-height in sync with the app header's actual
+// rendered height (v0.2.0-prepilot revision 7), rather than hardcoding a
+// guessed pixel value in CSS — the header's height can change from
+// control wrapping at narrow widths, browser zoom, or future header
+// changes. The sticky result tab bar (css/app.css) reads this variable
+// for its own `top` offset so it always sits flush below the header.
+const appHeader = document.getElementById("app-header");
+
+function updateStickyHeaderHeight() {
+  document.documentElement.style.setProperty(
+    "--sticky-header-height",
+    `${appHeader.offsetHeight}px`
+  );
+}
+
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(updateStickyHeaderHeight).observe(appHeader);
+} else {
+  window.addEventListener("resize", updateStickyHeaderHeight);
+}
+updateStickyHeaderHeight();
+
 console.log("Weighbridge Data Cleaner UI shell loaded.");

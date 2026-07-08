@@ -1,3 +1,11 @@
+:root {
+  /* Fallback only, used before main.js measures the real rendered header
+     height (v0.2.0-prepilot revision 7) — see the ResizeObserver in
+     js/main.js, which keeps this in sync with header wrapping/zoom/width
+     changes so the tab bar's stuck offset never hardcodes a guessed value. */
+  --sticky-header-height: 84px;
+}
+
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -329,11 +337,21 @@ body {
   font-weight: bold;
 }
 
+/* Sticky profile tabs (v0.2.0-prepilot revision 7): stick directly below
+   the sticky app header so Overview/HYNC/SLNC/ESG stay reachable while
+   scrolling long result content. z-index sits below the header (100) but
+   above normal result content so it layers correctly without hiding
+   behind the header or blending into the content scrolling underneath. */
 .result-tabs {
+  position: sticky;
+  top: var(--sticky-header-height);
+  z-index: 90;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 16px;
+  padding-top: 8px;
+  background: #f6f7f9;
   border-bottom: 2px solid #d9dfe4;
 }
 
