@@ -1,0 +1,9 @@
+{
+  "id": "HYNC",
+  "label": "HYNC",
+  "sheetNameHint": "过磅明细",
+  "marker": "SCHY",
+  "markerHeaderCandidates": ["备注", "PILE ID"],
+  "dateHeader": "日期",
+  "timestampHeader": "毛重时间"
+}

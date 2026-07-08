@@ -1,0 +1,9 @@
+{
+  "id": "SLNC",
+  "label": "SLNC",
+  "sheetNameHint": "过磅明细",
+  "marker": "SCSL",
+  "markerHeaderCandidates": ["备注", "PILE ID"],
+  "dateHeader": "日期",
+  "timestampHeader": "毛重时间"
+}

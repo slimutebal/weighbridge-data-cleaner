@@ -1,0 +1,10 @@
+{
+  "id": "ESG",
+  "label": "ESG",
+  "sheetNameHint": null,
+  "headerSignature": ["TIMBANGAN ISI", "TIMBANGAN KOSONG", "TIMBANGAN BERSIH"],
+  "dateHeader": "TANGGAL",
+  "timestampHeader": "JAM TIMBANG ISI",
+  "notaHeader": "NO.NOTA",
+  "notes": "Repeated header/detail block report; sheet name is date-dependent."
+}

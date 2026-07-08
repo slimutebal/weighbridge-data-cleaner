@@ -32,3 +32,23 @@ Profile + Date + Detected Shift
 List DT requires only:
 - dt_id
 - contractor
+
+## D006 - Legacy Parity Profiling
+
+Legacy parity profiling must be documented in `docs/LEGACY_PARITY_PROFILE.md`
+before writing `CLEANING_LOGIC_SPEC.md`.
+
+## D007 - Cleaning Logic Spec Rule Ordering
+
+Cleaning logic spec must preserve legacy compatibility first and separate
+improved validation rules.
+
+## D008 - Type and Buyer Derivation
+
+Type and Buyer are derived from PILE ID, not from 客户类型 or
+收货单位/PENERIMA/Pembeli:
+
+- Type = EXW if PILE ID contains "EX", else DAP (all profiles).
+- HYNC/SLNC Buyer = HYNC if PILE ID / 备注 contains "HY", else SLNC.
+- ESG Buyer, checked in order against PILE ID: HY → HYNC, ESG → ESG,
+  MEIM → MEIM, QMB → QMB, otherwise → ESG.

@@ -1,1 +1,60 @@
-console.log("Weighbridge Data Cleaner scaffold loaded.");
+import { mountImportPage } from "./ui/import-page.js";
+import { mountResultPage } from "./ui/result-page.js";
+import { mountListDtPage } from "./ui/list-dt-page.js";
+import { runCleaning } from "./core/cleaning-orchestrator.js";
+import { loadAppConfig } from "./core/app-settings.js";
+import { resolveDecimalSeparator } from "./core/output-formatter.js";
+
+const appConfig = await loadAppConfig();
+const decimalSeparator = resolveDecimalSeparator(appConfig.decimalSeparator);
+
+const listDtContainer = document.getElementById("list-dt-page");
+const importContainer = document.getElementById("import-page");
+const resultContainer = document.getElementById("result-page");
+const resetBtn = document.getElementById("reset-btn");
+
+const resultPage = mountResultPage(resultContainer, { decimalSeparator });
+
+let lastBucketedFiles = [];
+
+async function handleFilesChange(bucketedFiles) {
+  lastBucketedFiles = bucketedFiles;
+
+  if (!bucketedFiles.length) {
+    resultPage.showGroups({ groups: [], warnings: [], fileErrors: [], listDtInfo: null });
+    return;
+  }
+
+  try {
+    const result = await runCleaning(bucketedFiles);
+    resultPage.showGroups(result);
+  } catch (error) {
+    console.error("Cleaning failed:", error);
+    resultPage.showGroups({
+      groups: [],
+      warnings: [],
+      fileErrors: [{ fileName: "(all files)", message: error.message }],
+      listDtInfo: null,
+    });
+  }
+}
+
+const importPage = mountImportPage(importContainer, {
+  onFilesChange: handleFilesChange,
+});
+
+mountListDtPage(listDtContainer, {
+  onUpdated: async () => {
+    if (lastBucketedFiles.length) {
+      await handleFilesChange(lastBucketedFiles);
+    }
+  },
+});
+
+resetBtn.addEventListener("click", () => {
+  importPage.reset();
+  resultPage.reset();
+  lastBucketedFiles = [];
+});
+
+console.log("Weighbridge Data Cleaner UI shell loaded.");

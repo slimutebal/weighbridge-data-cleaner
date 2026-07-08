@@ -7,11 +7,18 @@
   <link rel="stylesheet" href="./css/app.css">
 </head>
 <body>
-  <main id="app">
+  <header id="app-header">
     <h1>Weighbridge Data Cleaner</h1>
-    <p>Phase 0 scaffold ready.</p>
+    <button id="reset-btn" type="button">Clear / Reset</button>
+  </header>
+
+  <main id="app">
+    <section id="list-dt-page" class="result-section" aria-label="List DT"></section>
+    <section id="import-page" aria-label="Import"></section>
+    <section id="result-page" aria-label="Cleaning Results"></section>
   </main>
 
+  <script src="./lib/sheetjs/xlsx.full.min.js"></script>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>

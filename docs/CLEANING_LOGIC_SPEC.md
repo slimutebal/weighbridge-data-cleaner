@@ -1,5 +1,604 @@
 # Cleaning Logic Specification
 
-Placeholder.
+## 1. Purpose
 
-This document will define the HYNC, SLNC, and ESG cleaning pipelines after data profiling is confirmed.
+This document defines the formal cleaning logic for the Weighbridge Data
+Cleaner app. It translates `docs/INFRASTRUCTURE_BLUEPRINT.md` (architecture)
+and `docs/LEGACY_PARITY_PROFILE.md` (legacy baseline findings) into concrete,
+implementable pipeline rules for the HYNC, SLNC, and ESG profiles.
+
+This document is the source of truth for Claude Code implementation phases
+that write the actual `js/core/*` and `js/profiles/*` modules. It does not
+contain JavaScript; it defines behavior precisely enough that implementation
+should not require re-deriving decisions already made here.
+
+---
+
+## 2. Scope
+
+In scope:
+
+```text
+Profile detection for HYNC, SLNC, ESG
+Raw-to-normalized field mapping per profile
+Date/time parsing and shift classification (legacy + improved)
+DT ID normalization and List DT contractor join
+Validation rules and report contents
+TSV clipboard output rules
+Legacy parity acceptance targets
+```
+
+Out of scope (per blueprint §3, §22):
+
+```text
+Excel parsing implementation (SheetJS wiring) — later phase
+UI implementation — later phase
+PWA / manifest / service worker
+XLSX export
+Rule profile editor
+Multi-day batch processing
+```
+
+---
+
+## 3. Shared Terms
+
+```text
+Raw row       - one row from a source Excel file, as read from the sheet.
+Valid row     - a raw row that passes profile-specific validity filtering
+                (e.g. has a usable NO.NOTA / ticket identity and a parseable
+                weigh timestamp). Invalid rows are excluded and counted as
+                lost rows, not silently dropped.
+Clean row     - a valid row after normalization into the shared output
+                schema (§6), with contractor join and shift classification
+                applied.
+Bucket        - the Day Shift / Night Shift input area the user dropped the
+                file into. This is declared intent, not validated fact
+                (blueprint §7.2).
+Detected shift- the shift computed from row timestamps against the
+                profile's configured Day Shift window (config/shift-rules.json).
+Legacy shift  - the single whole-file shift value the existing Excel
+                workflow would have produced for this file (§8 of the
+                parity profile). Preserved for parity comparison only.
+```
+
+---
+
+## 4. Cleaning Group Definition
+
+```text
+Cleaning Group = Profile + Date + Detected Shift
+```
+
+Every clean row belongs to exactly one Cleaning Group. Groups are never
+merged across profile, date, or detected shift boundaries, even if two
+groups originate from the same uploaded file (blueprint §7.4, §20 rules
+5–7).
+
+Example groups for the parity sample set:
+
+```text
+HYNC | 2026-05-16 | DS
+SLNC | 2026-05-16 | DS
+ESG  | 2026-05-16 | DS
+```
+
+---
+
+## 5. Supported Profiles
+
+```text
+HYNC - Chinese weighbridge format. Sheet name: 过磅明细.
+       Detected by SCHY marker in 备注 / PILE ID.
+
+SLNC - Chinese weighbridge format, structurally identical to HYNC.
+       Sheet name: 过磅明细.
+       Detected by SCSL marker in 备注 / PILE ID.
+
+ESG  - Indonesian weighbridge format. Sheet name is date-dependent
+       (e.g. "DATA ORE 16 MEI 2026"), not a fixed literal.
+       Detected by header block containing TIMBANGAN ISI, TIMBANGAN
+       KOSONG, TIMBANGAN BERSIH.
+       Source layout is a repeated header/detail block report, not a
+       single flat table (parity profile §12 finding 1).
+```
+
+HYNC and SLNC cannot be distinguished by header shape alone. The SCHY/SCSL
+marker check is mandatory and must run before either profile's pipeline is
+selected.
+
+---
+
+## 6. Shared Normalized Concepts
+
+These concepts are shared across all three profiles and must resolve to
+the same meaning regardless of source format.
+
+```text
+dt_id          - Truck/unit identifier, normalized via normalizeDtId()
+                 (§10). Used only as a join key against List DT; never
+                 displayed raw without normalization applied at least for
+                 matching purposes.
+
+contractor     - Resolved via joinContractor() (§10) using normalized
+                 dt_id → List DT. May be "Unmatched" if no List DT row
+                 matches; unmatched rows must be reported (§13).
+
+date           - Calendar date (TANGGAL) the weigh-in occurred on, in
+                 YYYY-MM-DD form for internal grouping.
+
+shift          - "DS" or "NS", per classifyShift() (§10), evaluated
+                 per row against the profile's configured
+                 dayShiftStart/dayShiftEnd window.
+
+source         - Parsed from 规格 (HYNC/SLNC) or KODE ORE (ESG) via
+                 parseSource() (§10).
+
+grade          - Parsed from 规格 (HYNC/SLNC) or KODE ORE (ESG) via
+                 parseGrade() (§10).
+
+net tonnage    - Net weight in tonnes. HYNC/SLNC: 净重 (kg) / 1000.
+                 ESG: TIMBANGAN BERSIH, already in tonnes (no conversion).
+
+buyer/receiver - Derived from the PILE ID marker, not from any raw
+                 "receiver" column. 收货单位 (HYNC/SLNC) is raw shipment
+                 metadata only and is NOT the source of Buyer in
+                 legacy-compatible output (see LC-12/LC-13 in §11).
+                 HYNC/SLNC: PILE ID contains "HY" → Buyer = "HYNC",
+                 otherwise → Buyer = "SLNC".
+                 ESG: PILE ID contains "HY" → "HYNC"; contains "ESG" →
+                 "ESG"; contains "MEIM" → "MEIM"; contains "QMB" → "QMB";
+                 otherwise → "ESG".
+```
+
+Normalized output schema (blueprint §12), used by all three profiles:
+
+```text
+TANGGAL, NO. DT, Contractor, Shift, Datetime, NO.NOTA,
+Type, Buyer, Net, PILE ID, Source, Grade, Profile
+```
+
+---
+
+## 7. HYNC Pipeline
+
+```text
+1. Read workbook, locate sheet 过磅明细.
+2. Read Chinese headers and map to raw fields:
+     流水号 → SerialNo, 车号 → DtIdRaw, 货名 → Material,
+     发货单位 → Shipper, 毛重 → GrossWeightKg, 皮重 → TareWeightKg,
+     净重 → NetWeightKg, 毛重时间 → WeighInDatetime,
+     皮重时间 → WeighOutDatetime, 收货单位 → BuyerRaw,
+     日期 → DateRaw, 备注 → Remark, 规格 → Spec, 客户类型 → CustomerType.
+3. Confirm HYNC by checking 备注 / PILE ID contains "SCHY".
+   If not present, do not run this pipeline — fall through to detection
+   as SLNC or Unknown.
+4. Filter valid rows (parseable WeighInDatetime and non-blank ticket
+   identity). Excluded rows are counted as lost rows, not dropped silently.
+5. parseDateTime(毛重时间) → Datetime, Date.
+6. classifyShift(Datetime, HYNC shift window) → row-level Shift
+   (improved validation, §12).
+   Separately compute legacyShift per file per §11.
+7. cleanPileId(备注 / PILE ID) → PILE ID.
+8. cleanDtId(车号) then normalizeDtId() at join time → NO. DT.
+9. parseSource(规格) → Source.
+10. parseGrade(规格) → Grade.
+11. Type = "EXW" if PILE ID contains "EX", else "DAP" (legacy
+    compatibility, LC-12). 客户类型 (CustomerType) is raw metadata only
+    and is not used to derive Type.
+12. Buyer = "HYNC" if PILE ID / 备注 contains "HY", else "SLNC" (legacy
+    compatibility, LC-13). 收货单位 (BuyerRaw) is raw shipment metadata
+    only and is NOT the source of Buyer.
+13. Net = NetWeightKg / 1000 (legacy compatibility, §11).
+14. joinContractor(NO. DT) via List DT.
+15. Reorder into normalized output schema (§6).
+16. Run validation engine (§13).
+17. Generate report (§14), grouped into Cleaning Groups (§4).
+```
+
+---
+
+## 8. SLNC Pipeline
+
+```text
+Identical to the HYNC pipeline (§7), with two differences:
+
+1. Confirmation check in step 3 uses 备注 / PILE ID contains "SCSL"
+   instead of "SCHY".
+2. Profile label in output is "SLNC" instead of "HYNC".
+
+All other steps (raw field mapping, date/time parsing, shift
+classification, DT/PILE ID cleaning, source/grade parsing, Net conversion,
+List DT join, validation, and reporting) are identical to HYNC, because
+HYNC and SLNC share the same raw Chinese weighbridge structure (parity
+profile §4.2, §6).
+```
+
+---
+
+## 9. ESG Pipeline
+
+```text
+1. Read workbook. Locate the ESG sheet by header signature (TIMBANGAN ISI,
+   TIMBANGAN KOSONG, TIMBANGAN BERSIH), not by fixed sheet name — the
+   sheet name is date-dependent (e.g. "DATA ORE 16 MEI 2026").
+2. Treat the sheet as a repeated header/detail block report:
+     - scan for repeated header rows matching the ESG header signature;
+     - for each block, read the detail rows that follow until the next
+       header block or end of sheet;
+     - do not assume a single flat table starting at row 1
+       (parity profile §12 finding 1).
+3. Within each block, map Indonesian headers to raw fields:
+     NO.NOTA, NO. DT, MATERIAL, PENYUPLAI, PENERIMA,
+     TIMBANGAN ISI, TIMBANGAN KOSONG, TIMBANGAN BERSIH,
+     JAM TIMBANG ISI, JAM TIMBANG KOSONG, LOKASI DUMPING,
+     TANGGAL, PILE ID, KODE ORE.
+4. Filter valid detail rows: rows with a usable NO.NOTA and a parseable
+   JAM TIMBANG ISI. Header/subtotal/blank rows within a block are
+   excluded and counted as lost rows if they were not genuine detail
+   rows to begin with (they are not "rows" in the parity row count and
+   must not be double-counted).
+5. parseDateTime(TANGGAL + JAM TIMBANG ISI) → Datetime, Date.
+6. classifyShift(Datetime, ESG shift window) → row-level Shift (improved
+   validation, §12). Separately compute legacyShift per file per §11.
+7. cleanPileId(PILE ID) → PILE ID.
+8. cleanDtId(NO. DT) then normalizeDtId() at join time → NO. DT.
+9. parseSource(KODE ORE) → Source.
+10. parseGrade(KODE ORE) → Grade.
+11. Type = "EXW" if PILE ID contains "EX", else "DAP" (legacy
+    compatibility, LC-12).
+12. Buyer: PILE ID contains "HY" → "HYNC"; contains "ESG" → "ESG";
+    contains "MEIM" → "MEIM"; contains "QMB" → "QMB"; otherwise → "ESG"
+    (legacy compatibility, LC-14). PENERIMA / Pembeli is raw metadata
+    only and is not used to derive Buyer.
+13. Net = TIMBANGAN BERSIH, used as-is — already in tonnes, no /1000
+    conversion (legacy compatibility, §11). This is a deliberate
+    divergence from HYNC/SLNC and must not be "fixed" to match them.
+14. joinContractor(NO. DT) via List DT.
+15. Reorder into normalized output schema (§6).
+16. Run validation engine (§13).
+17. Generate report (§14), grouped into Cleaning Groups (§4).
+```
+
+---
+
+## 10. Shared Helper Rules
+
+```text
+normalizeDtId(value):
+  - trim whitespace
+  - convert to uppercase
+  - remove trailing " DT" suffix
+  - collapse multiple internal spaces to one
+  - normalize common separators (treat "-" and " " as equivalent for
+    matching purposes, per blueprint §14 examples)
+  - remove invisible/non-breaking space characters
+  - applied identically to raw NO. DT values and to List DT dt_id values
+    before comparison.
+
+parseDateTime(dateValue, timeValue):
+  - accept Excel serial date/time numbers and string date/time formats
+    found in HYNC/SLNC (毛重时间) and ESG (TANGGAL + JAM TIMBANG ISI)
+  - return a single Datetime plus separated Date
+  - invalid/unparseable input → row is excluded and counted under
+    "invalid Date/Time rows" (§13), not defaulted to a guessed time.
+
+classifyShift(datetime, shiftWindow):
+  - shiftWindow = { dayShiftStart, dayShiftEnd } from
+    config/shift-rules.json for the row's profile
+  - if datetime's time-of-day falls within [dayShiftStart, dayShiftEnd)
+    → "DS", else → "NS"
+  - this is the improved, row-level classification (§12); it is distinct
+    from legacyShift (§11).
+
+parseSource(specOrKodeOre):
+  - profile-specific extraction of the Source token from 规格 (HYNC/SLNC)
+    or KODE ORE (ESG)
+  - exact token grammar/format to be confirmed against a wider sample set
+    during implementation (§17 unresolved item).
+
+parseGrade(specOrKodeOre):
+  - profile-specific extraction of the Grade token from the same source
+    field as parseSource, using the remaining unparsed portion
+  - exact token grammar/format to be confirmed during implementation
+    (§17 unresolved item).
+
+cleanPileId(value):
+  - trim whitespace
+  - normalize case/separators consistently with how SCHY/SCSL detection
+    reads the same field (§5) so detection and output use one consistent
+    reading of 备注 / PILE ID.
+
+joinContractor(normalizedDtId):
+  - look up normalizedDtId against the normalized List DT map
+  - on match → Contractor = matched contractor
+  - on no match → Contractor = "Unmatched", and the row is added to the
+    "unmatched DT rows" report table (§13, §14)
+  - never silently blank the Contractor field.
+
+generateTsv(rows, columnOrder, includeHeader):
+  - join columns with "\t", rows with "\n"
+  - column order = normalized output schema order (§6) unless overridden
+    by config
+  - includeHeader defaults to false (config/app-config.json
+    defaultIncludeHeader), matching the legacy macro's headerless copy
+    behavior (blueprint §11)
+  - normalize date and number formatting before joining (dates as
+    consistent text, numbers without thousands separators) so pasted
+    values land as Excel-native dates/numbers, not text.
+```
+
+---
+
+## 11. legacyCompatibilityRules
+
+These rules exist purely to preserve reconcilable behavior against the
+current Excel workflow. They are not "the correct" behavior in an absolute
+sense — they are the behavior the business currently trusts, and must be
+preserved (or explicitly and visibly deviated from) so migration does not
+silently change numbers users already rely on.
+
+```text
+LC-1  HYNC/SLNC legacy shift = classify the average time of the first 30
+      rows (sorted ascending by JAM TIMBANG ISI / 毛重时间) against the
+      profile's Day Shift window. This produces one legacyShift value per
+      file, shown for parity comparison only — never used to gate or
+      silently override row-level output.
+
+LC-2  ESG legacy shift = classify the time of the 30th row (sorted
+      ascending by JAM TIMBANG ISI) against the ESG Day Shift window.
+      Same parity-only usage as LC-1.
+
+LC-3  HYNC/SLNC Net = 净重 (NetWeightKg) / 1000. Always divide by 1000
+      for these two profiles.
+
+LC-4  ESG Net = TIMBANGAN BERSIH used directly, no division. ESG source
+      values are already expressed in tonnes.
+
+LC-5  HYNC detection requires SCHY found in 备注 / PILE ID. Chinese
+      header shape alone is not sufficient (HYNC and SLNC are otherwise
+      identical).
+
+LC-6  SLNC detection requires SCSL found in 备注 / PILE ID, under the
+      same constraint as LC-5.
+
+LC-7  ESG detection requires the header block to contain TIMBANGAN ISI,
+      TIMBANGAN KOSONG, and TIMBANGAN BERSIH together.
+
+LC-8  ESG must be parsed as a repeated header/detail block report. A
+      single-pass "read row 1 as header, rest as data" reader is not
+      legacy-compatible and will corrupt row counts and tonnage.
+
+LC-9  List DT requires only dt_id and contractor. No other List DT field
+      may become a required dependency for cleaning to proceed.
+
+LC-10 Contractor join must use normalized DT IDs (via normalizeDtId, §10)
+      on both the raw data side and the List DT side. Raw string equality
+      is not legacy-compatible, since the legacy workbook already
+      tolerates the separator/suffix variance described in blueprint §14.
+
+LC-11 Unmatched DT rows must be surfaced in the report (§13, §14), not
+      silently blanked or excluded from output.
+
+LC-12 Type derivation (all profiles): Type = "EXW" if PILE ID contains
+      "EX", else Type = "DAP". 客户类型 (HYNC/SLNC raw CustomerType) is
+      not used to derive Type — it is unused legacy raw metadata.
+
+LC-13 HYNC/SLNC Buyer derivation: Buyer = "HYNC" if original PILE ID /
+      备注 contains "HY", else Buyer = "SLNC". 收货单位 (the
+      PENERIMA-equivalent raw column) is NOT the source of Buyer in
+      legacy-compatible output — it is unused legacy raw metadata for
+      this purpose.
+
+LC-14 ESG Buyer derivation, checked in this order against PILE ID:
+      contains "HY" → "HYNC"; contains "ESG" → "ESG"; contains "MEIM"
+      → "MEIM"; contains "QMB" → "QMB"; otherwise → "ESG". PENERIMA /
+      Pembeli raw column is not used to derive Buyer.
+
+LC-15 收货单位 (HYNC/SLNC) and PENERIMA/Pembeli (ESG) must not be wired
+      into the Buyer field of the normalized output. They remain
+      available as raw/reference data only if retained at all; treating
+      them as the Buyer source is a legacy-incompatible mistake, not a
+      valid alternative implementation.
+```
+
+---
+
+## 12. improvedValidationRules
+
+These rules are deliberate improvements over the legacy workflow. They
+must never override or suppress the legacyCompatibilityRules values in
+§11 — both are computed and shown side by side (legacy value for parity
+trust, improved value for operational safety).
+
+```text
+IV-1  Every row's shift is classified individually via classifyShift()
+      (§10) against its own timestamp, not inferred from a 30-row sample.
+      This is what actually determines which Cleaning Group (§4) a row
+      belongs to — legacyShift (§11) is reference-only and does not
+      decide grouping.
+
+IV-2  If a single uploaded file contains rows spanning more than one
+      detected shift, the app must split the file's rows into separate
+      Profile + Date + Shift groups and show a visible "mixed shift
+      detected" warning (blueprint §7.4). It must never force one shift
+      onto all rows in that file.
+
+IV-3  If the file's declared input bucket (Day Shift / Night Shift) does
+      not match a row's detected shift, the app must show a shift
+      mismatch warning for that row/file (blueprint §7.2, §6.2 example).
+
+IV-4  "Valid row" criteria (parseable timestamp + usable ticket identity)
+      are defined explicitly by the validation engine and documented,
+      rather than assumed to match legacy filtering incidentally (parity
+      profile §12 finding 5).
+
+IV-5  Unmatched DT rows are reported with enough detail (raw NO. DT,
+      normalized form attempted, row reference) to be actionable, not
+      just counted.
+
+IV-6  Invalid Date/Time rows are reported explicitly as their own issue
+      table, distinct from "lost rows" caused by other filtering.
+```
+
+---
+
+## 13. Validation Requirements
+
+For each Cleaning Group, the validation engine must compute:
+
+```text
+raw row count
+clean row count
+lost row count                 (raw - clean, with reasons)
+duplicate NO.NOTA count
+missing contractor count       (Contractor == "Unmatched")
+missing grade count
+missing source count
+blank key fields count
+invalid Date/Time row count
+unmatched DT row count
+shift mismatch warning count   (bucket vs. detected shift, IV-3)
+mixed-shift-in-file warning    (IV-2)
+```
+
+Issue tables to produce (blueprint §10):
+
+```text
+duplicate NO.NOTA rows
+missing Contractor rows
+missing Grade rows
+missing Source rows
+invalid Date/Time rows
+unmatched DT rows
+```
+
+---
+
+## 14. Report Requirements
+
+Per Cleaning Group, the report engine must produce (blueprint §9.1, §10):
+
+```text
+raw rows, clean rows, lost rows
+raw tonnage, clean tonnage, tonnage difference
+duplicate NO.NOTA count
+missing Contractor / Grade / Source counts
+summary by Contractor
+summary by PILE ID
+summary by Source
+summary by Grade
+legacyShift value shown alongside detected shift for the group, labeled
+  clearly as a legacy reference value (not the grouping key)
+```
+
+Result page grouping and layout follow blueprint §9.1 exactly — groups are
+selectable tabs/cards, each showing its own summary, report, and clean
+data preview independently.
+
+---
+
+## 15. TSV Output Requirements
+
+```text
+Default format: TSV (\t between columns, \n between rows).
+Column order: normalized output schema (§6), unless config overrides it.
+includeHeader: false by default (config/app-config.json).
+Two output actions: "Copy This Group" and "Copy All Groups"
+  (blueprint §11), both using generateTsv() (§10).
+Dates and numbers must be normalized to paste correctly as Excel-native
+  values, not as text strings requiring re-parsing.
+```
+
+---
+
+## 16. Legacy Parity Acceptance Targets
+
+For the confirmed sample set (Day Shift, 2026-05-16), the pipelines
+defined in §7–§9 must reconcile to:
+
+```text
+Profile | Valid rows | Raw tonnage  | Legacy shift
+HYNC    | 337        | 14,421.19 t  | DS
+SLNC    | 109        | 4,776.33 t   | DS
+ESG     | 224        | 10,547.46 t  | DS
+```
+
+Acceptance definition:
+
+```text
+- clean row count (after excluding genuinely invalid rows, each with a
+  documented reason) must reconcile to the valid row counts above;
+- clean tonnage (Net summed per profile) must reconcile to the raw
+  tonnage figures above, within a documented rounding tolerance;
+- legacyShift computed per LC-1/LC-2 must equal "DS" for all three files;
+- any discrepancy against these targets must be investigated and
+  explained (e.g. a legitimately excluded row) before the pipeline is
+  considered parity-complete — it must not be treated as passing by
+  adjusting the target numbers to match pipeline output.
+```
+
+---
+
+## 17. Known Risks and Unresolved Decisions
+
+```text
+R-1  Exact parseSource()/parseGrade() token grammar for 规格 (HYNC/SLNC)
+     and KODE ORE (ESG) is not yet confirmed against a wide enough sample
+     set. Needs profiling against more files before implementation, or an
+     explicit fallback ("Unparsed") behavior with reporting.
+
+R-2  ESG repeated-block parsing (LC-8) needs a concrete block-detection
+     algorithm (e.g. re-matching the header signature per block,
+     handling blank separator rows between blocks) — this spec defines
+     the requirement, not the exact scan algorithm. To be finalized when
+     excel-reader.js / schema-detector.js are implemented.
+
+R-3  "Valid row" filtering criteria (IV-4) are defined at a principle
+     level (parseable timestamp + usable ticket identity) but the exact
+     field-by-field validity checklist per profile is not yet enumerated
+     line-by-line. Should be finalized alongside the validation engine
+     implementation, using the parity row counts (§16) as the check.
+
+R-4  Rounding tolerance for tonnage reconciliation (§16) is not yet
+     numerically defined (e.g. ±0.01 t vs. exact match). Needs a decision
+     before automated parity testing is built.
+
+R-5  cleanPileId() and normalizeDtId() separator-normalization rules
+     (§10) are defined at the level of blueprint §14's examples; a full
+     enumerated list of accepted separator variants has not been
+     confirmed beyond those examples.
+```
+
+Resolved in this revision: Type derivation (formerly R-2) and Buyer
+derivation are now fully specified (LC-12/LC-13/LC-14 in §11) and removed
+from this list.
+
+---
+
+## 18. Implementation Notes for Future Claude Code Phases
+
+```text
+- Implement shared helpers (§10) in js/core/ first, independent of any
+  single profile, per blueprint §16 module boundaries.
+- Implement HYNC pipeline first (§7), since SLNC (§8) is a near-direct
+  reuse of it — this validates the shared Chinese-format parsing path
+  once instead of twice.
+- Implement ESG (§9) separately and expect it to require its own
+  block-scanning reader logic distinct from the HYNC/SLNC flat-table
+  reader.
+- Do not implement legacyShift (§11 LC-1/LC-2) as the value used for
+  grouping. It is a reporting/reference value only; classifyShift()
+  row-level output (§12 IV-1) is what determines Cleaning Group
+  membership.
+- Validate each pipeline against the parity targets in §16 before
+  considering it feature-complete, using the actual sample files in
+  samples/hync/, samples/slnc/, samples/esg/.
+- Resolve R-1, R-2, R-4 (§17) as concrete decisions — recorded in
+  docs/DECISIONS.md — before or during their respective implementation
+  phase, rather than guessing silently in code.
+- Keep legacyCompatibilityRules (§11) and improvedValidationRules (§12)
+  as separately identifiable rule sets in code (e.g. distinct functions
+  or clearly commented sections), not interleaved, so either set can be
+  audited or adjusted independently later.
+```
