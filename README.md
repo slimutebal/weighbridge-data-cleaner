@@ -8,12 +8,15 @@ See `docs/INFRASTRUCTURE_BLUEPRINT.md` for the confirmed infrastructure referenc
 
 ## v0.2 Operational Pilot
 
-**Status: v0.2 Operational Pilot — PASS.** v1.0 preparation is now
-underway. Use remains controlled; additional real-file evidence can
-continue to be appended to `docs/PILOT_VALIDATION_LOG.md`.
+**Status: v0.2 Operational Pilot — PASS.** v1.0 preparation is now in its
+final release checklist stage — v1.0 has **not** been tagged yet. Use
+remains controlled; additional real-file evidence can continue to be
+appended to `docs/PILOT_VALIDATION_LOG.md`.
 
 For day-to-day controlled operational use, see
-[docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md).
+[docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md). For the remaining
+pre-v1.0.0 sign-off steps, see
+[docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 Before v1.0, the app goes through an operational pilot that validates real
 operational files (not just the fixed reference samples) against the
