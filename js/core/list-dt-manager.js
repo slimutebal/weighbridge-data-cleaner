@@ -1,4 +1,4 @@
-import { normalizeDtId } from "./normalizers.js";
+import { normalizeDtId, toCanonicalDtId } from "./normalizers.js";
 
 const LOCAL_STORAGE_KEY = "weighbridge.listDt.cache.v1";
 const PENDING_SYNC_KEY = "weighbridge.listDt.pendingSync.v1";
@@ -27,6 +27,10 @@ function getAliasedField(record, aliases) {
   return undefined;
 }
 
+// Map value is { contractor, dtId } rather than a bare contractor string
+// (v0.2.0-prepilot revision 6) so the canonical master display format
+// (dtId) survives round-tripping through the map for records this session
+// never touched — normalizeDtId() remains the Map's key (matching only).
 function buildContractorMap(records) {
   const map = new Map();
   const duplicates = [];
@@ -41,13 +45,15 @@ function buildContractorMap(records) {
     const key = normalizeDtId(dtIdRaw);
     if (!key) return;
 
-    if (map.has(key) && map.get(key) !== contractor) {
+    const dtId = toCanonicalDtId(dtIdRaw);
+
+    if (map.has(key) && map.get(key).contractor !== contractor) {
       duplicates.push({
         normalizedDtId: key,
-        contractors: [map.get(key), contractor],
+        contractors: [map.get(key).contractor, contractor],
       });
     }
-    map.set(key, contractor);
+    map.set(key, { contractor, dtId });
   });
 
   return { map, duplicates };
@@ -102,12 +108,19 @@ export async function loadListDt() {
   return cached;
 }
 
+// Returns the canonical master display format for rawDtId as
+// `normalizedDtId` (used for cleaned-row "NO. DT" output), while matching
+// against List DT internally via the punctuation-free normalizeDtId() key —
+// see README.md "Canonical List DT format" (v0.2.0-prepilot revision 6).
 export function joinContractor(rawDtId, listDt) {
-  const normalizedDtId = normalizeDtId(rawDtId);
-  if (!normalizedDtId || !listDt.map.has(normalizedDtId)) {
-    return { contractor: "Unmatched", normalizedDtId };
+  const matchKey = normalizeDtId(rawDtId);
+  const canonicalDtId = toCanonicalDtId(rawDtId);
+  const entry = matchKey ? listDt.map.get(matchKey) : undefined;
+
+  if (!entry) {
+    return { contractor: "Unmatched", normalizedDtId: canonicalDtId };
   }
-  return { contractor: listDt.map.get(normalizedDtId), normalizedDtId };
+  return { contractor: entry.contractor, normalizedDtId: canonicalDtId };
 }
 
 // --- Manual, user-triggered DT correction (pilot hardening) -----------------
@@ -140,9 +153,13 @@ export function getPendingSyncEntries() {
   return readPendingSync();
 }
 
+// Keyed by normalizeDtId(), not the raw dt_id string, so a pending entry
+// saved as "SCM HLG 958" and a new correction canonicalized to "SCM-HLG
+// 958" are recognized as the same truck rather than becoming two pending
+// rows (v0.2.0-prepilot revision 6).
 function mergeEntriesByDtId(existing, incoming) {
-  const map = new Map(existing.map((entry) => [entry.dt_id, entry]));
-  incoming.forEach((entry) => map.set(entry.dt_id, entry));
+  const map = new Map(existing.map((entry) => [normalizeDtId(entry.dt_id), entry]));
+  incoming.forEach((entry) => map.set(normalizeDtId(entry.dt_id), entry));
   return Array.from(map.values());
 }
 
@@ -153,14 +170,17 @@ export function addPendingSyncEntries(entries) {
 }
 
 export function removePendingSyncEntries(dtIds) {
-  const idSet = new Set(dtIds);
-  const remaining = readPendingSync().filter((entry) => !idSet.has(entry.dt_id));
+  const idSet = new Set(dtIds.map((dtId) => normalizeDtId(dtId)));
+  const remaining = readPendingSync().filter((entry) => !idSet.has(normalizeDtId(entry.dt_id)));
   writePendingSync(remaining);
   return remaining;
 }
 
 function serializeCurrentRecords(listDt) {
-  return Array.from(listDt.map.entries()).map(([dt_id, contractor]) => ({ dt_id, contractor }));
+  return Array.from(listDt.map.values()).map(({ dtId, contractor }) => ({
+    dt_id: dtId,
+    contractor,
+  }));
 }
 
 // Local duplicate/conflict guard (v0.2.0-prepilot rev2). Classifies each
@@ -173,34 +193,55 @@ function serializeCurrentRecords(listDt) {
 //   - "conflict"  — already known locally with a *different* contractor;
 //                   never silently overwritten, surfaced for user review.
 //   - "invalid"   — blank dt_id or contractor after normalization/trim.
+// The returned dt_id is always the canonical master display format (e.g.
+// "SCM-HLG 958"), never the raw input or the punctuation-free match key —
+// matching itself still happens via normalizeDtId() underneath.
 export async function classifyDtCorrections(entries) {
   const listDt = await loadListDt();
-  const pendingMap = new Map(readPendingSync().map((entry) => [entry.dt_id, entry.contractor]));
+  const pendingMap = new Map(
+    readPendingSync().map((entry) => [normalizeDtId(entry.dt_id), entry.contractor])
+  );
 
   return entries.map(({ dtId, contractor }) => {
-    const dt_id = normalizeDtId(dtId);
+    const matchKey = normalizeDtId(dtId);
+    const canonicalDtId = toCanonicalDtId(dtId);
     const trimmedContractor = (contractor || "").trim();
 
-    if (!dt_id || !trimmedContractor) {
-      return { dt_id, contractor: trimmedContractor, status: "invalid" };
+    if (!matchKey || !trimmedContractor) {
+      return { dt_id: canonicalDtId, contractor: trimmedContractor, status: "invalid" };
     }
 
-    const existingContractor = listDt.map.has(dt_id) ? listDt.map.get(dt_id) : pendingMap.get(dt_id);
+    const listDtEntry = listDt.map.get(matchKey);
+    const existingContractor =
+      listDtEntry !== undefined ? listDtEntry.contractor : pendingMap.get(matchKey);
 
     if (existingContractor === undefined) {
-      return { dt_id, contractor: trimmedContractor, status: "new" };
+      return { dt_id: canonicalDtId, contractor: trimmedContractor, status: "new" };
     }
     if (existingContractor === trimmedContractor) {
-      return { dt_id, contractor: trimmedContractor, status: "duplicate", existingContractor };
+      return {
+        dt_id: canonicalDtId,
+        contractor: trimmedContractor,
+        status: "duplicate",
+        existingContractor,
+      };
     }
-    return { dt_id, contractor: trimmedContractor, status: "conflict", existingContractor };
+    return {
+      dt_id: canonicalDtId,
+      contractor: trimmedContractor,
+      status: "conflict",
+      existingContractor,
+    };
   });
 }
 
 // Applies { dtId, contractor } corrections to the local List DT cache
-// immediately, using the same normalizeDtId() matching rule used for the
-// contractor join, and invalidates the in-memory cache so the next
+// immediately, saving the canonical master display format (never the raw
+// "... DT" value), and invalidates the in-memory cache so the next
 // loadListDt() (and thus the next re-clean) reflects the correction.
+// Existing records already in the map are re-serialized using their own
+// stored canonical dtId, so untouched entries keep whatever canonical form
+// they were loaded with rather than being flattened to the match key.
 //
 // Callers should only pass entries already classified "new" by
 // classifyDtCorrections() above — this function itself does not re-check
@@ -208,15 +249,16 @@ export async function classifyDtCorrections(entries) {
 export async function upsertLocalDtMappings(entries) {
   const listDt = await loadListDt();
   const baseRecords = serializeCurrentRecords(listDt);
-  const overlay = new Map(baseRecords.map((record) => [record.dt_id, record]));
+  const overlay = new Map(baseRecords.map((record) => [normalizeDtId(record.dt_id), record]));
 
   const normalizedEntries = [];
   entries.forEach(({ dtId, contractor }) => {
-    const key = normalizeDtId(dtId);
+    const matchKey = normalizeDtId(dtId);
+    const canonicalDtId = toCanonicalDtId(dtId);
     const trimmedContractor = (contractor || "").trim();
-    if (!key || !trimmedContractor) return;
-    const record = { dt_id: key, contractor: trimmedContractor };
-    overlay.set(key, record);
+    if (!matchKey || !trimmedContractor) return;
+    const record = { dt_id: canonicalDtId, contractor: trimmedContractor };
+    overlay.set(matchKey, record);
     normalizedEntries.push(record);
   });
 
@@ -256,7 +298,10 @@ function toDtIdSet(list) {
 // buckets each submitted dt_id into appended / updated_blank /
 // duplicate_skipped / conflicts / errors. Returns one outcome per entry so
 // the caller can update the pending-sync queue and status display
-// per-DT-ID rather than treating the whole batch as pass/fail.
+// per-DT-ID rather than treating the whole batch as pass/fail. Entries carry
+// the canonical dt_id (e.g. "SCM-HLG 958"); the endpoint's buckets are
+// compared via normalizeDtId() so a server echoing back a differently
+// separated form still matches.
 function interpretBucketedResponse(result, entries) {
   const appended = toDtIdSet(result.appended);
   const updatedBlank = toDtIdSet(result.updated_blank);
@@ -265,10 +310,11 @@ function interpretBucketedResponse(result, entries) {
   const errors = toDtIdSet(result.errors);
 
   const perEntry = entries.map(({ dt_id }) => {
-    if (appended.has(dt_id) || updatedBlank.has(dt_id)) return { dt_id, outcome: "synced" };
-    if (duplicateSkipped.has(dt_id)) return { dt_id, outcome: "duplicate" };
-    if (conflicts.has(dt_id)) return { dt_id, outcome: "conflict" };
-    if (errors.has(dt_id)) return { dt_id, outcome: "error" };
+    const key = normalizeDtId(dt_id);
+    if (appended.has(key) || updatedBlank.has(key)) return { dt_id, outcome: "synced" };
+    if (duplicateSkipped.has(key)) return { dt_id, outcome: "duplicate" };
+    if (conflicts.has(key)) return { dt_id, outcome: "conflict" };
+    if (errors.has(key)) return { dt_id, outcome: "error" };
     // The endpoint didn't mention this dt_id in any bucket — do not assume
     // success for it.
     return { dt_id, outcome: "unknown" };
@@ -292,7 +338,9 @@ function interpretBucketedResponse(result, entries) {
 // If the endpoint returns the richer appendListDt bucket shape (appended /
 // updated_blank / duplicate_skipped / conflicts / errors), each entry's
 // outcome is reported individually via `perEntry` instead of a single
-// pass/fail for the whole batch.
+// pass/fail for the whole batch. dt_id in the payload is always the
+// canonical master display format (e.g. "SCM-LIM 221"), never a raw
+// "... DT" value — this app does not modify the endpoint URL or its logic.
 export async function syncDtMappingsToGoogleSheet(endpointUrl, entries) {
   if (!endpointUrl) return { ok: false, reason: "No List DT endpoint configured." };
   if (!entries.length) return { ok: true, synced: [] };

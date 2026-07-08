@@ -1,24 +1,12 @@
 import { renderFileList } from "./imported-file-list.js";
+import { detectFileShift, evaluateBucketMatch } from "../core/shift-bucket-validator.js";
+import { showWrongBucketModal } from "./wrong-bucket-modal.js";
 
 const ACCEPTED_EXTENSIONS = [".xlsx", ".xlsm"];
 
 function isAcceptedFile(file) {
   const name = file.name.toLowerCase();
   return ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext));
-}
-
-function mergeFiles(existing, incoming) {
-  const merged = [...existing];
-  incoming.forEach((file) => {
-    const alreadyAdded = merged.some(
-      (existingFile) =>
-        existingFile.name === file.name && existingFile.size === file.size
-    );
-    if (!alreadyAdded && isAcceptedFile(file)) {
-      merged.push(file);
-    }
-  });
-  return merged;
 }
 
 export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
@@ -62,10 +50,54 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
     renderFileList(fileListContainer, files);
   }
 
-  function addFiles(fileListLike) {
-    files = mergeFiles(files, Array.from(fileListLike));
-    refresh();
-    notifyChange();
+  // Reads and shift-classifies a single candidate file against this
+  // bucket's declared intent (v0.2.0-prepilot revision 5). Falls back to
+  // accepting the file if validation itself throws for any reason, so a
+  // bug/edge-case in this new check can never block the core upload flow —
+  // the existing "could not detect profile" path downstream still catches
+  // genuinely unreadable files.
+  async function validateOneFile(file) {
+    try {
+      const detection = await detectFileShift(file);
+      if (!detection.profileDetected) {
+        return { accepted: true };
+      }
+      return evaluateBucketMatch(file, bucketId, detection);
+    } catch (error) {
+      console.error(`Shift-bucket validation failed for "${file.name}":`, error);
+      return { accepted: true };
+    }
+  }
+
+  async function addFiles(fileListLike) {
+    const candidates = Array.from(fileListLike).filter(
+      (file) =>
+        isAcceptedFile(file) &&
+        !files.some((existing) => existing.name === file.name && existing.size === file.size)
+    );
+    if (!candidates.length) return;
+
+    const accepted = [];
+    const rejections = [];
+
+    for (const file of candidates) {
+      const outcome = await validateOneFile(file);
+      if (outcome.accepted) {
+        accepted.push(file);
+      } else {
+        rejections.push(outcome);
+      }
+    }
+
+    if (accepted.length) {
+      files = [...files, ...accepted];
+      refresh();
+      notifyChange();
+    }
+
+    if (rejections.length) {
+      showWrongBucketModal(rejections);
+    }
   }
 
   dropZone.addEventListener("click", () => fileInput.click());

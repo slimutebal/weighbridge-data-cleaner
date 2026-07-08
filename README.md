@@ -48,14 +48,53 @@ The first page has two drop zones: **Day Shift Input** and **Night Shift Input**
 
 1. Drag Excel files (`.xlsx` / `.xlsm`) into the matching bucket, or click a
    drop zone to browse for files.
-2. The bucket you drop a file into is your *declared* shift — it does not
-   have to match the file's contents. The app reads every row's own
-   timestamp and classifies its real shift independently.
-3. As soon as files are added, the app reads them in the browser, detects
+2. The bucket you drop a file into is your *declared* shift, but it must
+   actually match the file's contents — the app reads every row's own
+   timestamp, classifies the file's real shift, and **rejects the file
+   on the spot if it belongs in the other bucket** (see "Wrong shift
+   bucket rejection" below). It never silently accepts a file into the
+   wrong bucket.
+3. As soon as a file is accepted, the app reads it in the browser, detects
    the profile (HYNC / SLNC / ESG), cleans the rows, and groups the results
    for output by **Profile + Date + Declared Bucket** — the bucket you
-   dropped the file into, not the row-level detected shift.
+   dropped the file into, not any individual row's own detected shift.
 4. Click **Clear / Reset** to remove all uploaded files and start over.
+
+## Wrong shift bucket rejection
+
+Before a file is added to a bucket's file list (and before it can reach
+cleaning at all), the app determines that file's **file-level detected
+shift** from its own detail rows:
+
+- Every detail row is classified DS or NS from its own timestamp (the same
+  per-row classification used elsewhere in the app); non-detail/report rows
+  (headers, subtotals, blanks) are ignored, and rows with an unparseable
+  timestamp are counted separately as "Unknown" rather than folded into
+  either count.
+- **Majority wins:** if DS rows outnumber NS rows, the file's detected
+  shift is Day Shift, and vice versa. A small number of boundary rows on
+  the "wrong" side of the shift window (e.g. a file starting a few minutes
+  before/after the shift boundary) does **not** flip the file's detected
+  shift or get it rejected — those rows still show up individually in that
+  profile's **Shift Warning Rows** table after the file is accepted, exactly
+  as before.
+- If DS and NS rows are tied (including both zero, e.g. a file with no
+  readable timestamps at all), the file's shift is **ambiguous** and it is
+  rejected regardless of which bucket it was dropped into.
+
+If the file's declared bucket doesn't match its detected shift, or the
+detected shift is ambiguous, a popup appears immediately: the file is
+**not** added to the bucket's file list, not included in Start/Refresh
+Cleaning, and never reaches Overview or any profile page. The popup names
+the file, the bucket you chose, the detected shift, the DS/NS/Unknown row
+counts, and tells you which bucket to use instead. If several files are
+rejected from one drag-and-drop or file-picker selection, one combined
+popup lists all of them; files that passed validation in that same
+selection are still accepted normally. A file whose profile can't be
+detected at all (not HYNC/SLNC/ESG) is *not* rejected by this check — it's
+still accepted and reported by the existing "Could not detect profile"
+message once cleaning runs, since there's no shift to validate in that
+case.
 
 ## Operational report date and worksheet scope
 
@@ -163,15 +202,28 @@ DT ID across the currently uploaded files whose Contractor is "Unmatched" —
 one row per unique DT ID, a text input for the contractor name, and a
 Status column.
 
-**Unknown DT is standardized before display or save.** The table shows the
-clean master DT id, not the raw source value — e.g. a source cell reading
-`SCM LIM 992 DT` displays as `SCM LIM 992`. This standardization (uppercase,
-trimmed, trailing "DT" suffix removed, `-`/space separators unified, extra
-spaces collapsed) is the same `normalizeDtId()` rule used everywhere else in
-the app, and the *same* standardized `dt_id` is used consistently for the
-table display, the local List DT cache, the pending sync queue, and the
+**Unknown DT is standardized to canonical master format before display or
+save.** The table shows the canonical master DT id, not the raw source
+value — e.g. source cells reading `SCM-LIM 221 DT.`, `SCM LIM 221 DT`, or
+`SCM-LIM-221-DT` all display as **`SCM-LIM 221`**; `SCM HLG 958 DT` and
+`SCM-HLG 958 DT` both display as **`SCM-HLG 958`**. The canonical format
+for SCM unit ids is `SCM-<UNIT> <NUMBER>` — a hyphen between `SCM` and the
+unit family (`LIM`, `HLG`, ...), a space before the number, uppercase, and
+the raw trailing "DT" suffix removed regardless of how it was separated
+(`" DT"`, `"-DT"`, `".DT"`, `"DT."`). This canonical value (via
+`toCanonicalDtId()` in `js/core/normalizers.js`) is used consistently for
+the table display, the local List DT cache, the pending sync queue, and the
 Google Sheet POST payload — never the raw "... DT" value. The raw source
 value is still available as a hover tooltip on the DT cell for diagnostics.
+
+Matching/duplicate-detection is kept separate from display: `normalizeDtId()`
+still reduces any DT id to a fully punctuation-free key (e.g. both
+`SCM-LIM 221` and `SCM LIM 221` become `SCMLIM221`) purely for comparing
+whether two ids refer to the same truck. This means a Google Sheet row
+already saved as `SCM HLG 958` (older, space-only format) still joins and
+still de-duplicates correctly against a new correction canonicalized to
+`SCM-HLG 958` — the app does not rewrite or migrate existing Google Sheet
+rows; only newly saved/synced mappings use the canonical hyphenated format.
 
 Type a contractor name into one or more rows and click **Update**. Before
 writing anything, each correction is checked against the current List DT
@@ -203,7 +255,7 @@ Google Sheet is tracked separately:
 - The sync POSTs to the same endpoint used for **Update List DT**:
 
   ```json
-  { "action": "appendListDt", "data": [{ "dt_id": "SCM LIM 992", "contractor": "..." }] }
+  { "action": "appendListDt", "data": [{ "dt_id": "SCM-LIM 992", "contractor": "..." }] }
   ```
 
   using **`Content-Type: text/plain;charset=utf-8`** (not
