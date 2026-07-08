@@ -32,7 +32,8 @@ samples already used during development (see
 
 | Field | Value |
 |---|---|
-| App version / commit tested | `efe3075` — fix: keep result tabs sticky while scrolling |
+| App version / commit tested | `e1df503` — docs: add operational pilot validation plan |
+| App code baseline | `efe3075` — fix: keep result tabs sticky while scrolling |
 | Pilot doc baseline | v0.2 Operational Pilot |
 | Prior milestone | Prepilot UX and validation hardening completed |
 
@@ -55,9 +56,13 @@ Notes column to explain any blank or unusual value.
 
 | No | File Name | Profile | Declared Bucket | Detected Result | Report Date | Row Count App | Row Count Legacy | Raw Tonnage App | Raw Tonnage Legacy | Clean Tonnage App | Tonnage Difference | Missing Contractor | Missing Source | Missing Grade | Duplicate NO.NOTA | PILE ID Source Conflict | Shift Warnings | TSV Paste Number Check | Result | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | | | | | | | | | | | | | | | | | | | | |
+| 1 | 07月07日SCM-ESG送矿汇总表 (Data Timbangan Ore 07 Juli 2026) NIGHT SHIFT.xlsx | ESG | Day Shift Input | Rejected (wrong bucket) | | | | | | | | | | | | | | | Pass | Wrong-bucket popup appeared. Detected Night Shift: DS rows 10, NS rows 529, Unknown timestamp rows 6. File was removed from Day Shift Input and instructed to upload to Night Shift Input. |
 | 2 | | | | | | | | | | | | | | | | | | | | |
 | 3 | | | | | | | | | | | | | | | | | | | | |
+
+**Batch 1 note:** Initial manual smoke test passed for wrong-bucket
+rejection and core UI flow. Full operational pilot matrix still needs
+more accepted HYNC/SLNC/ESG Day/Night files before final v1.0 decision.
 
 Column notes:
 
@@ -96,14 +101,16 @@ to score each matrix row's **Result** column:
 Select one, based on the aggregated matrix and issue log results.
 
 - [ ] **PASS** — proceed toward v1.0 release.
-- [ ] **PASS WITH ISSUES** — proceed, with known minor issues tracked for
+- [x] **PASS WITH ISSUES** — proceed, with known minor issues tracked for
       a later fix.
 - [ ] **REVISE** — return to development to fix the specific issues
       logged above before re-running the pilot.
 - [ ] **REJECT** — app is not reliable enough for operational use in its
       current state.
 
-**Decision rationale:**
+**Decision rationale:** Initial smoke test passed, including wrong-bucket
+rejection and core result UI. Final v1.0 readiness still requires
+completing the broader pilot matrix across more real operational files.
 
 **Decided by:**
 
