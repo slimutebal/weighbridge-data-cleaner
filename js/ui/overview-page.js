@@ -1,4 +1,5 @@
 import { formatDecimal } from "../core/output-formatter.js";
+import { computeGroupReadiness } from "../core/readiness.js";
 import {
   getPendingSyncEntries,
   addPendingSyncEntries,
@@ -12,13 +13,13 @@ import { t } from "./i18n.js";
 import { attachScrollEdgeIndicators } from "./scroll-edge-indicators.js";
 import { TABLE_HEADER_NUMERIC_CLASS, TABLE_CELL_NUMERIC_CLASS } from "./table-utils.js";
 
-// Scroll-edge-indicator cleanup handles (Phase C2), one per top-level entry
-// point that fully rebuilds its own container — mirrors profile-page.js's
-// activeScrollCleanups. renderOverview() owns the groups-table's handle;
-// renderUnmatchedDtCorrection() owns its own separately, since it is also
-// re-invoked recursively on its own (Update/Sync button clicks) without
-// going back through renderOverview().
-let groupsTableScrollCleanup = null;
+// Scroll-edge-indicator cleanup handle (Phase C2/incremental) —
+// renderUnmatchedDtCorrection() owns its own, since it is also re-invoked
+// recursively on its own (Update/Sync button clicks) without going back
+// through renderOverview(). The Overview groups-table itself no longer
+// attaches a scroll-edge indicator: it is now a compact, fixed-layout
+// table (+ narrow-width card fallback) that is never meant to scroll
+// horizontally, so there is nothing for an edge indicator to show.
 let unmatchedDtScrollCleanup = null;
 
 // Draft contractor inputs and per-DT-ID status (last local/Google sync
@@ -98,37 +99,124 @@ function renderMessageList(container, items, className) {
   container.appendChild(list);
 }
 
-function renderSummaryTable(container, groups, decimalSeparator) {
-  if (groupsTableScrollCleanup) {
-    groupsTableScrollCleanup();
-    groupsTableScrollCleanup = null;
-  }
+// Combines Missing Contractor/Source/Grade into one compact cell/field.
+// `full` reuses the exact same translated field labels already shown in
+// the detailed Validation Report (overview.missingContractor/Source/Grade)
+// — never a new phrase — so the compact abbreviation and the detailed
+// report always describe the same counts the same way.
+function buildMissingSummary(missingContractor, missingSource, missingGrade) {
+  const compact = t("overview.missingCompact", {
+    c: missingContractor,
+    s: missingSource,
+    g: missingGrade,
+  });
+  const full =
+    `${t("overview.missingContractor")}: ${missingContractor}. ` +
+    `${t("overview.missingSource")}: ${missingSource}. ` +
+    `${t("overview.missingGrade")}: ${missingGrade}.`;
+  return { compact, full };
+}
 
+// Combines Timestamp Window Notes + Skipped Rows into one compact
+// informational cell/field — neither value is a blocker, matching their
+// existing informational (never blocking) classification elsewhere.
+function buildInformationSummary(timestampNotes, skippedRows) {
+  const compact = t("overview.informationCompact", { time: timestampNotes, skip: skippedRows });
+  const full =
+    `${t("overview.timestampWindowNotes")}: ${timestampNotes}. ` +
+    `${t("overview.skippedRows")}: ${skippedRows}.`;
+  return { compact, full };
+}
+
+// Copy Status pill — icon + visible text, never color-only. `blocked`
+// must always come from the existing computeGroupReadiness().blocking
+// boolean (the exact same field result-page.js uses to gate Copy actions
+// and profile-page.js uses for the Cleaning Status/readiness chip), never
+// a value re-derived from Overview's own displayed counts.
+function createCopyStatusPill(blocked) {
+  const statusText = blocked ? t("overview.copyStatusBlocked") : t("overview.copyStatusReady");
+
+  const pill = document.createElement("span");
+  pill.className = blocked ? "copy-status-pill copy-status-blocked" : "copy-status-pill copy-status-ready";
+  pill.setAttribute("aria-label", statusText);
+
+  const icon = document.createElement("span");
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = blocked ? "✕" : "✓";
+  pill.appendChild(icon);
+
+  const label = document.createElement("span");
+  label.textContent = statusText;
+  pill.appendChild(label);
+
+  return pill;
+}
+
+// Single derivation pass per group, shared by both the desktop table and
+// the narrow-width card fallback below, so the two presentations can never
+// disagree — every value here is read from the already-computed
+// group.validation / group.rows / group.skippedRowsCount, or from
+// computeGroupReadiness(group.validation) (the app's one readiness/copy-
+// gating decision point). Nothing is recalculated.
+function computeGroupOverviewData(group, decimalSeparator) {
+  const readiness = computeGroupReadiness(group.validation);
+  return {
+    profile: group.profile,
+    date: group.date,
+    bucket: group.bucket,
+    rows: group.rows.length,
+    netTonnage: formatDecimal(group.validation.cleanTonnage, decimalSeparator),
+    missing: buildMissingSummary(
+      group.validation.missingContractorCount,
+      group.validation.missingSourceCount,
+      group.validation.missingGradeCount
+    ),
+    information: buildInformationSummary(group.validation.shiftWarningCount, group.skippedRowsCount || 0),
+    blocked: readiness.blocking,
+  };
+}
+
+// Compact desktop Overview table (Phase C2 incremental): 8 columns —
+// Profile / Date / Bucket / Rows / Net Tonnage / Missing / Information /
+// Copy Status — fixed layout with explicit column-width classes (via
+// <colgroup>) so it fits without horizontal scrolling at the PC-first
+// widths this app targets (Part 4). No scroll-edge indicator is attached
+// here (Part 5) — unlike the other C2 tables, this one is designed to
+// never need horizontal scrolling in the first place.
+function renderOverviewTable(container, groups, decimalSeparator) {
   const wrap = document.createElement("div");
-  wrap.className = "summary-table-wrap";
+  wrap.className = "summary-table-wrap overview-table-view";
 
   const table = document.createElement("table");
   table.className = "groups-table";
 
-  // Profile/Date/Bucket are text/identifier columns; the remaining seven
-  // are numeric counts/tonnage (Part 3: semantic hooks by column identity).
+  const colgroup = document.createElement("colgroup");
+  ["profile", "date", "bucket", "rows", "tonnage", "missing", "information", "copy"].forEach((name) => {
+    const col = document.createElement("col");
+    col.className = `overview-col-${name}`;
+    colgroup.appendChild(col);
+  });
+  table.appendChild(colgroup);
+
+  // Profile/Date/Bucket/Missing/Information/Copy Status are text/compound
+  // columns; Rows and Net Tonnage are numeric (Part 3: semantic hooks by
+  // column identity, never nth-child).
   const columns = [
     { key: "overview.profile", numeric: false },
     { key: "overview.date", numeric: false },
     { key: "overview.bucket", numeric: false },
     { key: "overview.rows", numeric: true },
     { key: "overview.netTonnage", numeric: true },
-    { key: "overview.missingContractor", numeric: true },
-    { key: "overview.missingSource", numeric: true },
-    { key: "overview.missingGrade", numeric: true },
-    { key: "overview.timestampWindowNotes", numeric: true },
-    { key: "overview.skippedRows", numeric: true },
+    { key: "overview.missing", numeric: false },
+    { key: "overview.information", numeric: false },
+    { key: "overview.copyStatus", numeric: false },
   ];
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   columns.forEach(({ key, numeric }) => {
     const th = document.createElement("th");
+    th.scope = "col";
     th.textContent = t(key);
     if (numeric) th.classList.add(TABLE_HEADER_NUMERIC_CLASS);
     headRow.appendChild(th);
@@ -138,31 +226,138 @@ function renderSummaryTable(container, groups, decimalSeparator) {
 
   const tbody = document.createElement("tbody");
   groups.forEach((group) => {
+    const data = computeGroupOverviewData(group, decimalSeparator);
     const tr = document.createElement("tr");
-    [
-      group.profile,
-      group.date,
-      group.bucket,
-      String(group.rows.length),
-      formatDecimal(group.validation.cleanTonnage, decimalSeparator),
-      String(group.validation.missingContractorCount),
-      String(group.validation.missingSourceCount),
-      String(group.validation.missingGradeCount),
-      String(group.validation.shiftWarningCount),
-      String(group.skippedRowsCount || 0),
-    ].forEach((text, index) => {
-      const td = document.createElement("td");
-      td.textContent = text;
-      if (columns[index].numeric) td.classList.add(TABLE_CELL_NUMERIC_CLASS);
-      tr.appendChild(td);
-    });
+
+    const profileTd = document.createElement("td");
+    profileTd.textContent = data.profile;
+    tr.appendChild(profileTd);
+
+    const dateTd = document.createElement("td");
+    dateTd.textContent = data.date;
+    tr.appendChild(dateTd);
+
+    const bucketTd = document.createElement("td");
+    bucketTd.textContent = data.bucket;
+    tr.appendChild(bucketTd);
+
+    const rowsTd = document.createElement("td");
+    rowsTd.textContent = String(data.rows);
+    rowsTd.classList.add(TABLE_CELL_NUMERIC_CLASS);
+    tr.appendChild(rowsTd);
+
+    const tonnageTd = document.createElement("td");
+    tonnageTd.textContent = data.netTonnage;
+    tonnageTd.classList.add(TABLE_CELL_NUMERIC_CLASS);
+    tr.appendChild(tonnageTd);
+
+    const missingTd = document.createElement("td");
+    missingTd.textContent = data.missing.compact;
+    missingTd.title = data.missing.full;
+    missingTd.setAttribute("aria-label", data.missing.full);
+    tr.appendChild(missingTd);
+
+    const infoTd = document.createElement("td");
+    infoTd.textContent = data.information.compact;
+    infoTd.title = data.information.full;
+    infoTd.setAttribute("aria-label", data.information.full);
+    tr.appendChild(infoTd);
+
+    const copyTd = document.createElement("td");
+    copyTd.appendChild(createCopyStatusPill(data.blocked));
+    tr.appendChild(copyTd);
+
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
 
   wrap.appendChild(table);
   container.appendChild(wrap);
-  groupsTableScrollCleanup = attachScrollEdgeIndicators(wrap);
+}
+
+function createCardField(labelKey, valueText) {
+  const field = document.createElement("div");
+  field.className = "overview-card-field";
+
+  const label = document.createElement("span");
+  label.className = "overview-card-label";
+  label.textContent = `${t(labelKey)}: `;
+
+  const value = document.createElement("span");
+  value.textContent = valueText;
+
+  field.appendChild(label);
+  field.appendChild(value);
+  return field;
+}
+
+// Narrow-width stacked-card fallback (Phase C2 incremental, Part 6) —
+// same computeGroupOverviewData() derivation as the table above (never a
+// second calculation), rendered as label/value blocks instead of table
+// cells. Toggled purely via CSS (see .overview-table-view /
+// .overview-card-view in css/app.css) so no resize listener/JS breakpoint
+// logic is needed; both views always exist in the DOM, and the hidden one
+// is correctly excluded from the accessibility tree by display: none.
+function renderOverviewCards(container, groups, decimalSeparator) {
+  const list = document.createElement("div");
+  list.className = "overview-card-view";
+
+  groups.forEach((group) => {
+    const data = computeGroupOverviewData(group, decimalSeparator);
+    const card = document.createElement("div");
+    card.className = "overview-card";
+
+    const title = document.createElement("div");
+    title.className = "overview-card-title";
+    title.textContent = `${data.profile} · ${data.bucket} · ${data.date}`;
+    card.appendChild(title);
+
+    const statsRow = document.createElement("div");
+    statsRow.className = "overview-card-row";
+    statsRow.appendChild(createCardField("overview.rows", String(data.rows)));
+    statsRow.appendChild(createCardField("overview.netTonnage", data.netTonnage));
+    card.appendChild(statsRow);
+
+    const missingBlock = document.createElement("div");
+    missingBlock.className = "overview-card-block";
+    const missingLabel = document.createElement("div");
+    missingLabel.className = "overview-card-label";
+    missingLabel.textContent = `${t("overview.missing")}:`;
+    const missingValue = document.createElement("div");
+    missingValue.textContent = data.missing.compact;
+    missingValue.title = data.missing.full;
+    missingValue.setAttribute("aria-label", data.missing.full);
+    missingBlock.appendChild(missingLabel);
+    missingBlock.appendChild(missingValue);
+    card.appendChild(missingBlock);
+
+    const infoBlock = document.createElement("div");
+    infoBlock.className = "overview-card-block";
+    const infoLabel = document.createElement("div");
+    infoLabel.className = "overview-card-label";
+    infoLabel.textContent = `${t("overview.information")}:`;
+    const infoValue = document.createElement("div");
+    infoValue.textContent = data.information.compact;
+    infoValue.title = data.information.full;
+    infoValue.setAttribute("aria-label", data.information.full);
+    infoBlock.appendChild(infoLabel);
+    infoBlock.appendChild(infoValue);
+    card.appendChild(infoBlock);
+
+    const statusRow = document.createElement("div");
+    statusRow.className = "overview-card-status";
+    statusRow.appendChild(createCopyStatusPill(data.blocked));
+    card.appendChild(statusRow);
+
+    list.appendChild(card);
+  });
+
+  container.appendChild(list);
+}
+
+function renderSummaryTable(container, groups, decimalSeparator) {
+  renderOverviewTable(container, groups, decimalSeparator);
+  renderOverviewCards(container, groups, decimalSeparator);
 }
 
 function collectUniqueUnmatchedDt(groups) {
@@ -398,15 +593,6 @@ export function renderOverview(
   decimalSeparator = ".",
   { listDtEndpoint, onRecleanRequested } = {}
 ) {
-  // Only renderSummaryTable() (below) is called conditionally — when
-  // `groups` is empty it's skipped entirely, so its own self-clearing
-  // top-of-function guard never runs. Clearing here too guarantees the
-  // groups-table's scroll-indicator listeners are always disconnected when
-  // Overview transitions from populated groups back to empty (e.g. Reset).
-  if (groupsTableScrollCleanup) {
-    groupsTableScrollCleanup();
-    groupsTableScrollCleanup = null;
-  }
   container.innerHTML = "";
 
   if (fileErrors.length) {

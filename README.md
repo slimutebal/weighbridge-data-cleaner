@@ -532,6 +532,47 @@ which remains fully usable. Every table wrapper's indicator is
 reattached on re-render (profile/tab switch, language change, decimal
 format change, View All open) and explicitly cleaned up beforehand, so
 switching around the app repeatedly never accumulates duplicate listeners.
+The Overview summary table (below) is a deliberate exception — it is
+designed to never scroll horizontally in the first place, so it does not
+attach an edge-fade indicator at all.
+
+### Overview: compact columns and Copy Status
+
+The Overview summary is a **decision summary**, not a detailed validation
+table, so it stays intentionally compact: **Profile, Date, Bucket, Rows,
+Net Tonnage, Missing, Information, Copy Status** — eight columns, fixed
+column widths, no horizontal scrolling at any PC-first width this app
+targets (1024px and up).
+
+- **Missing** combines Missing Contractor / Missing Source / Missing Grade
+  into one compact cell (e.g. `C 0 · S 0 · G 0`); hovering or using a
+  screen reader exposes the full "Missing Contractor: 0. Missing Source:
+  0. Missing Grade: 0." wording — the same field labels already used in
+  the detailed Validation Report, not a new phrase. The underlying counts
+  are unchanged; this is presentation only.
+- **Information** combines Timestamp Window Notes and Skipped Rows into
+  one compact cell (e.g. `Time 3 · Skip 33`), with the same full-sentence
+  accessible label/title pattern. Neither value is treated as a blocker —
+  that classification is unchanged.
+- **Copy Status** shows a pill — **✓ Ready to Copy** (green) or **✕ Copy
+  Blocked** (red), icon plus visible text, never color-only — reflecting
+  the *exact same* readiness/copy-gating decision (`computeGroupReadiness`)
+  that already governs the profile-tab readiness badge and the bottom
+  action bar's Copy buttons. Ready and Ready with Information both show
+  **Ready to Copy**; only Action Required shows **Copy Blocked**. Overview
+  never computes a second copy decision.
+
+The full, detailed Validation Report (every individual count, not the
+compact combined view) remains available on each profile page — Overview
+is a summary of it, never a replacement.
+
+At narrow widths (≤640px, the same breakpoint the rest of the app already
+uses for its mobile/narrow layout) the Overview table is replaced by
+stacked summary cards — one card per Profile + Date + Bucket group, each
+showing the same values (Rows, Net Tonnage, Missing, Information, and the
+Copy Status pill) as labeled fields instead of table columns. Both the
+table and the card layout are always rendered; a CSS media query, not a
+JavaScript resize listener, decides which one is visible.
 
 ## Offline behavior
 

@@ -955,20 +955,27 @@ input:focus-visible,
   }
 }
 
-/* Overview groups table can get wide (10 columns); allow horizontal
-   scroll on narrow screens without breaking the sticky layout around it.
-   The table itself now also sits in its own .summary-table-wrap (Phase
-   C2), so this ancestor overflow is a harmless fallback, not the table's
-   primary scroll mechanism any more. */
+/* General fallback for any wide content inside a result panel (other
+   profile pages' breakdown/preview tables still rely on their own
+   .summary-table-wrap for scrolling). The Overview groups-table itself
+   (below) is deliberately compact and fixed-layout precisely so it never
+   needs this ancestor overflow to kick in (Phase C2 incremental — see
+   "Compact Overview summary" further down). */
 .result-tab-panel {
   overflow-x: auto;
 }
 
 /* Kept on opaque --color-surface (not glass) even though it sits inside
    a glass .result-tab-panel — table readability must win over the glass
-   effect (see acceptance criteria in v1.0.1-predeploy). */
+   effect (see acceptance criteria in v1.0.1-predeploy).
+   table-layout: fixed (incremental C2 addition) + the explicit
+   .overview-col-* <col> widths below are what let this compact 8-column
+   table fit within the PC-first widths this app targets without ever
+   needing horizontal scrolling — see the Overview section further down
+   for the column widths themselves. */
 .groups-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--fs-table);
   color: var(--color-text);
@@ -981,6 +988,7 @@ input:focus-visible,
   text-align: left;
   padding: 8px 10px;
   border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
 }
 
 .groups-table thead th {
@@ -1006,6 +1014,142 @@ input:focus-visible,
 .view-all-table th.table-header-numeric,
 .view-all-table td.table-cell-numeric {
   text-align: right;
+}
+
+/* ==========================================================================
+   Compact Overview summary (Phase C2 incremental)
+   The Overview groups-table is a decision summary, not a detailed
+   validation table — it is deliberately narrower (8 columns, Missing and
+   Information each collapsed into one compact cell, plus a Copy Status
+   pill) than the per-profile Validation Report, and is designed to never
+   need horizontal scrolling at the PC-first widths this app targets.
+   Percentages sum to 100% and only apply while .groups-table has
+   table-layout: fixed (see above).
+   ========================================================================== */
+
+.overview-col-profile {
+  width: 8%;
+}
+
+.overview-col-date {
+  width: 10%;
+}
+
+.overview-col-bucket {
+  width: 8%;
+}
+
+.overview-col-rows {
+  width: 8%;
+}
+
+.overview-col-tonnage {
+  width: 12%;
+}
+
+.overview-col-missing {
+  width: 18%;
+}
+
+.overview-col-information {
+  width: 16%;
+}
+
+.overview-col-copy {
+  width: 20%;
+}
+
+/* Compact semantic pill (icon + visible text — never color-only) reusing
+   the exact same success/danger tokens as .cleaning-status-ready/blocked
+   and the headline readiness tile, never a new color decision. */
+.copy-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-helper);
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.copy-status-ready {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+}
+
+.copy-status-blocked {
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+/* Narrow-width stacked-card fallback (Part 6) — hidden on desktop by
+   default; the media query below swaps which of .overview-table-view /
+   .overview-card-view is visible. Both are always present in the DOM
+   (js/ui/overview-page.js renders both), so this is a pure CSS toggle with
+   no resize listener/JS breakpoint logic involved — the hidden view is
+   correctly excluded from the accessibility tree by display: none. */
+.overview-card-view {
+  display: none;
+}
+
+.overview-card {
+  background: var(--surface-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-inner);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-card), var(--glass-highlight);
+}
+
+.overview-card-title {
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.overview-card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+  font-size: var(--fs-body);
+}
+
+.overview-card-field {
+  color: var(--color-text);
+}
+
+.overview-card-block {
+  margin-bottom: 8px;
+  font-size: var(--fs-body);
+}
+
+.overview-card-label {
+  color: var(--color-text-muted);
+  font-size: var(--fs-helper);
+}
+
+.overview-card-status {
+  margin-top: 10px;
+}
+
+/* Same breakpoint the rest of the app already uses for its narrow/mobile
+   layout adjustments (see the @media (max-width: 640px) block at the end
+   of this file) — not a new arbitrary threshold. At and above it the
+   compact table (with table-layout: fixed) stays readable without
+   scrolling at every PC-first width this app targets; below it the
+   stacked cards take over. */
+@media (max-width: 640px) {
+  .overview-table-view {
+    display: none;
+  }
+
+  .overview-card-view {
+    display: block;
+  }
 }
 
 /* ==========================================================================
