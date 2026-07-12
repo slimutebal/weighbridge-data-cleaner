@@ -14,6 +14,13 @@
      changes so the tab bar's stuck offset never hardcodes a guessed value. */
   --sticky-header-height: 84px;
 
+  /* Fallback only, used before main.js measures the bottom action dock's
+     real rendered height (Phase B) — see the matching ResizeObserver in
+     js/main.js. #app's bottom padding reads this instead of a hardcoded
+     guess, so it always clears the dock regardless of button wrapping,
+     safe-area insets, zoom, or a narrowed desktop window. */
+  --bottom-action-bar-height: 96px;
+
   color-scheme: light;
 
   --color-bg: #f6f7f9;
@@ -381,10 +388,12 @@ input:focus-visible,
   max-width: 1200px;
   margin: 0 auto;
   /* Bottom padding clears the floating bottom action dock so it never
-     covers the last bit of content. Generous on purpose: the dock can
-     wrap to two rows at narrow widths and there is no JS height
-     measurement (unlike the header) backing this value in Phase A. */
-  padding: 20px 0 calc(140px + env(safe-area-inset-bottom));
+     covers the last bit of content (Phase B: now measured, not guessed —
+     see the ResizeObserver in js/main.js). --bottom-action-bar-height is
+     the dock CONTAINER's own rendered height, which already bakes in its
+     safe-area-inset-bottom padding on narrow widths, so it is not added
+     again here. The extra 20px is a visual breathing gap above the dock. */
+  padding: 20px 0 calc(var(--bottom-action-bar-height) + 20px);
 }
 
 /* ==========================================================================
@@ -645,6 +654,19 @@ input:focus-visible,
   white-space: nowrap;
 }
 
+/* Standard "visually hidden but still announced" utility (Phase B) — used
+   for the central aria-live region (js/ui/live-announcer.js). Deliberately
+   NOT display:none or visibility:hidden, either of which would make
+   screen readers ignore the element's content changes entirely. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .file-list-container {
   margin-top: 12px;
 }
@@ -661,7 +683,13 @@ input:focus-visible,
   padding: 0;
 }
 
+/* Filename + remove button row (Phase B). flex keeps the remove control
+   pinned to the far right regardless of filename length; the filename
+   span below is the only element allowed to shrink/wrap. */
 .file-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 4px 0;
   font-size: 0.9rem;
   color: var(--color-text);
@@ -670,6 +698,52 @@ input:focus-visible,
 
 .file-list-item:last-child {
   border-bottom: none;
+}
+
+.file-list-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Per-file remove control (Phase B) — subdued neutral by default so it
+   never outweighs the filename; only turns danger-red on hover/focus/
+   press, when the user is actually about to act on it. Sized for a
+   desktop pointer target (this app is PC-first) without visually
+   overpowering a dense file list. */
+.file-remove-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .file-remove-btn:hover {
+    background: var(--color-danger-bg);
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+  }
+}
+
+.file-remove-btn:active {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  transform: scale(0.92);
 }
 
 /* ==========================================================================

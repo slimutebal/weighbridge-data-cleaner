@@ -29,9 +29,20 @@ export function mountResultPage(
 
   const tabsNav = document.createElement("div");
   tabsNav.className = "result-tabs";
+  // Tab semantics (Phase B) — set once on this stable, never-recreated
+  // container; only the individual tab buttons inside it are rebuilt by
+  // renderTabs() below.
+  tabsNav.setAttribute("role", "tablist");
+  tabsNav.setAttribute("aria-label", "Cleaning result profile tabs");
 
   const panelContainer = document.createElement("div");
   panelContainer.className = "result-section result-tab-panel";
+  // Single shared panel behind every tab (Phase B) — content is swapped,
+  // not one hidden panel per tab, so every tab's aria-controls points at
+  // this one stable id and aria-labelledby is kept pointed at whichever
+  // tab is currently active (updated in renderPanel() below).
+  panelContainer.id = "result-tab-panel";
+  panelContainer.setAttribute("role", "tabpanel");
 
   container.appendChild(heading);
   container.appendChild(statusSection);
@@ -133,16 +144,51 @@ export function mountResultPage(
     return `${summary.totalGroups} ${groupWord} · ${READINESS_SHORT_LABEL[summary.highestSeverity].toLowerCase()}`;
   }
 
+  function tabElementId(tabId) {
+    return `result-tab-${tabId}`;
+  }
+
+  // Single tab-activation path (Phase B) — used by both the pointer click
+  // handler and the keyboard handler below, so keyboard activation can
+  // never diverge into a second, independent tab state. Re-renders the
+  // tab bar (fresh aria-selected/tabindex per button) and the panel, then
+  // moves DOM focus onto the newly active tab's button — its old button
+  // element was just destroyed by renderTabs()'s innerHTML reset, so
+  // without this, focus would silently fall back to <body> after every
+  // activation (mouse or keyboard).
+  function activateTab(tabId) {
+    if (activeTab === tabId) return;
+    // ON PROFILE CHANGE (section 14): close any View All panel and
+    // clear the active group from the previous profile before
+    // rendering the target profile's own default expansion.
+    closeViewAllRowsModal();
+    activeGroupKey = null;
+    activeTab = tabId;
+    renderTabs();
+    renderPanel();
+    updateActionBar();
+    const newBtn = tabsNav.querySelector(`#${tabElementId(tabId)}`);
+    if (newBtn) newBtn.focus();
+  }
+
   function renderTabs() {
     tabsNav.innerHTML = "";
     const tabs = ["overview", ...profilesPresent()];
     if (!tabs.includes(activeTab)) activeTab = "overview";
 
     tabs.forEach((tabId) => {
+      const isActive = tabId === activeTab;
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className =
-        tabId === activeTab ? "result-tab-btn result-tab-btn-active" : "result-tab-btn";
+      btn.id = tabElementId(tabId);
+      btn.className = isActive ? "result-tab-btn result-tab-btn-active" : "result-tab-btn";
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", String(isActive));
+      btn.setAttribute("aria-controls", "result-tab-panel");
+      // Roving tabindex (Phase B): only the active tab is a normal Tab
+      // stop; arrow keys move among the rest (see the tabsNav keydown
+      // listener below), per the standard ARIA tabs pattern.
+      btn.tabIndex = isActive ? 0 : -1;
 
       const label = document.createElement("span");
       label.className = "result-tab-label";
@@ -159,21 +205,32 @@ export function mountResultPage(
         }
       }
 
-      btn.addEventListener("click", () => {
-        if (activeTab === tabId) return;
-        // ON PROFILE CHANGE (section 14): close any View All panel and
-        // clear the active group from the previous profile before
-        // rendering the target profile's own default expansion.
-        closeViewAllRowsModal();
-        activeGroupKey = null;
-        activeTab = tabId;
-        renderTabs();
-        renderPanel();
-        updateActionBar();
-      });
+      btn.addEventListener("click", () => activateTab(tabId));
       tabsNav.appendChild(btn);
     });
   }
+
+  // Arrow/Home/End keyboard navigation (Phase B), delegated on the stable
+  // tabsNav container rather than attached per-button, so it keeps working
+  // across every renderTabs() rebuild without re-attaching listeners.
+  // Enter/Space need no extra handling — these are real <button> elements,
+  // so the browser already fires a click (and therefore activateTab) on
+  // both keys natively.
+  tabsNav.addEventListener("keydown", (event) => {
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+    if (!event.target.closest(".result-tab-btn")) return;
+    event.preventDefault();
+
+    const tabs = ["overview", ...profilesPresent()];
+    const currentIndex = tabs.indexOf(activeTab);
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = tabs.length - 1;
+
+    activateTab(tabs[nextIndex]);
+  });
 
   // Single-open accordion toggle for the active profile tab (section 9):
   // clicking the currently-open group collapses it (no group remains
@@ -190,6 +247,13 @@ export function mountResultPage(
   }
 
   function renderPanel() {
+    // Keeps the single shared panel's accessible name pointed at whichever
+    // tab is currently active (Phase B) — cheap to set unconditionally on
+    // every render, and panelContainer.innerHTML resets below (inside
+    // renderOverview/renderProfilePage) only clear its children, never its
+    // own attributes.
+    panelContainer.setAttribute("aria-labelledby", tabElementId(activeTab));
+
     if (activeTab === "overview") {
       renderOverview(panelContainer, currentResult, currentDecimalSeparator, {
         listDtEndpoint,

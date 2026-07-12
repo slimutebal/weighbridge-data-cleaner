@@ -1,5 +1,6 @@
 import { loadListDt, refreshFromEndpointInBackground } from "../core/list-dt-manager.js";
 import { loadAppConfig } from "../core/app-settings.js";
+import { announce } from "./live-announcer.js";
 
 function formatUpdatedAt(updatedAt) {
   if (!updatedAt) return "—";
@@ -41,10 +42,12 @@ export function mountListDtPage(container, { onUpdated } = {}) {
 
     if (result.ok) {
       feedback.textContent = `List DT updated: ${result.recordCount} record(s) cached.`;
+      announce("List DT updated.");
       await refreshStatus();
       if (onUpdated) await onUpdated();
     } else {
       feedback.textContent = `List DT update failed (${result.reason}). Using cached/bundled List DT.`;
+      announce("List DT update failed.");
     }
 
     updateBtn.disabled = false;

@@ -7,6 +7,7 @@ import {
   upsertLocalDtMappings,
   syncDtMappingsToGoogleSheet,
 } from "../core/list-dt-manager.js";
+import { announce } from "./live-announcer.js";
 
 // Draft contractor inputs and per-DT-ID status (last local/Google sync
 // outcome) are kept at module scope (not inside renderOverview) because the
@@ -30,6 +31,7 @@ export function resetUnmatchedDtDrafts() {
 function applyGoogleSyncOutcome(syncResult, applied) {
   if (syncResult.perEntry) {
     const resolvedIds = [];
+    let allResolved = syncResult.perEntry.length > 0;
     syncResult.perEntry.forEach(({ dt_id, outcome }) => {
       if (outcome === "synced") {
         resolvedIds.push(dt_id);
@@ -38,11 +40,13 @@ function applyGoogleSyncOutcome(syncResult, applied) {
         resolvedIds.push(dt_id);
         dtCorrectionStatus.set(dt_id, { kind: "duplicate", text: "Already exists on Google Sheet." });
       } else if (outcome === "conflict") {
+        allResolved = false;
         dtCorrectionStatus.set(dt_id, {
           kind: "conflict",
           text: "Conflict: Google Sheet has a different contractor for this DT.",
         });
       } else {
+        allResolved = false;
         dtCorrectionStatus.set(dt_id, {
           kind: "error",
           text: "Saved locally, pending Google Sheet sync.",
@@ -50,6 +54,7 @@ function applyGoogleSyncOutcome(syncResult, applied) {
       }
     });
     if (resolvedIds.length) removePendingSyncEntries(resolvedIds);
+    announce(allResolved ? "Contractor mappings synchronized." : "Synchronization pending.");
     return;
   }
 
@@ -58,6 +63,7 @@ function applyGoogleSyncOutcome(syncResult, applied) {
     applied.forEach((entry) =>
       dtCorrectionStatus.set(entry.dt_id, { kind: "ok", text: "Saved and synced to Google Sheet." })
     );
+    announce("Contractor mappings synchronized.");
   } else {
     applied.forEach((entry) =>
       dtCorrectionStatus.set(entry.dt_id, {
@@ -65,6 +71,7 @@ function applyGoogleSyncOutcome(syncResult, applied) {
         text: `Saved locally, pending Google Sheet sync. (${syncResult.reason})`,
       })
     );
+    announce("Synchronization pending.");
   }
 }
 

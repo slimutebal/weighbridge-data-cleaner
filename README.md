@@ -43,6 +43,23 @@ Opening `index.html` directly by double-clicking it (`file://`) will not work
 reliably — the app's JavaScript modules and configuration files require a real
 `http://` origin to load.
 
+Once running, the app can also be opened as its own window via the
+browser's "Install" / "Create shortcut..." feature (Chrome/Edge) and pinned
+to the Windows Start menu — it keeps its own app icon and window, separate
+from a regular browser tab, using only the same static files above. This
+app does not implement a formal PWA (no manifest, no service worker, no
+offline install prompt) — see "Current MVP limitations" below.
+
+The technology boundary is intentional and unchanged across every
+revision: static HTML, CSS, and JavaScript only — no Python, no backend
+service, no database, no build step/bundler, and no UI framework
+dependency.
+
+This app is built and tested **PC/desktop-first** for weighbridge
+operational use. Narrower/mobile widths remain fully functional (no
+horizontal overflow, controls stay reachable, results stay readable) but
+are a compatibility fallback, not the primary design target.
+
 ## Sticky header, tabs, and bottom action bar
 
 The top header stays visible while scrolling (`position: sticky`) and holds
@@ -80,7 +97,44 @@ the top. The tab bar's stuck position is computed from the header's actual
 rendered height (`--sticky-header-height`, kept in sync by a
 `ResizeObserver` in `js/main.js`) rather than a hardcoded pixel value, so it
 still lines up correctly if the header wraps onto two lines at a narrow
-width or its height otherwise changes.
+width or its height otherwise changes. The tabs are keyboard-accessible
+(standard ARIA tab pattern, arrow/Home/End navigation) — see
+*Accessibility* below.
+
+The bottom action bar's own clearance works the same way: the main content
+area's bottom padding reads a measured `--bottom-action-bar-height` custom
+property (kept in sync by a second `ResizeObserver`, on
+`#bottom-action-bar-container`, in `js/main.js`) instead of a fixed guessed
+padding value — so the last bit of page content always stays fully
+scrollable above the dock regardless of button wrapping, browser zoom, or a
+narrowed desktop window.
+
+## Accessibility
+
+The profile result tabs (**Overview / HYNC / SLNC / ESG**) use the standard
+ARIA tabs pattern — `role="tablist"` on the tab bar, `role="tab"` on each
+tab with `aria-selected` and `aria-controls`, `role="tabpanel"` on the
+result panel, and a roving `tabindex` so only the active tab is a normal
+Tab stop. With focus on a tab:
+
+- **Left / Right arrow** — move to and activate the previous/next tab
+  (wraps: last → first, first → last).
+- **Home** — jump to and activate **Overview**.
+- **End** — jump to and activate the last available profile tab.
+- **Enter / Space** — activate the focused tab (native `<button>` behavior).
+
+Keyboard activation always goes through the exact same tab-selection code
+path as a mouse click — there is no separate keyboard-only state, and every
+generated tab/panel id is stable and unique even after results re-render.
+
+A single, persistent, visually-hidden `aria-live="polite"` region
+(`js/ui/live-announcer.js`, mounted once at startup) announces key state
+changes to screen readers — in addition to, never instead of, the app's
+existing visible feedback (button text, status chips, warning/validation
+blocks). Currently announced: removing an individual uploaded file, Clear /
+Reset, Copy succeeded/failed, List DT update succeeded/failed, and
+contractor-mapping sync succeeded/pending. Announcements are deliberately
+short and never include raw error text, internal ids, or endpoint details.
 
 ## Uploading Day Shift / Night Shift files
 
@@ -98,7 +152,19 @@ The first page has two drop zones: **Day Shift Input** and **Night Shift Input**
    the profile (HYNC / SLNC / ESG), cleans the rows, and groups the results
    for output by **Profile + Date + Declared Bucket** — the bucket you
    dropped the file into, not any individual row's own detected shift.
-4. Click **Clear / Reset** to remove all uploaded files and start over.
+4. Each uploaded file is listed with its own **×** remove button. Removing
+   one file keeps every other file in both buckets, in their original
+   order, and immediately re-runs cleaning against whatever files remain —
+   no re-upload needed. Removing the last file in a bucket returns that
+   bucket to its empty state while the other bucket (and its results) is
+   untouched; if both buckets end up empty, the results area returns to its
+   normal no-files state. Removal is tracked by an internal per-upload
+   identifier, not by filename, so two files that happen to share a name
+   are never confused with each other.
+5. Click **Clear / Reset** in the header to immediately remove every
+   uploaded file in both buckets and all cleaning results in one step —
+   the global "start completely over" action. It never asks for
+   confirmation.
 
 ## Wrong shift bucket rejection
 

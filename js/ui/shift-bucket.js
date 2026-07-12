@@ -1,6 +1,7 @@
 import { renderFileList } from "./imported-file-list.js";
 import { detectFileShift, evaluateBucketMatch } from "../core/shift-bucket-validator.js";
 import { showWrongBucketModal } from "./wrong-bucket-modal.js";
+import { announce } from "./live-announcer.js";
 
 const ACCEPTED_EXTENSIONS = [".xlsx", ".xlsm"];
 
@@ -10,10 +11,24 @@ function isAcceptedFile(file) {
 }
 
 export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
-  let files = [];
+  // Internal state is entries ({ id, file }), not bare File objects (Phase
+  // B) — the id is the stable identity used to remove exactly one uploaded
+  // file even when two entries share the same filename (or name+size).
+  // getFiles()/onChange() still hand callers a plain File[] below, so
+  // import-page.js and main.js need no changes at all.
+  let entries = [];
+  let nextEntrySeq = 0;
+
+  // Scoped to this bucket instance (each createShiftBucket() call has its
+  // own counter/closure) and prefixed with bucketId so ids stay unique
+  // across the Day/Night buckets too.
+  function makeEntryId() {
+    nextEntrySeq += 1;
+    return `${bucketId}-file-${nextEntrySeq}`;
+  }
 
   function notifyChange() {
-    if (onChange) onChange(bucketId, files.slice());
+    if (onChange) onChange(bucketId, entries.map((entry) => entry.file));
   }
 
   const root = document.createElement("div");
@@ -53,7 +68,22 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
   fileListContainer.className = "file-list-container";
 
   function refresh() {
-    renderFileList(fileListContainer, files);
+    renderFileList(fileListContainer, entries, { onRemove: removeEntry });
+  }
+
+  // One removal action -> one state update -> one notifyChange() call, so
+  // the existing import/cleaning pipeline (import-page.js's emitChange ->
+  // main.js's handleFilesChange -> runCleaning) re-runs exactly once with
+  // the remaining files, whether this bucket still has files afterward,
+  // ends up empty, or both buckets end up empty (main.js's existing
+  // no-files branch already returns to the empty result state — no new
+  // logic needed here for that case).
+  function removeEntry(entryId) {
+    const removed = entries.find((entry) => entry.id === entryId);
+    entries = entries.filter((entry) => entry.id !== entryId);
+    refresh();
+    notifyChange();
+    if (removed) announce(`Removed ${removed.file.name}.`);
   }
 
   // Reads and shift-classifies a single candidate file against this
@@ -79,7 +109,9 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
     const candidates = Array.from(fileListLike).filter(
       (file) =>
         isAcceptedFile(file) &&
-        !files.some((existing) => existing.name === file.name && existing.size === file.size)
+        !entries.some(
+          (entry) => entry.file.name === file.name && entry.file.size === file.size
+        )
     );
     if (!candidates.length) return;
 
@@ -96,7 +128,7 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
     }
 
     if (accepted.length) {
-      files = [...files, ...accepted];
+      entries = [...entries, ...accepted.map((file) => ({ id: makeEntryId(), file }))];
       refresh();
       notifyChange();
     }
@@ -148,9 +180,9 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
 
   return {
     element: root,
-    getFiles: () => files.slice(),
+    getFiles: () => entries.map((entry) => entry.file),
     reset: () => {
-      files = [];
+      entries = [];
       refresh();
       notifyChange();
     },
