@@ -9,6 +9,17 @@ import {
 } from "../core/list-dt-manager.js";
 import { announce } from "./live-announcer.js";
 import { t } from "./i18n.js";
+import { attachScrollEdgeIndicators } from "./scroll-edge-indicators.js";
+import { TABLE_HEADER_NUMERIC_CLASS, TABLE_CELL_NUMERIC_CLASS } from "./table-utils.js";
+
+// Scroll-edge-indicator cleanup handles (Phase C2), one per top-level entry
+// point that fully rebuilds its own container — mirrors profile-page.js's
+// activeScrollCleanups. renderOverview() owns the groups-table's handle;
+// renderUnmatchedDtCorrection() owns its own separately, since it is also
+// re-invoked recursively on its own (Update/Sync button clicks) without
+// going back through renderOverview().
+let groupsTableScrollCleanup = null;
+let unmatchedDtScrollCleanup = null;
 
 // Draft contractor inputs and per-DT-ID status (last local/Google sync
 // outcome) are kept at module scope (not inside renderOverview) because the
@@ -88,25 +99,38 @@ function renderMessageList(container, items, className) {
 }
 
 function renderSummaryTable(container, groups, decimalSeparator) {
+  if (groupsTableScrollCleanup) {
+    groupsTableScrollCleanup();
+    groupsTableScrollCleanup = null;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "summary-table-wrap";
+
   const table = document.createElement("table");
   table.className = "groups-table";
 
+  // Profile/Date/Bucket are text/identifier columns; the remaining seven
+  // are numeric counts/tonnage (Part 3: semantic hooks by column identity).
+  const columns = [
+    { key: "overview.profile", numeric: false },
+    { key: "overview.date", numeric: false },
+    { key: "overview.bucket", numeric: false },
+    { key: "overview.rows", numeric: true },
+    { key: "overview.netTonnage", numeric: true },
+    { key: "overview.missingContractor", numeric: true },
+    { key: "overview.missingSource", numeric: true },
+    { key: "overview.missingGrade", numeric: true },
+    { key: "overview.timestampWindowNotes", numeric: true },
+    { key: "overview.skippedRows", numeric: true },
+  ];
+
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  [
-    "overview.profile",
-    "overview.date",
-    "overview.bucket",
-    "overview.rows",
-    "overview.netTonnage",
-    "overview.missingContractor",
-    "overview.missingSource",
-    "overview.missingGrade",
-    "overview.timestampWindowNotes",
-    "overview.skippedRows",
-  ].forEach((key) => {
+  columns.forEach(({ key, numeric }) => {
     const th = document.createElement("th");
     th.textContent = t(key);
+    if (numeric) th.classList.add(TABLE_HEADER_NUMERIC_CLASS);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -126,16 +150,19 @@ function renderSummaryTable(container, groups, decimalSeparator) {
       String(group.validation.missingGradeCount),
       String(group.validation.shiftWarningCount),
       String(group.skippedRowsCount || 0),
-    ].forEach((text) => {
+    ].forEach((text, index) => {
       const td = document.createElement("td");
       td.textContent = text;
+      if (columns[index].numeric) td.classList.add(TABLE_CELL_NUMERIC_CLASS);
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
 
-  container.appendChild(table);
+  wrap.appendChild(table);
+  container.appendChild(wrap);
+  groupsTableScrollCleanup = attachScrollEdgeIndicators(wrap);
 }
 
 function collectUniqueUnmatchedDt(groups) {
@@ -160,6 +187,10 @@ function collectUniqueUnmatchedDt(groups) {
 // container, or each redraw would append a duplicate copy alongside the old
 // one instead of replacing it.
 function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint, onRecleanRequested }) {
+  if (unmatchedDtScrollCleanup) {
+    unmatchedDtScrollCleanup();
+    unmatchedDtScrollCleanup = null;
+  }
   sectionContainer.innerHTML = "";
 
   const wrap = document.createElement("div");
@@ -215,6 +246,16 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
     return;
   }
 
+  // A table-only inner wrapper (distinct from the outer `wrap`, which also
+  // holds the heading/pending-sync row) so horizontal scrolling and its
+  // scroll-edge indicators are scoped to exactly the table, matching every
+  // other table wrapper in the app (Part 2/6 of the C2 spec). Uses the
+  // lighter .table-scroll-wrap (scroll only, no card chrome of its own) —
+  // it nests inside the outer .summary-table-wrap, which already supplies
+  // the card background/border/padding.
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "table-scroll-wrap";
+
   const table = document.createElement("table");
   table.className = "summary-table";
 
@@ -267,7 +308,9 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-  wrap.appendChild(table);
+  tableWrap.appendChild(table);
+  wrap.appendChild(tableWrap);
+  unmatchedDtScrollCleanup = attachScrollEdgeIndicators(tableWrap);
 
   const updateBtn = document.createElement("button");
   updateBtn.type = "button";
@@ -355,6 +398,15 @@ export function renderOverview(
   decimalSeparator = ".",
   { listDtEndpoint, onRecleanRequested } = {}
 ) {
+  // Only renderSummaryTable() (below) is called conditionally — when
+  // `groups` is empty it's skipped entirely, so its own self-clearing
+  // top-of-function guard never runs. Clearing here too guarantees the
+  // groups-table's scroll-indicator listeners are always disconnected when
+  // Overview transitions from populated groups back to empty (e.g. Reset).
+  if (groupsTableScrollCleanup) {
+    groupsTableScrollCleanup();
+    groupsTableScrollCleanup = null;
+  }
   container.innerHTML = "";
 
   if (fileErrors.length) {

@@ -62,6 +62,10 @@
   --color-input-bg: #ffffff;
   --color-focus-ring: #3b82f6;
   --color-chip-neutral-bg: #e5e7eb;
+  /* Zebra striping (v1.2.0-phaseC2) — deliberately subtler than
+     --color-surface-muted (used for row hover), so hover always reads as a
+     distinct, stronger signal than the resting stripe. */
+  --table-zebra-bg: rgba(31, 41, 51, 0.035);
 
   /* Glassmorphism surfaces (v1.0.1-predeploy; floating-shell revision
      v1.1.0-phaseA). --glass-bg-strong is reserved for genuinely floating
@@ -178,6 +182,7 @@
   --color-input-bg: #1c2128;
   --color-focus-ring: #7db0f8;
   --color-chip-neutral-bg: #2d333c;
+  --table-zebra-bg: rgba(255, 255, 255, 0.04);
 
   --glass-bg: rgba(15, 23, 42, 0.72);
   --glass-bg-strong: rgba(15, 23, 42, 0.86);
@@ -246,6 +251,7 @@
     --color-input-bg: #1c2128;
     --color-focus-ring: #7db0f8;
     --color-chip-neutral-bg: #2d333c;
+    --table-zebra-bg: rgba(255, 255, 255, 0.04);
 
     --glass-bg: rgba(15, 23, 42, 0.72);
     --glass-bg-strong: rgba(15, 23, 42, 0.86);
@@ -950,7 +956,10 @@ input:focus-visible,
 }
 
 /* Overview groups table can get wide (10 columns); allow horizontal
-   scroll on narrow screens without breaking the sticky layout around it. */
+   scroll on narrow screens without breaking the sticky layout around it.
+   The table itself now also sits in its own .summary-table-wrap (Phase
+   C2), so this ancestor overflow is a harmless fallback, not the table's
+   primary scroll mechanism any more. */
 .result-tab-panel {
   overflow-x: auto;
 }
@@ -980,8 +989,49 @@ input:focus-visible,
   color: var(--color-table-header);
 }
 
-.groups-table tbody tr:hover {
-  background: var(--color-surface-muted);
+/* ==========================================================================
+   Semantic numeric-column alignment (Phase C2)
+   Applied via explicit classes set by the renderer per column identity
+   (never nth-child — table column order/count varies across views). Right
+   alignment only; font-variant-numeric: tabular-nums already applies at
+   the table level above, so it is not repeated per cell. Selectors are
+   qualified per table class + element (specificity 0-2-1) so they reliably
+   outrank each table's own "th, td { text-align: left }" base rule
+   (specificity 0-1-1) regardless of which is declared first in this file. */
+
+.groups-table th.table-header-numeric,
+.groups-table td.table-cell-numeric,
+.summary-table th.table-header-numeric,
+.summary-table td.table-cell-numeric,
+.view-all-table th.table-header-numeric,
+.view-all-table td.table-cell-numeric {
+  text-align: right;
+}
+
+/* ==========================================================================
+   Zebra striping and row hover (Phase C2)
+   Very low-contrast, theme-aware, operational-not-decorative — see
+   --table-zebra-bg (theme blocks above). Hover is intentionally declared
+   after (and kept equal-specificity to) the zebra rule so it wins on tied
+   rows; both are gated below status rows via a bumped-specificity rule for
+   .operational-summary-row-flagged, which must always win over either.
+   ========================================================================== */
+
+.groups-table tbody tr:nth-child(even),
+.summary-table tbody tr:nth-child(even),
+.view-all-table tbody tr:nth-child(even) {
+  background: var(--table-zebra-bg);
+}
+
+/* Hover only on devices where hover is a meaningful signal (Part 5) — a
+   touch tap must never leave a "stuck hover" row behind. Does not move the
+   row, change its height, or animate. */
+@media (hover: hover) and (pointer: fine) {
+  .groups-table tbody tr:hover,
+  .summary-table tbody tr:hover,
+  .view-all-table tbody tr:hover {
+    background: var(--color-surface-muted);
+  }
 }
 
 /* ==========================================================================
@@ -1285,6 +1335,99 @@ input:focus-visible,
   color: var(--color-text);
 }
 
+/* ==========================================================================
+   Headline validation metric tiles (Phase C2)
+   A concise four-tile summary row above the existing detailed
+   .validation-metrics grid below — same values, no recalculation. Content-
+   flow cards (no backdrop-filter, see .shift-bucket comment), four columns
+   on desktop, wrapping down at narrower widths per Part 10.
+   ========================================================================== */
+
+.headline-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 4px 0 16px;
+}
+
+@media (max-width: 900px) {
+  .headline-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .headline-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+.headline-tile {
+  background: var(--surface-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-inner);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-control);
+}
+
+.headline-tile-label {
+  font-size: var(--fs-helper);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.headline-tile-value {
+  margin-top: 4px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Readiness tile accent and Tonnage Difference tile accent both reuse the
+   exact same semantic color tokens as .cleaning-status-* / the group-header
+   readiness chip — never a new color decision, and the tile's own visible
+   text (the translated readiness label, or the difference figure) always
+   stays present alongside the color, never color-only (Part 9). */
+.headline-tile-ready,
+.headline-tile-diff-zero {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+}
+
+.headline-tile-ready .headline-tile-value,
+.headline-tile-diff-zero .headline-tile-value {
+  color: var(--color-success);
+}
+
+.headline-tile-info {
+  border-color: var(--color-info-border);
+  background: var(--color-info-bg);
+}
+
+.headline-tile-info .headline-tile-value {
+  color: var(--color-info);
+}
+
+.headline-tile-blocked {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
+
+.headline-tile-blocked .headline-tile-value {
+  color: var(--color-danger);
+}
+
+.headline-tile-diff-nonzero {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+}
+
+.headline-tile-diff-nonzero .headline-tile-value {
+  color: var(--color-warning);
+}
+
 .validation-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1324,6 +1467,15 @@ input:focus-visible,
   padding: 4px;
 }
 
+/* Scroll-only variant (Phase C2) — no card chrome of its own, for a table
+   that needs its own scoped horizontal-scroll/scroll-edge-indicator region
+   while nested inside a parent that already supplies the card surface
+   (e.g. the Unmatched DT Correction table, which sits inside a
+   .summary-table-wrap alongside its own heading and pending-sync row). */
+.table-scroll-wrap {
+  overflow-x: auto;
+}
+
 .summary-table {
   width: 100%;
   border-collapse: collapse;
@@ -1346,10 +1498,6 @@ input:focus-visible,
   color: var(--color-table-header);
 }
 
-.summary-table tbody tr:hover {
-  background: var(--color-surface-muted);
-}
-
 .preview-table {
   font-size: 0.8rem;
 }
@@ -1361,7 +1509,12 @@ input:focus-visible,
   white-space: normal;
 }
 
-.operational-summary-row-flagged {
+/* Scoped as ".summary-table tbody tr.operational-summary-row-flagged"
+   (Phase C2) rather than the bare class — must outrank the zebra/hover
+   rules above (equal-specificity ".summary-table tbody tr:nth-child(even)"
+   / ":hover") so a flagged status row's meaning is never overpowered by
+   either. */
+.summary-table tbody tr.operational-summary-row-flagged {
   background: var(--color-danger-bg);
 }
 
@@ -1554,10 +1707,55 @@ input:focus-visible,
   font-variant-numeric: tabular-nums;
 }
 
+/* Sticky header (pre-existing, Phase C2 verified/kept as-is) — .view-all-
+   table-wrap above is the only table wrapper in the app with a real
+   bounded vertical scroll region (flex: 1; overflow: auto inside the
+   height-constrained View All dialog), so it is the only table that gets a
+   sticky <thead>. Every other table wrapper in the app grows with its
+   content (inside a <details> or the normal page flow) rather than
+   scrolling vertically within a fixed-height box, so a sticky header there
+   would have nothing real to stick to — see README "Table presentation"
+   for the full list. Background comes from the shared ".summary-table
+   thead th" rule (opaque --color-table-header-bg, already theme-aware),
+   so the sticky header never lets a scrolled-under row show through it. */
 .view-all-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+/* ==========================================================================
+   Horizontal scroll-edge indicators (Phase C2)
+   Purely decorative overlays (aria-hidden, pointer-events: none) created by
+   js/ui/scroll-edge-indicators.js on any scrollable table wrapper — never
+   part of copied/exported output. A soft inward fade from each edge,
+   toggled by opacity only (no layout shift), using the existing
+   --color-shadow-strong token so it stays theme-aware without a new color.
+   ========================================================================== */
+
+.scroll-edge-container {
+  position: relative;
+}
+
+.scroll-edge-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+}
+
+.scroll-edge-indicator-left {
+  left: 0;
+  background: linear-gradient(to right, var(--color-shadow-strong), transparent);
+}
+
+.scroll-edge-indicator-right {
+  right: 0;
+  background: linear-gradient(to left, var(--color-shadow-strong), transparent);
 }
 
 /* ==========================================================================

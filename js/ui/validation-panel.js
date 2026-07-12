@@ -1,4 +1,5 @@
 import { formatDecimal } from "../core/output-formatter.js";
+import { READINESS } from "../core/readiness.js";
 import { t } from "./i18n.js";
 
 export function renderValidationPlaceholder(container) {
@@ -9,6 +10,98 @@ export function renderValidationPlaceholder(container) {
   placeholder.textContent = t("validation.placeholder");
 
   container.appendChild(placeholder);
+}
+
+// Display-only remapping of the core readiness enum (js/core/readiness.js,
+// untouched) to the same short-label translation keys already used for the
+// group-header chip and profile-tab badge (result-page.js / profile-page.js)
+// — one wording per readiness status across the whole app, never a second
+// decision.
+const READINESS_TILE_KEY = {
+  [READINESS.READY]: "readiness.short.ready",
+  [READINESS.READY_WITH_INFO]: "readiness.short.readyInfo",
+  [READINESS.ACTION_REQUIRED]: "readiness.short.actionRequired",
+  [READINESS.FAILED]: "readiness.short.failed",
+};
+
+// Same three-color language as .cleaning-status-* / the group-header chip —
+// reused, not reinvented, so the tile's accent always agrees with every
+// other readiness-driven color in the UI.
+const READINESS_TILE_CLASS = {
+  [READINESS.READY]: "headline-tile-ready",
+  [READINESS.READY_WITH_INFO]: "headline-tile-info",
+  [READINESS.ACTION_REQUIRED]: "headline-tile-blocked",
+  [READINESS.FAILED]: "headline-tile-blocked",
+};
+
+function createHeadlineTile(label, value, extraClass) {
+  const tile = document.createElement("div");
+  tile.className = extraClass ? `headline-tile ${extraClass}` : "headline-tile";
+
+  const labelEl = document.createElement("div");
+  labelEl.className = "headline-tile-label";
+  labelEl.textContent = label;
+
+  const valueEl = document.createElement("div");
+  valueEl.className = "headline-tile-value";
+  valueEl.textContent = value;
+
+  tile.appendChild(labelEl);
+  tile.appendChild(valueEl);
+  return tile;
+}
+
+// Four headline tiles (Rows / Tonnage / Tonnage Difference / Readiness),
+// consuming only values already computed elsewhere (validation object from
+// validation-engine.js, readiness object from computeGroupReadiness) —
+// never a second row-count, tonnage sum, difference, or readiness decision.
+// Sits above the existing detailed .validation-metrics grid, which remains
+// unchanged in meaning and is still the authoritative detailed report.
+function renderHeadlineMetrics(container, validation, decimalSeparator, readiness) {
+  const grid = document.createElement("div");
+  grid.className = "headline-metrics";
+
+  grid.appendChild(
+    createHeadlineTile(
+      t("headline.rows"),
+      t("headline.rawCleanValue", { raw: validation.rawRowCount, clean: validation.cleanRowCount })
+    )
+  );
+
+  grid.appendChild(
+    createHeadlineTile(
+      t("headline.tonnage"),
+      t("headline.rawCleanValue", {
+        raw: formatDecimal(validation.rawTonnage, decimalSeparator),
+        clean: formatDecimal(validation.cleanTonnage, decimalSeparator),
+      })
+    )
+  );
+
+  // "Zero" here only decides which already-approved semantic color token
+  // this tile shows — it re-derives nothing about validation/readiness.
+  // Rounded the same way formatDecimal() rounds for display (toFixed(2))
+  // so the tile's color always agrees with the exact digits shown, instead
+  // of a raw floating-point value flipping color while still displaying as
+  // "0.00" due to an unrelated rounding artifact.
+  const roundedDifference = Math.round(Number(validation.tonnageDifference) * 100) / 100;
+  grid.appendChild(
+    createHeadlineTile(
+      t("headline.tonnageDifference"),
+      formatDecimal(validation.tonnageDifference, decimalSeparator),
+      roundedDifference === 0 ? "headline-tile-diff-zero" : "headline-tile-diff-nonzero"
+    )
+  );
+
+  grid.appendChild(
+    createHeadlineTile(
+      t("headline.readiness"),
+      t(READINESS_TILE_KEY[readiness.status]),
+      READINESS_TILE_CLASS[readiness.status]
+    )
+  );
+
+  container.appendChild(grid);
 }
 
 function createMetricRow(label, value) {
@@ -28,7 +121,11 @@ function createMetricRow(label, value) {
   return row;
 }
 
-export function renderValidation(container, validation, decimalSeparator = ".", profile) {
+export function renderValidation(container, validation, decimalSeparator = ".", profile, readiness) {
+  if (readiness) {
+    renderHeadlineMetrics(container, validation, decimalSeparator, readiness);
+  }
+
   const wrap = document.createElement("div");
   wrap.className = "validation-metrics";
 

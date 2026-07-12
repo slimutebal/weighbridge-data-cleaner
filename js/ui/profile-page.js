@@ -10,8 +10,28 @@ import { OUTPUT_COLUMN_ORDER } from "../core/tsv-exporter.js";
 import { getGroupKey } from "../core/group-key.js";
 import { openViewAllRowsModal } from "./view-all-modal.js";
 import { t } from "./i18n.js";
+import { attachScrollEdgeIndicators } from "./scroll-edge-indicators.js";
+import { NUMERIC_OUTPUT_COLUMNS, TABLE_HEADER_NUMERIC_CLASS, TABLE_CELL_NUMERIC_CLASS } from "./table-utils.js";
 
 const PREVIEW_ROW_LIMIT = 25;
+
+// Scroll-edge-indicator cleanup handles for whatever table wrappers the
+// last renderProfilePage() call attached (Phase C2) — cleared and rebuilt
+// at the top of every call, since renderProfilePage always rebuilds its
+// whole container (container.innerHTML = "") and discards every previous
+// table wrapper. Without this, each re-render (tab switch, decimal-format
+// change, language change, group toggle) would leak one ResizeObserver +
+// scroll listener per table wrapper from the previous render.
+let activeScrollCleanups = [];
+
+function resetScrollCleanups() {
+  activeScrollCleanups.forEach((cleanup) => cleanup());
+  activeScrollCleanups = [];
+}
+
+function attachTableScrollIndicators(wrap) {
+  activeScrollCleanups.push(attachScrollEdgeIndicators(wrap));
+}
 
 // Maps the core readiness enum (js/core/readiness.js, untouched) to
 // translation keys — display-only remapping, see result-page.js's matching
@@ -77,11 +97,20 @@ function renderSummaryTable(
   const table = document.createElement("table");
   table.className = "summary-table";
 
+  // Key is a text/identifier column; Rows and Net Total are numeric
+  // (Part 3: semantic hooks by column identity, never nth-child).
+  const columns = [
+    { label: t("profile.key"), numeric: false },
+    { label: t("profile.rows"), numeric: true },
+    { label: t("profile.netTotal"), numeric: true },
+  ];
+
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  [t("profile.key"), t("profile.rows"), t("profile.netTotal")].forEach((text) => {
+  columns.forEach(({ label, numeric }) => {
     const th = document.createElement("th");
-    th.textContent = text;
+    th.textContent = label;
+    if (numeric) th.classList.add(TABLE_HEADER_NUMERIC_CLASS);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -94,9 +123,10 @@ function renderSummaryTable(
       formatKey(entry.key),
       String(entry.rowCount),
       formatDecimal(entry.netTotal, decimalSeparator),
-    ].forEach((text) => {
+    ].forEach((text, index) => {
       const td = document.createElement("td");
       td.textContent = text;
+      if (columns[index].numeric) td.classList.add(TABLE_CELL_NUMERIC_CLASS);
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
@@ -105,6 +135,7 @@ function renderSummaryTable(
 
   wrap.appendChild(table);
   container.appendChild(wrap);
+  attachTableScrollIndicators(wrap);
 }
 
 function renderOperationalSummary(container, entries, decimalSeparator) {
@@ -127,15 +158,25 @@ function renderOperationalSummary(container, entries, decimalSeparator) {
   const table = document.createElement("table");
   table.className = "summary-table operational-summary-table";
 
+  // PILE ID / Source / Contractor / Remark are identifier/text columns;
+  // Rows and Net Total are numeric (Part 3).
+  const columns = [
+    { label: "PILE ID", numeric: false },
+    { label: "Source", numeric: false },
+    { label: "Contractor", numeric: false },
+    { label: t("profile.rows"), numeric: true },
+    { label: t("profile.netTotal"), numeric: true },
+    { label: t("profile.remark"), numeric: false },
+  ];
+
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  ["PILE ID", "Source", "Contractor", t("profile.rows"), t("profile.netTotal"), t("profile.remark")].forEach(
-    (text) => {
-      const th = document.createElement("th");
-      th.textContent = text;
-      headRow.appendChild(th);
-    }
-  );
+  columns.forEach(({ label, numeric }) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    if (numeric) th.classList.add(TABLE_HEADER_NUMERIC_CLASS);
+    headRow.appendChild(th);
+  });
   thead.appendChild(headRow);
   table.appendChild(thead);
 
@@ -150,9 +191,10 @@ function renderOperationalSummary(container, entries, decimalSeparator) {
       String(entry.rowCount),
       formatDecimal(entry.netTotal, decimalSeparator),
       entry.remark || "",
-    ].forEach((text) => {
+    ].forEach((text, index) => {
       const td = document.createElement("td");
       td.textContent = text;
+      if (columns[index].numeric) td.classList.add(TABLE_CELL_NUMERIC_CLASS);
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
@@ -161,6 +203,7 @@ function renderOperationalSummary(container, entries, decimalSeparator) {
 
   wrap.appendChild(table);
   container.appendChild(wrap);
+  attachTableScrollIndicators(wrap);
 }
 
 // Unmatched DT Rows is a blocking-issue panel: rendered only when there is
@@ -213,6 +256,7 @@ function renderUnmatchedDt(container, group) {
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
+  attachTableScrollIndicators(wrap);
   body.appendChild(wrap);
 
   details.appendChild(body);
@@ -269,6 +313,7 @@ function renderShiftWarningRows(container, group) {
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
+  attachTableScrollIndicators(wrap);
   body.appendChild(wrap);
 
   details.appendChild(body);
@@ -322,6 +367,7 @@ function renderBlockingCategory(container, category) {
 
   wrap.appendChild(table);
   container.appendChild(wrap);
+  attachTableScrollIndicators(wrap);
 }
 
 // Other Blocking Issues covers every blocking category besides Unmatched DT
@@ -395,6 +441,7 @@ function renderPreview(container, group, groupKey, decimalSeparator) {
   OUTPUT_COLUMN_ORDER.forEach((col) => {
     const th = document.createElement("th");
     th.textContent = col;
+    if (NUMERIC_OUTPUT_COLUMNS.has(col)) th.classList.add(TABLE_HEADER_NUMERIC_CLASS);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -406,6 +453,7 @@ function renderPreview(container, group, groupKey, decimalSeparator) {
     OUTPUT_COLUMN_ORDER.forEach((col) => {
       const td = document.createElement("td");
       td.textContent = formatOutputCell(row, col, decimalSeparator);
+      if (NUMERIC_OUTPUT_COLUMNS.has(col)) td.classList.add(TABLE_CELL_NUMERIC_CLASS);
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
@@ -414,6 +462,7 @@ function renderPreview(container, group, groupKey, decimalSeparator) {
 
   wrap.appendChild(table);
   container.appendChild(wrap);
+  attachTableScrollIndicators(wrap);
 }
 
 function createChip(text, extraClass) {
@@ -537,7 +586,7 @@ function renderGroupBody(body, group, groupKey, readiness, decimalSeparator) {
   const validationHeading = document.createElement("h4");
   validationHeading.textContent = t("validation.title");
   body.appendChild(validationHeading);
-  renderValidation(body, group.validation, decimalSeparator, group.profile);
+  renderValidation(body, group.validation, decimalSeparator, group.profile, readiness);
 
   // 4. Main Summary
   const operationalHeading = document.createElement("h4");
@@ -674,6 +723,7 @@ export function renderProfilePage(
   decimalSeparator = ".",
   { activeGroupKey = null, onToggleGroup = () => {} } = {}
 ) {
+  resetScrollCleanups();
   container.innerHTML = "";
 
   if (!groups.length) {

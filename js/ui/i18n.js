@@ -111,6 +111,13 @@ const translations = {
     "readiness.short.actionRequired": "Action Required",
     "readiness.short.failed": "Cleaning Failed",
 
+    // Headline validation metric tiles (Phase C2)
+    "headline.rows": "Rows",
+    "headline.tonnage": "Tonnage",
+    "headline.tonnageDifference": "Tonnage Difference",
+    "headline.readiness": "Readiness",
+    "headline.rawCleanValue": "Raw {{raw}} · Clean {{clean}}",
+
     // Validation Report
     "validation.title": "Validation Report",
     "validation.rawRows": "Raw rows",
@@ -305,6 +312,13 @@ const translations = {
     "readiness.short.readyInfo": "Siap dengan Informasi",
     "readiness.short.actionRequired": "Perlu Tindakan",
     "readiness.short.failed": "Pembersihan Gagal",
+
+    // Headline validation metric tiles (Phase C2)
+    "headline.rows": "Baris",
+    "headline.tonnage": "Tonase",
+    "headline.tonnageDifference": "Selisih Tonase",
+    "headline.readiness": "Kesiapan",
+    "headline.rawCleanValue": "Mentah {{raw}} · Bersih {{clean}}",
 
     // Validation Report
     "validation.title": "Laporan Validasi",

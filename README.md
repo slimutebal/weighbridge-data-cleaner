@@ -480,6 +480,59 @@ Source conflicts") — this is a data-quality signal, not something the app
 silently resolves for you. The reverse is expected and fine: one Source
 legitimately spanning several PILE IDs is never flagged.
 
+## Table presentation and headline metrics (Phase C2)
+
+Each profile page's Validation Report now opens with four **headline
+metric tiles** — Rows, Tonnage, Tonnage Difference, and Readiness — above
+the existing detailed metric list, which remains unchanged and is still
+the authoritative detail view. The tiles never recompute anything: every
+figure (raw/clean row counts, raw/clean tonnage, the difference, the
+readiness status) is read from the same validation and readiness objects
+already used elsewhere on the page, so the tiles and the detailed report
+always agree. The Readiness tile reuses the same translated readiness
+label already shown on the group header chip and profile-tab badge (e.g.
+"Ready", "Ready with Information", "Action Required") — never a new
+readiness decision, and never color-only (the label text is always
+visible alongside the tile's accent color). Tile labels ("Rows", "Tonnage",
+"Tonnage Difference", "Readiness") are translated through the same
+centralized `js/ui/i18n.js` module as the rest of the UI (English/
+Indonesia) — see "Settings, theme, and language" above.
+
+**Numeric columns are right-aligned** across the app's data tables (Rows,
+Net/Net Total, tonnage, and count columns), while identifier/text columns
+(Profile, Contractor, Source, PILE ID, NO.NOTA, NO. DT, dates) stay
+left-aligned. Alignment is applied via explicit classes the renderer sets
+per column identity (`table-header-numeric` / `table-cell-numeric`), never
+by column position — column order, values, and the copied/exported schema
+are unaffected.
+
+**Sticky table headers** are used only where a table sits inside a real,
+bounded vertical scroll region: today that's the **View All Rows** modal
+table (already the case before Phase C2), which has its own fixed-height
+scroll container. Every other table in the app grows with its content
+(inside a collapsible section or the normal page flow) rather than
+scrolling vertically inside a fixed box, so a sticky header would have
+nothing to stick to there — those tables intentionally do not get one.
+
+Data tables also get a very subtle **zebra stripe** on alternating rows
+and a **row-hover highlight** on devices with a real pointer (`hover: hover`
+and `pointer: fine` — never on touch-only devices, and never a "stuck"
+highlight after a tap). Both are intentionally low-contrast and never
+override a status-flagged row's own color (e.g. an Operational Summary row
+flagged "PILE ID has multiple Sources" always keeps its own highlight,
+regardless of stripe or hover).
+
+Wide tables that scroll horizontally now show a subtle **left/right edge
+fade** (`js/ui/scroll-edge-indicators.js`) indicating there are more
+columns off-screen in that direction — it disappears once you've scrolled
+to that edge, and never appears at all if the table doesn't overflow. It's
+purely decorative (`aria-hidden`, not keyboard-focusable, never part of
+copied/exported output) and supplements the table's normal scrollbar,
+which remains fully usable. Every table wrapper's indicator is
+reattached on re-render (profile/tab switch, language change, decimal
+format change, View All open) and explicitly cleaned up beforehand, so
+switching around the app repeatedly never accumulates duplicate listeners.
+
 ## Offline behavior
 
 The app is offline-first and never requires network access to clean files:

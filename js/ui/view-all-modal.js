@@ -1,6 +1,8 @@
 import { formatOutputCell } from "../core/output-formatter.js";
 import { OUTPUT_COLUMN_ORDER } from "../core/tsv-exporter.js";
 import { t } from "./i18n.js";
+import { attachScrollEdgeIndicators } from "./scroll-edge-indicators.js";
+import { NUMERIC_OUTPUT_COLUMNS, TABLE_HEADER_NUMERIC_CLASS, TABLE_CELL_NUMERIC_CLASS } from "./table-utils.js";
 
 let dialogEl = null;
 let lastTrigger = null;
@@ -9,6 +11,12 @@ let lastTrigger = null;
 // change, group change, Refresh Cleaning, Clear/Reset (section 12/14) —
 // without needing to know whether it is actually open.
 let openGroupKey = null;
+// Scroll-edge-indicator cleanup for whatever table wrapper the currently
+// open dialog last built (Phase C2) — cleared and reattached every time
+// openViewAllRowsModal() rebuilds dialog.innerHTML, so re-opening (or
+// opening for a different group) never leaks a ResizeObserver/listener
+// from the previous table.
+let scrollCleanup = null;
 
 function ensureDialog() {
   if (dialogEl) return dialogEl;
@@ -37,6 +45,7 @@ function buildTable(rows, decimalSeparator) {
   OUTPUT_COLUMN_ORDER.forEach((col) => {
     const th = document.createElement("th");
     th.textContent = col;
+    if (NUMERIC_OUTPUT_COLUMNS.has(col)) th.classList.add(TABLE_HEADER_NUMERIC_CLASS);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -50,6 +59,7 @@ function buildTable(rows, decimalSeparator) {
     OUTPUT_COLUMN_ORDER.forEach((col) => {
       const td = document.createElement("td");
       td.textContent = formatOutputCell(row, col, decimalSeparator);
+      if (NUMERIC_OUTPUT_COLUMNS.has(col)) td.classList.add(TABLE_CELL_NUMERIC_CLASS);
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
@@ -65,6 +75,11 @@ export function openViewAllRowsModal(groupInfo, decimalSeparator, triggerButton)
   const { groupKey, profile, date, bucket, rows } = groupInfo;
   lastTrigger = triggerButton || null;
   openGroupKey = groupKey;
+
+  if (scrollCleanup) {
+    scrollCleanup();
+    scrollCleanup = null;
+  }
 
   const dialog = ensureDialog();
   dialog.innerHTML = "";
@@ -89,8 +104,10 @@ export function openViewAllRowsModal(groupInfo, decimalSeparator, triggerButton)
   closeBtn.addEventListener("click", () => dialog.close());
   header.appendChild(closeBtn);
 
+  const tableWrap = buildTable(rows, decimalSeparator);
   dialog.appendChild(header);
-  dialog.appendChild(buildTable(rows, decimalSeparator));
+  dialog.appendChild(tableWrap);
+  scrollCleanup = attachScrollEdgeIndicators(tableWrap);
 
   dialog.showModal();
 }
