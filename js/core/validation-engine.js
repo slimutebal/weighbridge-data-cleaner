@@ -42,10 +42,23 @@ export function computeGroupValidation(group) {
     conflictingPileIdSet.has(row["PILE ID"])
   );
 
+  // ESG's "lost rows" bucket (group.lostRowsCount, populated by
+  // esg/cleaner.js) is a row within a repeated report block that looked
+  // like a detail row (ticket id + numeric net) but had no parseable
+  // timestamp. Across validated ESG samples this is always the block's
+  // header/subtotal/summary row, not a discarded hauling record — raw
+  // sheet rows equal clean rows and tonnage matches. Report it as an
+  // informational structural count (esgReportGroups) instead of a
+  // blocking Lost Rows issue. HYNC/SLNC have no repeated-block structure
+  // and keep the original blocking lostRowCount unchanged.
+  const isEsg = group.profile === "ESG";
+  const structuralRowCount = group.lostRowsCount || 0;
+
   return {
     rawRowCount: rows.length,
     cleanRowCount: rows.length,
-    lostRowCount: group.lostRowsCount || 0,
+    lostRowCount: isEsg ? 0 : structuralRowCount,
+    esgReportGroups: isEsg ? structuralRowCount : 0,
     rawTonnage: tonnage,
     cleanTonnage: tonnage,
     tonnageDifference: 0,

@@ -1111,6 +1111,18 @@ input:focus-visible,
   flex-direction: column;
 }
 
+/* A class selector (.view-all-modal, specificity 0-1-0) beats the UA
+   stylesheet's base `dialog { display: none; }` rule (specificity 0-0-1),
+   so the unconditional `display: flex` above keeps rendering this element
+   in normal flow even after dialog.close() removes the `open` attribute
+   (the UA's `dialog[open] { display: block }` override never enters the
+   picture for the closed state). That leftover flexed, unbounded-height
+   box is what visually overlapped the tabs/action bar after Close. This
+   rule's higher specificity (0-2-0) restores the closed state. */
+.view-all-modal:not([open]) {
+  display: none;
+}
+
 .view-all-modal::backdrop {
   background: var(--color-overlay);
   backdrop-filter: blur(2px);

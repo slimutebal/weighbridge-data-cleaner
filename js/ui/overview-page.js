@@ -331,8 +331,12 @@ export function renderOverview(
     );
   }
 
-  const infoNotices = warnings.filter((w) => w.type === "skipped-non-detail");
-  const realWarnings = warnings.filter((w) => w.type !== "skipped-non-detail");
+  const infoNotices = warnings.filter(
+    (w) => w.type === "skipped-non-detail" || w.type === "esg-report-groups"
+  );
+  const realWarnings = warnings.filter(
+    (w) => w.type !== "skipped-non-detail" && w.type !== "esg-report-groups"
+  );
 
   if (realWarnings.length) {
     renderMessageList(container, realWarnings, "warning-list");

@@ -489,7 +489,7 @@ function renderGroupBody(body, group, groupKey, readiness, decimalSeparator) {
   const validationHeading = document.createElement("h4");
   validationHeading.textContent = "Validation Report";
   body.appendChild(validationHeading);
-  renderValidation(body, group.validation, decimalSeparator);
+  renderValidation(body, group.validation, decimalSeparator, group.profile);
 
   // 4. Main Summary
   const operationalHeading = document.createElement("h4");

@@ -44,12 +44,25 @@ export async function runCleaning(bucketedFiles) {
       }
 
       if (result.lostRows.length) {
-        warnings.push({
-          type: "lost-rows",
-          fileName: file.name,
-          profile: profileId,
-          message: `${result.lostRows.length} row(s) in "${file.name}" appear to be detail rows but have an invalid or missing timestamp and were excluded.`,
-        });
+        if (profileId === "ESG") {
+          // ESG's repeated-block report structure means these are report-
+          // section boundary rows, not discarded hauling records (see
+          // computeGroupValidation in validation-engine.js) — informational,
+          // not a warning.
+          warnings.push({
+            type: "esg-report-groups",
+            fileName: file.name,
+            profile: profileId,
+            message: `${result.lostRows.length} report/template row(s) in "${file.name}" are ESG report-section boundaries, not hauling data, and are shown for information only.`,
+          });
+        } else {
+          warnings.push({
+            type: "lost-rows",
+            fileName: file.name,
+            profile: profileId,
+            message: `${result.lostRows.length} row(s) in "${file.name}" appear to be detail rows but have an invalid or missing timestamp and were excluded.`,
+          });
+        }
       }
 
       const skippedRows = result.skippedRows || [];

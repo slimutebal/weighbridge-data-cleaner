@@ -28,13 +28,19 @@ function createMetricRow(label, value) {
   return row;
 }
 
-export function renderValidation(container, validation, decimalSeparator = ".") {
+export function renderValidation(container, validation, decimalSeparator = ".", profile) {
   const wrap = document.createElement("div");
   wrap.className = "validation-metrics";
 
   wrap.appendChild(createMetricRow("Raw rows", validation.rawRowCount));
   wrap.appendChild(createMetricRow("Clean rows", validation.cleanRowCount));
-  wrap.appendChild(createMetricRow("Lost rows", validation.lostRowCount));
+  if (profile === "ESG") {
+    // Informational only: ESG report/template section boundaries, never a
+    // blocking issue (see computeGroupValidation in validation-engine.js).
+    wrap.appendChild(createMetricRow("ESG Report Groups", validation.esgReportGroups));
+  } else {
+    wrap.appendChild(createMetricRow("Lost rows", validation.lostRowCount));
+  }
   wrap.appendChild(
     createMetricRow("Raw tonnage", formatDecimal(validation.rawTonnage, decimalSeparator))
   );
