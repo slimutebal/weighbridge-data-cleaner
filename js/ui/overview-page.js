@@ -87,7 +87,7 @@ function renderSummaryTable(container, groups, decimalSeparator) {
   thead.innerHTML =
     "<tr><th>Profile</th><th>Date</th><th>Bucket</th><th>Rows</th>" +
     "<th>Net Tonnage</th><th>Missing Contractor</th><th>Missing Source</th>" +
-    "<th>Missing Grade</th><th>Shift Warnings</th><th>Skipped Rows</th></tr>";
+    "<th>Missing Grade</th><th>Timestamp Window Notes</th><th>Skipped Rows</th></tr>";
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");

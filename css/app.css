@@ -320,7 +320,9 @@ input:focus-visible,
 #list-dt-page button,
 .summary-table-wrap > button,
 .pending-sync-row button,
-.wrong-bucket-modal button {
+.wrong-bucket-modal button,
+.preview-actions button,
+.view-all-modal button {
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 0.9rem;
@@ -331,12 +333,14 @@ input:focus-visible,
 
 /* Primary: main affirmative actions (Update List DT, Start/Refresh
    Cleaning, Copy All Groups, Copy This Profile, unmatched-DT Update,
-   modal OK). */
+   modal OK, View All Rows / modal Close). */
 #bottom-action-bar button,
 .result-section button,
 #list-dt-page button,
 .summary-table-wrap > button,
-.wrong-bucket-modal button {
+.wrong-bucket-modal button,
+.preview-actions button,
+.view-all-modal button {
   border: 1px solid var(--color-primary);
   background: var(--color-primary);
   color: var(--color-primary-contrast);
@@ -347,7 +351,9 @@ input:focus-visible,
 .result-section button:hover:not(:disabled),
 #list-dt-page button:hover:not(:disabled),
 .summary-table-wrap > button:hover:not(:disabled),
-.wrong-bucket-modal button:hover:not(:disabled) {
+.wrong-bucket-modal button:hover:not(:disabled),
+.preview-actions button:hover:not(:disabled),
+.view-all-modal button:hover:not(:disabled) {
   background: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
 }
@@ -379,7 +385,9 @@ input:focus-visible,
 .result-section button:disabled,
 #list-dt-page button:disabled,
 .summary-table-wrap > button:disabled,
-.pending-sync-row button:disabled {
+.pending-sync-row button:disabled,
+.preview-actions button:disabled,
+.view-all-modal button:disabled {
   border-color: var(--color-border);
   background: var(--color-surface-muted);
   color: var(--color-border-strong);
@@ -647,10 +655,15 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Profile groups (details/summary) and chips
+   Profile groups (single-open accordion) and chips
    ========================================================================== */
 
-.group-details {
+/* .group-card replaces the previous native <details class="group-details">
+   wrapper — group open/close is now controlled state owned by
+   result-page.js (single-open accordion across a profile's groups), not
+   independent per-element <details> state, so a plain <div> + <button>
+   header is used instead. */
+.group-card {
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   margin-bottom: 12px;
@@ -660,11 +673,55 @@ input:focus-visible,
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
-.group-details summary {
+/* Scoped as ".group-card .group-header-btn" (two classes) rather than the
+   bare class — the shared button rule in the Buttons block above matches
+   via ".result-section button" (class+type), which outranks a single
+   class selector and would otherwise force this header into the blue
+   primary-button look. */
+.group-card .group-header-btn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
   cursor: pointer;
   font-weight: bold;
   padding: 6px 0;
   color: var(--color-text);
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.group-card .group-header-btn:hover:not(:disabled) {
+  background: none;
+  border: none;
+}
+
+/* Single-group profiles render a static (non-interactive) header — there
+   is nothing to toggle, so no button semantics/cursor/hover are applied. */
+.group-header-static {
+  cursor: default;
+}
+
+.group-toggle-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.group-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.group-header-substatus {
+  font-size: 0.82rem;
+  font-weight: normal;
+  color: var(--color-text-muted);
 }
 
 .group-summary-line {
@@ -710,6 +767,58 @@ input:focus-visible,
   font-weight: bold;
 }
 
+.group-chip-info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  font-weight: bold;
+}
+
+/* Readiness chip on collapsed/expanded group headers (section 7/8) — reuses
+   the same three-color language as .cleaning-status-* without inheriting
+   its layout properties (which are sized for a standalone status line, not
+   an inline chip). */
+.group-chip-readiness-ready {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-weight: bold;
+}
+
+.group-chip-readiness-info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  font-weight: bold;
+}
+
+.group-chip-readiness-blocked {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-weight: bold;
+}
+
+/* ==========================================================================
+   Profile-level summary (shown only for profiles with 2+ groups)
+   ========================================================================== */
+
+.profile-summary {
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--glass-bg-strong);
+}
+
+.profile-summary h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.profile-summary-line {
+  margin: 2px 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
 /* ==========================================================================
    Sticky profile tabs
    ========================================================================== */
@@ -736,6 +845,10 @@ input:focus-visible,
 }
 
 .result-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   padding: 8px 16px;
   border: 1px solid var(--color-border);
   border-bottom: none;
@@ -745,6 +858,19 @@ input:focus-visible,
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.result-tab-label {
+  font-weight: inherit;
+}
+
+/* Per-profile status badge (section 6) — text-based (not color-only), so
+   the highest-severity status is legible without relying on the tab's
+   active/inactive color state. */
+.result-tab-badge {
+  font-size: 0.72rem;
+  font-weight: normal;
+  color: var(--color-text-muted);
 }
 
 .result-tab-btn:hover {
@@ -804,7 +930,7 @@ input:focus-visible,
 /* Near-solid card, deliberately not glass: these wrap the operator-facing
    data tables (Operational Summary, Clean Data Preview, Shift Warning
    Rows, Unmatched DT, List DT), which must stay fully readable even
-   though they usually sit inside a glass .result-section/.group-details
+   though they usually sit inside a glass .result-section/.group-card
    parent. */
 .summary-table-wrap {
   overflow-x: auto;
@@ -867,6 +993,173 @@ input:focus-visible,
   cursor: pointer;
   color: var(--color-text-muted);
   font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   Cleaning Status, Timestamp Window Notes (info), and blocking-issue
+   accordions (Unmatched DT Rows / Other Blocking Issues)
+   ========================================================================== */
+
+.cleaning-status {
+  display: inline-block;
+  margin: 4px 0 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.cleaning-status-ready {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+}
+
+.cleaning-status-info {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info);
+}
+
+.cleaning-status-blocked {
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+/* Informational accordion (Timestamp Window Notes): same shape as
+   .additional-breakdown-details but with a blue/neutral left border, never
+   warning-yellow or red — this section is never blocking. */
+.info-details {
+  margin: 8px 0 16px;
+  border: 1px solid var(--color-info-border);
+  border-left: 4px solid var(--color-info);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--glass-bg-strong);
+}
+
+.info-details summary {
+  cursor: pointer;
+  color: var(--color-info);
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.info-details-body {
+  margin-top: 8px;
+}
+
+/* Blocking-issue accordion (Unmatched DT Rows / Other Blocking Issues):
+   expanded by default, red error styling, distinct from the neutral
+   Additional Breakdown accordion and the blue informational one above. */
+.blocking-issues-details {
+  margin: 8px 0 16px;
+  border: 1px solid var(--color-danger-border);
+  border-left: 4px solid var(--color-danger);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--color-danger-bg);
+}
+
+.blocking-issues-details summary {
+  cursor: pointer;
+  color: var(--color-danger);
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.blocking-issues-body {
+  margin-top: 8px;
+}
+
+.blocking-issues-body .summary-table-wrap {
+  background: var(--color-surface);
+}
+
+/* ==========================================================================
+   Clean Data Preview actions (row-count text + View All button)
+   ========================================================================== */
+
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   View All Rows modal
+   ========================================================================== */
+
+.view-all-modal {
+  width: calc(100% - 48px);
+  max-width: 1400px;
+  height: calc(100% - 48px);
+  max-height: 900px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: var(--color-text);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  display: flex;
+  flex-direction: column;
+}
+
+.view-all-modal::backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.view-all-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.view-all-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
+/* Identifies which group this panel belongs to (section 12) — Profile |
+   Date | Bucket — so it never reads as a detached, source-less table. */
+.view-all-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* Bounded height + internal scrolling (not the whole document) is what
+   keeps this usable for large row counts — see section 14 of the patch
+   spec. A sticky thead keeps columns readable while scrolling hundreds of
+   rows without re-rendering or virtualizing the DOM. */
+.view-all-table-wrap {
+  flex: 1;
+  overflow: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.view-all-table {
+  width: 100%;
+}
+
+.view-all-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 /* ==========================================================================

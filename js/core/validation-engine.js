@@ -45,7 +45,7 @@ export function computeGroupValidation(group) {
   return {
     rawRowCount: rows.length,
     cleanRowCount: rows.length,
-    lostRowCount: 0,
+    lostRowCount: group.lostRowsCount || 0,
     rawTonnage: tonnage,
     cleanTonnage: tonnage,
     tonnageDifference: 0,

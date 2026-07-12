@@ -211,9 +211,15 @@ Night Shift Input
 
 Each bucket accepts HYNC, SLNC, and ESG source files.
 
-The bucket represents the user's declared shift intent.
+The bucket represents the user's declared shift intent, and is the final
+operational shift for every row in the file (D009 — confirmed during the
+v0.2 operational pilot; the weighbridge operation has no reliable fixed
+timestamp boundary for shift handover).
 
-The app must still validate the shift from the row timestamps.
+The app should still compare row timestamps against each profile's
+nominal shift window and surface any difference as informational
+metadata only — never as something that moves a row to another group or
+overrides the output Shift value.
 
 ### 6.1 Import Page Layout
 
@@ -270,19 +276,23 @@ preview option
 
 ### 7.1 Core Rule
 
-The app must prevent silent mixing of shifts.
+The app must prevent silent mixing of shifts across separately declared
+files.
 
 The system must group output by:
 
 ```text
-Profile + Date + Detected Shift
+Profile + Date + Declared Bucket Shift
 ```
 
 A cleaning group is defined as:
 
 ```text
-Cleaning Group = Profile + Date + Shift
+Cleaning Group = Profile + Date + Declared Bucket Shift
 ```
+
+One uploaded source file represents one operational shift group; row
+timestamps never split a single file's rows across two groups (D009).
 
 Example groups:
 
@@ -294,17 +304,25 @@ HYNC | 2026-05-16 | NS
 SLNC | 2026-05-16 | NS
 ```
 
-### 7.2 Bucket Is Intent, Timestamp Is Validation
+(DS/NS groups for the same profile+date coexist only when the user
+uploaded separately declared files into both buckets — never from
+splitting one file.)
 
-The input bucket is not the final authority.
+### 7.2 Bucket Is Intent AND Final Authority; Timestamp Is Informational
+
+The input bucket is the final authority for operational shift (D009).
 
 ```text
-Day Shift bucket = user-declared intent
-Night Shift bucket = user-declared intent
-Row timestamp = validation source
+Day Shift bucket = user-declared intent AND final operational shift
+Night Shift bucket = user-declared intent AND final operational shift
+Row timestamp = informational comparison against the nominal shift
+                 window only — never authoritative
 ```
 
-If a Night Shift row is found inside the Day Shift bucket, the app must show a warning.
+If a row's timestamp falls outside the nominal window for its declared
+bucket, the app must surface this as an informational note (e.g.
+"Shift Window Audit Note"), not a blocking warning, and must not move
+the row to another group or change its output Shift value.
 
 ### 7.3 Shift Detection Strategy
 
@@ -1059,9 +1077,14 @@ The LLM builder must follow these rules:
 4. Do not remove Day Shift and Night Shift input buckets.
 5. Do not silently mix DS and NS rows.
 6. Do not silently merge different dates into one report.
-7. Group results by `Profile + Date + Shift`.
-8. Use the input bucket only as user intent, not as final shift truth.
-9. Validate shift from row timestamps.
+7. Group results by `Profile + Date + Declared Bucket Shift`; never split
+   one uploaded file's rows across two shift groups by timestamp (D009).
+8. The input bucket is both user intent and the final operational shift
+   truth (D009) — the weighbridge operation has no reliable fixed
+   timestamp boundary for shift handover.
+9. Compare row timestamps against each profile's nominal shift window
+   for informational purposes only; never use them to override the
+   declared bucket shift or move a row to another group.
 10. Use only `dt_id` and `contractor` for List DT.
 11. Cache List DT locally.
 12. Do not block cleaning if online List DT update fails and cache exists.
@@ -1136,6 +1159,12 @@ Do not build a monolithic app.
 Do not silently mix dates or shifts.
 Prioritize correctness, editability, and operational reliability.
 ```
+
+This is the original MVP seed prompt and predates the v0.2 operational
+pilot. Its "detect shift from row timestamps" / "validate whether
+detected shift matches the bucket" language has been superseded by D009:
+the declared input bucket is the final operational shift, and row
+timestamps are informational only (see §7.1/§7.2 above).
 
 ---
 

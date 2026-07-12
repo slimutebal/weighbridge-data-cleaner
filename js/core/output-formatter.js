@@ -40,3 +40,21 @@ export function extractNumericGrade(rawGrade) {
   if (!match) return null;
   return Number(match[0]);
 }
+
+// Shared clean-output cell formatting, used by TSV export, the Clean Data
+// Preview table, and the View All Rows modal — one definition so all three
+// always render the same value for the same cell.
+export function formatOutputCell(row, column, decimalSeparator) {
+  const value = row[column];
+  if (column === "Datetime" && value instanceof Date) {
+    return formatDateOnly(value);
+  }
+  if (column === "Net" && typeof value === "number") {
+    return formatDecimal(value, decimalSeparator);
+  }
+  if (column === "Grade") {
+    const numericGrade = extractNumericGrade(value);
+    return numericGrade === null ? "" : formatDecimal(numericGrade, decimalSeparator);
+  }
+  return value === undefined || value === null ? "" : String(value);
+}

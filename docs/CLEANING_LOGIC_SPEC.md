@@ -130,15 +130,19 @@ date           - Calendar date (TANGGAL) the weigh-in occurred on, in
 shift          - Clean output "Shift" column is always the group's
                  declared operational bucket ("DS" for Day Shift Input,
                  "NS" for Night Shift Input) for every row in that group,
-                 never the row's own detected shift (v0.2 pilot fix).
+                 never the row's own detected shift (v0.2 pilot fix,
+                 D009 — confirmed correct: the weighbridge operation has
+                 no reliable timestamp boundary for shift handover).
                  Row-level detected shift — "DS" or "NS" per
                  classifyShift() (§10), evaluated per row against the
                  profile's configured dayShiftStart/dayShiftEnd window —
                  is preserved separately in an internal `_detectedShift`
-                 field for validation/audit use only: Shift Warning Rows,
-                 the validation report's shift warning count, and
-                 wrong-bucket validation. It must never overwrite the
-                 clean output Shift value.
+                 field for informational/audit use only, surfaced in the
+                 UI as Timestamp Window Information / Shift Window Audit
+                 Note (never as "Shift Warning" — this is not a blocking
+                 issue). It must never overwrite the clean output Shift
+                 value, move a row to another group, or gate copy/
+                 readiness.
 
 source         - Parsed from 规格 (HYNC/SLNC) or KODE ORE (ESG) via
                  parseSource() (§10).

@@ -28,11 +28,11 @@ export function mountActionBar(container, { onRefresh, onCopyAll, onCopyProfile 
   bar.appendChild(copyProfileBtn);
   container.appendChild(bar);
 
-  function update({ hasFiles, hasResults, isProfileTab }) {
+  function update({ hasFiles, hasResults, isProfileTab, allBlocked, profileBlocked }) {
     refreshBtn.textContent = hasResults ? "Refresh Cleaning" : "Start Cleaning";
     refreshBtn.disabled = !hasFiles;
-    copyAllBtn.disabled = !hasResults;
-    copyProfileBtn.disabled = !hasResults || !isProfileTab;
+    copyAllBtn.disabled = !hasResults || Boolean(allBlocked);
+    copyProfileBtn.disabled = !hasResults || !isProfileTab || Boolean(profileBlocked);
   }
 
   return { update, copyAllBtn, copyProfileBtn };

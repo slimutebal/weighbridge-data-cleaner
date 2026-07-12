@@ -52,7 +52,9 @@ export function renderValidation(container, validation, decimalSeparator = ".") 
   wrap.appendChild(createMetricRow("Missing Source", validation.missingSourceCount));
   wrap.appendChild(createMetricRow("Missing Grade", validation.missingGradeCount));
   wrap.appendChild(createMetricRow("Unmatched DT rows", validation.unmatchedDtCount));
-  wrap.appendChild(createMetricRow("Shift warning rows", validation.shiftWarningCount));
+  wrap.appendChild(
+    createMetricRow("Timestamp window informational rows", validation.shiftWarningCount)
+  );
   wrap.appendChild(createMetricRow("PILE ID / Source conflicts", validation.pileIdSourceConflictCount));
 
   container.appendChild(wrap);
