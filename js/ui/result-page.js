@@ -3,11 +3,22 @@ import { renderProfilePage } from "./profile-page.js";
 import { mountActionBar } from "./action-bar.js";
 import { rowsToTsv } from "../core/tsv-exporter.js";
 import { copyToClipboard } from "./clipboard-utils.js";
-import { computeGroupReadiness, summarizeGroupReadiness, READINESS_SHORT_LABEL } from "../core/readiness.js";
+import { computeGroupReadiness, summarizeGroupReadiness, READINESS } from "../core/readiness.js";
 import { getGroupKey } from "../core/group-key.js";
 import { closeViewAllRowsModal } from "./view-all-modal.js";
+import { t, subscribeLanguage } from "./i18n.js";
 
 const PROFILE_ORDER = ["HYNC", "SLNC", "ESG"];
+
+// Maps the core readiness enum (js/core/readiness.js, untouched) to a
+// translation key — display-only remapping so the internal status value
+// itself is never translated (see README "Localization").
+const READINESS_SHORT_KEY = {
+  [READINESS.READY]: "readiness.short.ready",
+  [READINESS.READY_WITH_INFO]: "readiness.short.readyInfo",
+  [READINESS.ACTION_REQUIRED]: "readiness.short.actionRequired",
+  [READINESS.FAILED]: "readiness.short.failed",
+};
 
 export function mountResultPage(
   container,
@@ -17,15 +28,7 @@ export function mountResultPage(
   let hasFilesSelected = false;
 
   const heading = document.createElement("h2");
-  heading.textContent = "Cleaning Results";
-
-  const statusSection = document.createElement("div");
-  statusSection.className = "result-section";
-  const statusHeading = document.createElement("h3");
-  statusHeading.textContent = "List DT Status";
-  const statusBody = document.createElement("div");
-  statusSection.appendChild(statusHeading);
-  statusSection.appendChild(statusBody);
+  heading.textContent = t("results.heading");
 
   const tabsNav = document.createElement("div");
   tabsNav.className = "result-tabs";
@@ -33,7 +36,7 @@ export function mountResultPage(
   // container; only the individual tab buttons inside it are rebuilt by
   // renderTabs() below.
   tabsNav.setAttribute("role", "tablist");
-  tabsNav.setAttribute("aria-label", "Cleaning result profile tabs");
+  tabsNav.setAttribute("aria-label", t("results.tablistLabel"));
 
   const panelContainer = document.createElement("div");
   panelContainer.className = "result-section result-tab-panel";
@@ -45,7 +48,6 @@ export function mountResultPage(
   panelContainer.setAttribute("role", "tabpanel");
 
   container.appendChild(heading);
-  container.appendChild(statusSection);
   container.appendChild(tabsNav);
   container.appendChild(panelContainer);
 
@@ -110,22 +112,6 @@ export function mountResultPage(
     });
   }
 
-  function renderListDtStatus(listDtInfo) {
-    statusBody.innerHTML = "";
-
-    if (!listDtInfo) {
-      const placeholder = document.createElement("p");
-      placeholder.className = "placeholder-text";
-      placeholder.textContent = "List DT status will appear here after cleaning is run.";
-      statusBody.appendChild(placeholder);
-      return;
-    }
-
-    const line = document.createElement("p");
-    line.textContent = `Source: ${listDtInfo.source} | Records: ${listDtInfo.recordCount} | Duplicate DT ID conflicts: ${listDtInfo.duplicates.length}`;
-    statusBody.appendChild(line);
-  }
-
   function profilesPresent() {
     return PROFILE_ORDER.filter((profileId) =>
       currentResult.groups.some((group) => group.profile === profileId)
@@ -140,8 +126,9 @@ export function mountResultPage(
     const groups = currentResult.groups.filter((group) => group.profile === profileId);
     if (!groups.length) return "";
     const summary = summarizeGroupReadiness(groups);
-    const groupWord = summary.totalGroups === 1 ? "group" : "groups";
-    return `${summary.totalGroups} ${groupWord} · ${READINESS_SHORT_LABEL[summary.highestSeverity].toLowerCase()}`;
+    const groupWord = summary.totalGroups === 1 ? t("results.groupSuffix") : t("results.groupsSuffix");
+    const severityLabel = t(READINESS_SHORT_KEY[summary.highestSeverity]).toLowerCase();
+    return `${summary.totalGroups} ${groupWord} · ${severityLabel}`;
   }
 
   function tabElementId(tabId) {
@@ -192,7 +179,7 @@ export function mountResultPage(
 
       const label = document.createElement("span");
       label.className = "result-tab-label";
-      label.textContent = tabId === "overview" ? "Overview" : tabId;
+      label.textContent = tabId === "overview" ? t("results.overview") : tabId;
       btn.appendChild(label);
 
       if (tabId !== "overview") {
@@ -282,7 +269,6 @@ export function mountResultPage(
     activeTab = "overview";
     hasFilesSelected = false;
     resetUnmatchedDtDrafts();
-    renderListDtStatus(null);
     renderTabs();
     renderPanel();
     updateActionBar();
@@ -301,7 +287,6 @@ export function mountResultPage(
       fileErrors: result.fileErrors || [],
       listDtInfo: result.listDtInfo || null,
     };
-    renderListDtStatus(currentResult.listDtInfo);
     renderTabs();
     renderPanel();
     updateActionBar();
@@ -316,6 +301,17 @@ export function mountResultPage(
     hasFilesSelected = Boolean(hasFiles);
     updateActionBar();
   }
+
+  // Re-renders every persistent piece of this page's own text (heading,
+  // tablist aria-label, tabs, panel) from the existing in-memory
+  // currentResult on a language change — never re-fetches or re-cleans, and
+  // never touches file/List DT/readiness state (Part 4 of the C1 spec).
+  subscribeLanguage(() => {
+    heading.textContent = t("results.heading");
+    tabsNav.setAttribute("aria-label", t("results.tablistLabel"));
+    renderTabs();
+    renderPanel();
+  });
 
   reset();
 

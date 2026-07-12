@@ -2,17 +2,21 @@ import { mountImportPage } from "./ui/import-page.js";
 import { mountResultPage } from "./ui/result-page.js";
 import { mountListDtPage } from "./ui/list-dt-page.js";
 import { mountDecimalFormatSelector } from "./ui/decimal-format-selector.js";
-import { mountThemeSelector, loadStoredThemeMode } from "./ui/theme-selector.js";
 import { runCleaning } from "./core/cleaning-orchestrator.js";
 import { loadAppConfig } from "./core/app-settings.js";
 import { resolveDecimalSeparator } from "./core/output-formatter.js";
 import { loadStoredDecimalSeparator, storeDecimalSeparator } from "./core/decimal-preference.js";
 import { mountLiveRegion, announce } from "./ui/live-announcer.js";
+import { initializeLanguage, t, subscribeLanguage } from "./ui/i18n.js";
 
 // One persistent aria-live region for the whole app (Phase B) — mounted
 // once here, before any other UI, so every module below can safely import
 // announce() without worrying about mount order.
 mountLiveRegion();
+
+// Reads the persisted language choice (default English) and applies
+// <html lang> before any UI below renders its first text (Phase C1).
+initializeLanguage();
 
 const appConfig = await loadAppConfig();
 // The user's own choice (persisted in localStorage) always overrides the
@@ -22,7 +26,6 @@ const decimalSeparator =
   loadStoredDecimalSeparator() || resolveDecimalSeparator(appConfig.decimalSeparator);
 
 const decimalFormatContainer = document.getElementById("decimal-format-page");
-const themeModeContainer = document.getElementById("theme-mode-page");
 const listDtContainer = document.getElementById("list-dt-page");
 const importContainer = document.getElementById("import-page");
 const resultContainer = document.getElementById("result-page");
@@ -44,13 +47,21 @@ mountDecimalFormatSelector(decimalFormatContainer, {
   },
 });
 
-mountThemeSelector(themeModeContainer, {
-  initialValue: loadStoredThemeMode() || "auto",
-});
-
 let lastBucketedFiles = [];
 
+// Monotonically increasing cleaning generation token. Every call to
+// handleFilesChange (a new upload, a per-file removal, Reset, or a
+// re-clean request) captures its own runId; a stale in-flight
+// runCleaning() promise that resolves or rejects after a *newer* call has
+// already started is detected via runId !== cleaningRunId and discarded
+// instead of overwriting the newer (possibly empty, post-Reset) state.
+// Promises themselves are never cancelled — only their late results are
+// rejected by generation.
+let cleaningRunId = 0;
+
 async function handleFilesChange(bucketedFiles) {
+  const runId = ++cleaningRunId;
+
   lastBucketedFiles = bucketedFiles;
   resultPage.setHasFiles(bucketedFiles.length > 0);
 
@@ -61,8 +72,10 @@ async function handleFilesChange(bucketedFiles) {
 
   try {
     const result = await runCleaning(bucketedFiles);
+    if (runId !== cleaningRunId) return;
     resultPage.showGroups(result);
   } catch (error) {
+    if (runId !== cleaningRunId) return;
     console.error("Cleaning failed:", error);
     resultPage.showGroups({
       groups: [],
@@ -85,11 +98,16 @@ mountListDtPage(listDtContainer, {
   },
 });
 
+resetBtn.textContent = t("header.clearReset");
+subscribeLanguage(() => {
+  resetBtn.textContent = t("header.clearReset");
+});
+
 resetBtn.addEventListener("click", () => {
   importPage.reset();
   resultPage.reset();
   lastBucketedFiles = [];
-  announce("All uploaded files and results cleared.");
+  announce(t("header.allCleared"));
 });
 
 // Keeps --sticky-header-height in sync with the app header's actual

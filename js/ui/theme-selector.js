@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 const STORAGE_KEY = "weighbridge.themeMode.v1";
 const VALID_MODES = ["auto", "light", "dark"];
 
@@ -34,19 +36,19 @@ export function mountThemeSelector(container, { initialValue = "auto" } = {}) {
 
   const label = document.createElement("label");
   label.setAttribute("for", "theme-mode-select");
-  label.textContent = "Theme:";
+  label.textContent = t("theme.label");
 
   const select = document.createElement("select");
   select.id = "theme-mode-select";
 
   [
-    { value: "auto", label: "Auto" },
-    { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" },
-  ].forEach(({ value, label: optionLabel }) => {
+    { value: "auto", labelKey: "theme.auto" },
+    { value: "light", labelKey: "theme.light" },
+    { value: "dark", labelKey: "theme.dark" },
+  ].forEach(({ value, labelKey }) => {
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = optionLabel;
+    option.textContent = t(labelKey);
     select.appendChild(option);
   });
 

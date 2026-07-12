@@ -64,8 +64,9 @@ are a compatibility fallback, not the primary design target.
 
 The top header stays visible while scrolling (`position: sticky`) and holds
 every global control: the app title, the **Excel Decimal Format** selector,
-a **Theme** mode selector (Auto / Light / Dark — see below), and
-**Clear / Reset**.
+and **Clear / Reset**. The **Theme** mode selector used to live here too —
+as of Phase C1 it has moved into **Settings** (see "Settings, theme, and
+language" below); the header itself never carries Theme.
 
 A bottom action bar stays pinned to the viewport (`position: fixed`) below
 all cleaning results and holds the three primary operator actions:
@@ -77,17 +78,6 @@ reachable without scrolling back up or down through a long result set.
 **Copy This Profile** now copies *every* Profile + Date + Bucket group
 under the active profile tab in one action (previously one button per
 group); it's disabled on the Overview tab and whenever no results exist.
-
-The **Theme** selector is fully functional: **Auto** follows the OS/browser
-`prefers-color-scheme` setting (and updates live if the OS setting changes),
-**Light** forces the light palette, and **Dark** forces the dark palette,
-regardless of OS setting. The whole UI — header, tabs, bottom action bar,
-cards, tables, forms, and the wrong-bucket modal — is themed via CSS custom
-properties in `css/app.css`, applied instantly through a `data-theme`
-attribute on `<html>` (`js/ui/theme-selector.js`) with no reload needed.
-Your choice is saved (`localStorage`, default Auto) and restored on the
-next visit. Theming is purely visual — it does not alter any cleaning
-logic, layout structure, or existing behavior.
 
 The **Overview / HYNC / SLNC / ESG** result tabs are also sticky
 (v0.2.0-prepilot revision 7): they sit directly below the app header and
@@ -135,6 +125,17 @@ blocks). Currently announced: removing an individual uploaded file, Clear /
 Reset, Copy succeeded/failed, List DT update succeeded/failed, and
 contractor-mapping sync succeeded/pending. Announcements are deliberately
 short and never include raw error text, internal ids, or endpoint details.
+Every announcement is translated in the currently selected language (never
+both languages at once).
+
+The **Settings** dialog (Phase C1) is a native `<dialog>`, keyboard
+reachable from its trigger button, closes on Escape or its Close button,
+and returns focus to the trigger on close. Its Language control uses native
+radio inputs (current selection is programmatically identifiable, not
+color-only); its Theme control reuses the existing theme `<select>`
+unchanged. The results tablist's `aria-label`, per-file remove-button
+`aria-label`s, and other translated `aria-label`/`title` attributes update
+immediately when the language changes.
 
 ## Uploading Day Shift / Night Shift files
 
@@ -265,18 +266,31 @@ directly into Excel.
 
 ## Updating List DT
 
-The **List DT (Master Data)** section at the top of the page shows:
+A compact **List DT** utility bar at the top of the page (Phase C1 — the
+single authoritative List DT presentation in the app; a duplicate status
+block previously shown again inside Cleaning Results has been removed) shows:
 
 - the current List DT source (`bundled`, or `cache` if previously updated),
 - how many contractor records are loaded,
-- how many normalized DT IDs map to conflicting contractors, and
-- when the List DT was last updated.
+- how many normalized DT IDs map to conflicting contractors,
+- when the List DT was last updated, and
+- the current pending Google Sheet sync count.
 
 Click **Update List DT** to fetch the latest contractor mapping from the
 configured Google Sheet endpoint. This is entirely optional and manual —
 the app never calls this endpoint automatically. On success, the new list is
 cached in the browser's `localStorage` and any files already uploaded are
 automatically re-cleaned so contractor values reflect the update.
+
+**Sync Pending DT**, next to Update List DT in the same bar, syncs whatever
+DT corrections are currently queued (see "Local pending sync and Google
+Sheet sync" below) without needing to open the Overview tab — the Overview
+page's own Unmatched DT Correction section (with its per-row contractor
+inputs) is unchanged and still the place to *enter* new corrections; this
+button is a shortcut to (re-)sync ones already saved locally.
+
+A **Settings** button sits at the right of this same bar — see "Settings,
+theme, and language" below.
 
 ## Excel decimal format
 
@@ -300,6 +314,64 @@ apostrophe or other text-forcing — so they paste into Excel as native
 numbers, not text. Grade is stripped down to its numeric value only; a raw
 value like `NI:1.20` copies as `1.20` (or `1,20`), never with the `NI:`
 prefix or its parentheses.
+
+## Settings, theme, and language
+
+**Settings** (Phase C1) is a native `<dialog>` opened from the button at the
+right of the compact List DT bar. It contains two controls:
+
+- **Theme** — Auto / Light / Dark, moved here from the header. Behavior is
+  unchanged from before: **Auto** follows the OS/browser
+  `prefers-color-scheme` setting (and updates live if the OS setting
+  changes), **Light** forces the light palette, and **Dark** forces the
+  dark palette, regardless of OS setting. The whole UI — header, tabs,
+  bottom action bar, cards, tables, forms, and every modal — is themed via
+  CSS custom properties in `css/app.css`, applied instantly through a
+  `data-theme` attribute on `<html>` (`js/ui/theme-selector.js`, reused
+  as-is inside Settings — there is only one theme selector/state in the
+  app) with no reload needed. Your choice is saved (`localStorage`, default
+  Auto) and restored on the next visit. Theming is purely visual — it does
+  not alter any cleaning logic, layout structure, or existing behavior.
+- **Language** — **English** or **Indonesia**. Selecting a language updates
+  all translated UI text immediately, in place, with **no page reload**.
+  Your choice is saved in `localStorage` (`weighbridge-language`) and
+  restored on the next visit; if the stored value is ever invalid, the app
+  falls back to English rather than failing to start. The document's
+  `<html lang>` attribute is kept in sync with the current language, both
+  on first load and on every language change.
+
+Settings closes via its **Close** button, the Escape key, or clicking
+outside (native `<dialog>` behavior); focus returns to the Settings button
+on close.
+
+**Localization architecture.** All UI copy is translated through one
+centralized module, `js/ui/i18n.js` — a dictionary keyed by short string
+IDs (e.g. `"settings.title"`, `"listdt.update"`) with an `en` and `id` entry
+each, a `t(key, params)` helper that looks up the current language and
+performs `{{param}}` interpolation, and `getLanguage()` /
+`setLanguage()` / `subscribeLanguage()` / `initializeLanguage()` for reading
+and changing the active language. UI modules call `t()` when they render
+text and, where a module stays mounted for the app's whole lifetime (the
+header, the List DT bar, the bottom action bar, the results shell), they
+also subscribe to language changes and re-render their own text in place.
+There is no scattered `language === "id" ? ... : ...` conditional logic
+anywhere outside this one module.
+
+**Language changes never lose state.** Switching language re-renders
+existing UI from data already in memory — it never reloads the page, never
+re-parses uploaded Excel files, and never re-runs cleaning. Uploaded Day/
+Night Shift files, current cleaning results, the active profile tab,
+List DT data and pending-sync state, the Excel Decimal Format preference,
+and the Theme preference are all unaffected by a language change.
+
+**Localization is presentation-only.** Only UI chrome, labels, headings,
+and messages are translated. Business data is never translated or altered:
+Source values, grade codes, material codes, contractor and buyer names,
+filenames, sheet names, date/time values, numeric values, PILE ID, NO.NOTA,
+NO. DT, and every copied/exported TSV column name and value are identical
+regardless of the selected language. Selecting Indonesian does not change
+the Excel Decimal Format preference (and vice versa) — language and decimal
+format are independent settings.
 
 ## Unmatched DT Correction
 
@@ -479,3 +551,9 @@ The app is offline-first and never requires network access to clean files:
 - Pending DT corrections and their sync status are stored per browser
   (`localStorage`), the same as the List DT cache itself — they are not
   shared across machines until a sync to Google Sheets actually succeeds.
+- Localization (Phase C1) covers the UI shell, List DT, Settings, import,
+  results, validation, and dialog text. A small number of dynamically
+  generated messages produced by the cleaning/validation core (e.g. some
+  file-level warning and error strings) remain English-only, since core
+  cleaning logic files were intentionally left unmodified in this phase.
+  This does not affect cleaned data, tonnage, or copied/exported output.

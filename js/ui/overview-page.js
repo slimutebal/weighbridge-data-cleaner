@@ -8,6 +8,7 @@ import {
   syncDtMappingsToGoogleSheet,
 } from "../core/list-dt-manager.js";
 import { announce } from "./live-announcer.js";
+import { t } from "./i18n.js";
 
 // Draft contractor inputs and per-DT-ID status (last local/Google sync
 // outcome) are kept at module scope (not inside renderOverview) because the
@@ -35,43 +36,43 @@ function applyGoogleSyncOutcome(syncResult, applied) {
     syncResult.perEntry.forEach(({ dt_id, outcome }) => {
       if (outcome === "synced") {
         resolvedIds.push(dt_id);
-        dtCorrectionStatus.set(dt_id, { kind: "ok", text: "Synced to Google Sheet." });
+        dtCorrectionStatus.set(dt_id, { kind: "ok", text: t("overview.syncedOk") });
       } else if (outcome === "duplicate") {
         resolvedIds.push(dt_id);
-        dtCorrectionStatus.set(dt_id, { kind: "duplicate", text: "Already exists on Google Sheet." });
+        dtCorrectionStatus.set(dt_id, { kind: "duplicate", text: t("overview.syncedDuplicate") });
       } else if (outcome === "conflict") {
         allResolved = false;
         dtCorrectionStatus.set(dt_id, {
           kind: "conflict",
-          text: "Conflict: Google Sheet has a different contractor for this DT.",
+          text: t("overview.syncedConflict"),
         });
       } else {
         allResolved = false;
         dtCorrectionStatus.set(dt_id, {
           kind: "error",
-          text: "Saved locally, pending Google Sheet sync.",
+          text: t("overview.syncedPendingLocal"),
         });
       }
     });
     if (resolvedIds.length) removePendingSyncEntries(resolvedIds);
-    announce(allResolved ? "Contractor mappings synchronized." : "Synchronization pending.");
+    announce(allResolved ? t("listdt.syncedAnnounce") : t("listdt.syncPendingAnnounce"));
     return;
   }
 
   if (syncResult.ok) {
     removePendingSyncEntries(applied.map((entry) => entry.dt_id));
     applied.forEach((entry) =>
-      dtCorrectionStatus.set(entry.dt_id, { kind: "ok", text: "Saved and synced to Google Sheet." })
+      dtCorrectionStatus.set(entry.dt_id, { kind: "ok", text: t("overview.syncedOk") })
     );
-    announce("Contractor mappings synchronized.");
+    announce(t("listdt.syncedAnnounce"));
   } else {
     applied.forEach((entry) =>
       dtCorrectionStatus.set(entry.dt_id, {
         kind: "error",
-        text: `Saved locally, pending Google Sheet sync. (${syncResult.reason})`,
+        text: t("overview.syncedPendingLocalReason", { reason: syncResult.reason }),
       })
     );
-    announce("Synchronization pending.");
+    announce(t("listdt.syncPendingAnnounce"));
   }
 }
 
@@ -91,10 +92,24 @@ function renderSummaryTable(container, groups, decimalSeparator) {
   table.className = "groups-table";
 
   const thead = document.createElement("thead");
-  thead.innerHTML =
-    "<tr><th>Profile</th><th>Date</th><th>Bucket</th><th>Rows</th>" +
-    "<th>Net Tonnage</th><th>Missing Contractor</th><th>Missing Source</th>" +
-    "<th>Missing Grade</th><th>Timestamp Window Notes</th><th>Skipped Rows</th></tr>";
+  const headRow = document.createElement("tr");
+  [
+    "overview.profile",
+    "overview.date",
+    "overview.bucket",
+    "overview.rows",
+    "overview.netTonnage",
+    "overview.missingContractor",
+    "overview.missingSource",
+    "overview.missingGrade",
+    "overview.timestampWindowNotes",
+    "overview.skippedRows",
+  ].forEach((key) => {
+    const th = document.createElement("th");
+    th.textContent = t(key);
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
@@ -151,7 +166,7 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
   wrap.className = "summary-table-wrap";
 
   const heading = document.createElement("h3");
-  heading.textContent = "Unmatched DT Correction";
+  heading.textContent = t("overview.unmatchedDtCorrection");
   wrap.appendChild(heading);
 
   const uniqueUnmatched = collectUniqueUnmatchedDt(groups);
@@ -169,13 +184,13 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
 
   const pendingLabel = document.createElement("span");
   pendingLabel.className = "placeholder-text";
-  pendingLabel.textContent = `Pending Google Sheet sync: ${pendingCount} DT mapping(s).`;
+  pendingLabel.textContent = t("listdt.pendingSync", { count: pendingCount });
   pendingRow.appendChild(pendingLabel);
 
   const syncPendingBtn = document.createElement("button");
   syncPendingBtn.type = "button";
   syncPendingBtn.className = "btn-secondary";
-  syncPendingBtn.textContent = "Sync Pending DT";
+  syncPendingBtn.textContent = t("listdt.syncPending");
   syncPendingBtn.disabled = pendingCount === 0;
   syncPendingBtn.addEventListener("click", async () => {
     const pending = getPendingSyncEntries();
@@ -184,8 +199,8 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
     const result = await syncDtMappingsToGoogleSheet(listDtEndpoint, pending);
     applyGoogleSyncOutcome(result, pending);
     lastSyncMessage = result.ok
-      ? { ok: true, text: `Synced ${pending.length} pending DT mapping(s) to Google Sheet.` }
-      : { ok: false, text: `Saved locally, pending Google Sheet sync. (${result.reason})` };
+      ? { ok: true, text: t("listdt.syncPendingSuccess", { count: pending.length }) }
+      : { ok: false, text: t("listdt.syncPendingFailed", { reason: result.reason }) };
     renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint, onRecleanRequested });
   });
   pendingRow.appendChild(syncPendingBtn);
@@ -194,7 +209,7 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
   if (!uniqueUnmatched.length) {
     const empty = document.createElement("p");
     empty.className = "placeholder-text";
-    empty.textContent = "No unmatched DT IDs in the currently uploaded files.";
+    empty.textContent = t("overview.noUnmatched");
     wrap.appendChild(empty);
     sectionContainer.appendChild(wrap);
     return;
@@ -204,7 +219,13 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
   table.className = "summary-table";
 
   const thead = document.createElement("thead");
-  thead.innerHTML = "<tr><th>Unknown DT</th><th>Contractor input</th><th>Status</th></tr>";
+  const headRow = document.createElement("tr");
+  ["overview.unknownDt", "overview.contractorInput", "overview.status"].forEach((key) => {
+    const th = document.createElement("th");
+    th.textContent = t(key);
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
@@ -218,14 +239,14 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
     const dtCell = document.createElement("td");
     dtCell.textContent = String(dtId);
     if (rawDtId && rawDtId !== dtId) {
-      dtCell.title = `Raw source value: ${rawDtId}`;
+      dtCell.title = t("overview.rawSourceValue", { value: rawDtId });
     }
     tr.appendChild(dtCell);
 
     const inputCell = document.createElement("td");
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = "Contractor name";
+    input.placeholder = t("overview.contractorPlaceholder");
     input.value = draftContractorInputs.get(dtId) || "";
     input.addEventListener("input", () => {
       draftContractorInputs.set(dtId, input.value);
@@ -239,7 +260,7 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
       statusCell.textContent = knownStatus.text;
       statusCell.className = `dt-status-${knownStatus.kind}`;
     } else {
-      statusCell.textContent = `Unmatched (${occurrences} row${occurrences === 1 ? "" : "s"})`;
+      statusCell.textContent = t("overview.unmatchedCount", { count: occurrences });
     }
     tr.appendChild(statusCell);
 
@@ -251,14 +272,14 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
   const updateBtn = document.createElement("button");
   updateBtn.type = "button";
   updateBtn.className = "btn-secondary";
-  updateBtn.textContent = "Update";
+  updateBtn.textContent = t("overview.updateBtn");
   updateBtn.addEventListener("click", async () => {
     const rawEntries = uniqueUnmatched
       .map(({ dtId }) => ({ dtId, contractor: (draftContractorInputs.get(dtId) || "").trim() }))
       .filter((entry) => entry.contractor);
 
     if (!rawEntries.length) {
-      lastSyncMessage = { ok: false, text: "Enter at least one contractor name before clicking Update." };
+      lastSyncMessage = { ok: false, text: t("overview.enterContractorFirst") };
       renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint, onRecleanRequested });
       return;
     }
@@ -277,14 +298,14 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
     duplicateEntries.forEach((entry) => {
       dtCorrectionStatus.set(entry.dt_id, {
         kind: "duplicate",
-        text: `Already exists / duplicate skipped (contractor: "${entry.existingContractor}").`,
+        text: t("overview.alreadyExistsSkipped", { contractor: entry.existingContractor }),
       });
       draftContractorInputs.delete(entry.dt_id);
     });
     conflictEntries.forEach((entry) => {
       dtCorrectionStatus.set(entry.dt_id, {
         kind: "conflict",
-        text: `Conflict: existing contractor differs (existing: "${entry.existingContractor}").`,
+        text: t("overview.conflictExisting", { contractor: entry.existingContractor }),
       });
     });
 
@@ -305,12 +326,16 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
     }
 
     const summaryParts = [];
-    if (applied.length) summaryParts.push(`${applied.length} new correction(s) saved`);
-    if (duplicateEntries.length) summaryParts.push(`${duplicateEntries.length} already existed (skipped)`);
-    if (conflictEntries.length) summaryParts.push(`${conflictEntries.length} conflict(s) need review`);
+    if (applied.length) summaryParts.push(t("overview.summaryNewSaved", { count: applied.length }));
+    if (duplicateEntries.length) {
+      summaryParts.push(t("overview.summaryAlreadyExisted", { count: duplicateEntries.length }));
+    }
+    if (conflictEntries.length) {
+      summaryParts.push(t("overview.summaryConflicts", { count: conflictEntries.length }));
+    }
     lastSyncMessage = {
       ok: conflictEntries.length === 0,
-      text: `${summaryParts.join("; ") || "No changes"}.`,
+      text: summaryParts.length ? `${summaryParts.join("; ")}.` : t("overview.summaryNoChanges"),
     };
 
     if (applied.length && onRecleanRequested) {
@@ -359,8 +384,8 @@ export function renderOverview(
     const placeholder = document.createElement("p");
     placeholder.className = "placeholder-text";
     placeholder.textContent = fileErrors.length
-      ? "No cleaning groups detected from the imported files."
-      : "No cleaning groups yet. Import files to see a summary grouped by Profile + Date + Bucket.";
+      ? t("results.noGroupsErrors")
+      : t("results.noGroupsEmpty");
     container.appendChild(placeholder);
 
     const emptySectionContainer = document.createElement("div");

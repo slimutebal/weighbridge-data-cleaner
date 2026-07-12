@@ -416,7 +416,8 @@ input:focus-visible,
 .pending-sync-row button,
 .wrong-bucket-modal button,
 .preview-actions button,
-.view-all-modal button {
+.view-all-modal button,
+.settings-modal button {
   padding: 9px 18px;
   border-radius: var(--radius-control);
   font-size: var(--fs-body);
@@ -490,7 +491,8 @@ input:focus-visible,
 .summary-table-wrap > button:disabled,
 .pending-sync-row button:disabled,
 .preview-actions button:disabled,
-.view-all-modal button:disabled {
+.view-all-modal button:disabled,
+.settings-modal button:disabled {
   border-color: var(--color-border);
   background: var(--color-surface-muted);
   color: var(--color-border-strong);
@@ -787,6 +789,164 @@ input:focus-visible,
   color: var(--color-text-muted);
   font-size: var(--fs-body);
   margin: 0;
+}
+
+/* ==========================================================================
+   Compact List DT utility bar (Phase C1)
+   Replaces the previous full-size "List DT (Master Data)" section — a
+   single dense row (title + status metadata, Update/Sync actions, Settings
+   anchored right) instead of a page-sized block. #list-dt-page itself keeps
+   its existing .result-section card surface (high-alpha, no nested blur);
+   this only lays out the compact content inside it. Wraps to a second row
+   at narrower widths rather than a mobile-first redesign — desktop stays a
+   single horizontal row wherever there's room.
+   ========================================================================== */
+
+.list-dt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+}
+
+.list-dt-bar-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.list-dt-bar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.list-dt-bar-title {
+  font-size: var(--fs-card-title);
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.list-dt-bar-status {
+  font-size: var(--fs-helper);
+  color: var(--color-text-muted);
+}
+
+.list-dt-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-dt-bar-actions button {
+  padding: 7px 14px;
+  font-size: var(--fs-helper);
+}
+
+.list-dt-bar-feedback {
+  flex-basis: 100%;
+}
+
+.list-dt-bar-feedback:empty {
+  display: none;
+}
+
+.list-dt-bar-settings {
+  flex: 0 0 auto;
+}
+
+/* Secondary/tonal, deliberately no stronger than Update/Sync Pending —
+   reuses .btn-secondary's own color tier, just a touch more compact. */
+.settings-trigger-btn {
+  padding: 7px 14px;
+  font-size: var(--fs-helper);
+}
+
+/* ==========================================================================
+   Settings dialog (Phase C1)
+   Same glass modal treatment as .wrong-bucket-modal / .view-all-modal, sized
+   for its own compact content rather than the wide View All layout — not
+   full-screen on desktop, still comfortably usable at narrow widths.
+   ========================================================================== */
+
+.settings-modal {
+  width: calc(100% - 48px);
+  max-width: 420px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-shell);
+  padding: 20px 24px;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  color: var(--color-text);
+  box-shadow: var(--shadow-shell), var(--glass-highlight);
+}
+
+.settings-modal:not([open]) {
+  display: none;
+}
+
+.settings-modal::backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-header h3 {
+  margin: 0;
+  font-size: var(--fs-page-title);
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.settings-section {
+  margin-top: 16px;
+}
+
+.settings-section:first-of-type {
+  margin-top: 0;
+}
+
+.settings-section h4 {
+  margin: 0 0 8px;
+  font-size: var(--fs-card-title);
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.settings-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-body);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .settings-modal {
+    padding: 16px 18px;
+  }
 }
 
 /* Overview groups table can get wide (10 columns); allow horizontal
@@ -1550,7 +1710,8 @@ input:focus-visible,
   .result-tabs,
   #bottom-action-bar,
   .view-all-modal,
-  .wrong-bucket-modal {
+  .wrong-bucket-modal,
+  .settings-modal {
     background: var(--glass-bg-strong-fallback);
   }
 }

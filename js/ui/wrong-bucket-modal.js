@@ -1,5 +1,7 @@
-const BUCKET_LABELS = { DS: "Day Shift Input", NS: "Night Shift Input" };
-const SHIFT_LABELS = { DS: "Day Shift", NS: "Night Shift" };
+import { t } from "./i18n.js";
+
+const BUCKET_LABEL_KEY = { DS: "import.dayShift", NS: "import.nightShift" };
+const SHIFT_LABEL_KEY = { DS: "shift.day", NS: "shift.night" };
 
 let dialogEl = null;
 
@@ -18,42 +20,47 @@ function addLine(container, label, value) {
   container.appendChild(p);
 }
 
+function bucketLabel(bucketId) {
+  return BUCKET_LABEL_KEY[bucketId] ? t(BUCKET_LABEL_KEY[bucketId]) : bucketId;
+}
+
+function shiftLabel(shiftId) {
+  return SHIFT_LABEL_KEY[shiftId] ? t(SHIFT_LABEL_KEY[shiftId]) : shiftId;
+}
+
 function buildRejectionBlock(rejection) {
   const wrap = document.createElement("div");
   wrap.className = "wrong-bucket-block";
 
   const title = document.createElement("h3");
-  title.textContent = rejection.ambiguous ? "Unable to validate shift" : "Wrong shift bucket";
+  title.textContent = rejection.ambiguous
+    ? t("wrongBucket.unableToValidate")
+    : t("wrongBucket.wrongBucket");
   wrap.appendChild(title);
 
-  addLine(wrap, "File", rejection.fileName);
+  addLine(wrap, t("wrongBucket.file"), rejection.fileName);
 
   if (rejection.ambiguous) {
     const explain = document.createElement("p");
-    explain.textContent =
-      "The app could not determine whether this file is Day Shift or Night Shift from timestamps. This file was removed.";
+    explain.textContent = t("wrongBucket.ambiguousExplain");
     wrap.appendChild(explain);
 
-    addLine(wrap, "DS rows", rejection.dsCount);
-    addLine(wrap, "NS rows", rejection.nsCount);
-    addLine(wrap, "Unknown timestamp rows", rejection.unknownCount);
+    addLine(wrap, t("wrongBucket.dsRows"), rejection.dsCount);
+    addLine(wrap, t("wrongBucket.nsRows"), rejection.nsCount);
+    addLine(wrap, t("wrongBucket.unknownRows"), rejection.unknownCount);
     return wrap;
   }
 
-  addLine(wrap, "Selected bucket", BUCKET_LABELS[rejection.bucket] || rejection.bucket);
-  addLine(
-    wrap,
-    "Detected shift",
-    SHIFT_LABELS[rejection.detectedShift] || rejection.detectedShift
-  );
-  addLine(wrap, "DS rows", rejection.dsCount);
-  addLine(wrap, "NS rows", rejection.nsCount);
-  addLine(wrap, "Unknown timestamp rows", rejection.unknownCount);
+  addLine(wrap, t("wrongBucket.selectedBucket"), bucketLabel(rejection.bucket));
+  addLine(wrap, t("wrongBucket.detectedShift"), shiftLabel(rejection.detectedShift));
+  addLine(wrap, t("wrongBucket.dsRows"), rejection.dsCount);
+  addLine(wrap, t("wrongBucket.nsRows"), rejection.nsCount);
+  addLine(wrap, t("wrongBucket.unknownRows"), rejection.unknownCount);
 
   const correctBucketId = rejection.bucket === "DS" ? "NS" : "DS";
   const instruction = document.createElement("p");
   instruction.className = "wrong-bucket-instruction";
-  instruction.textContent = `This file was removed. Please upload it to ${BUCKET_LABELS[correctBucketId]}.`;
+  instruction.textContent = t("wrongBucket.instruction", { bucket: bucketLabel(correctBucketId) });
   wrap.appendChild(instruction);
 
   return wrap;
@@ -73,7 +80,7 @@ export function showWrongBucketModal(rejections) {
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
   closeBtn.className = "btn-secondary";
-  closeBtn.textContent = "OK";
+  closeBtn.textContent = t("wrongBucket.ok");
   closeBtn.addEventListener("click", () => dialog.close());
   dialog.appendChild(closeBtn);
 

@@ -1,12 +1,12 @@
 import { formatDecimal } from "../core/output-formatter.js";
+import { t } from "./i18n.js";
 
 export function renderValidationPlaceholder(container) {
   container.innerHTML = "";
 
   const placeholder = document.createElement("p");
   placeholder.className = "placeholder-text";
-  placeholder.textContent =
-    "Validation and report details will appear here after cleaning is run.";
+  placeholder.textContent = t("validation.placeholder");
 
   container.appendChild(placeholder);
 }
@@ -32,36 +32,38 @@ export function renderValidation(container, validation, decimalSeparator = ".", 
   const wrap = document.createElement("div");
   wrap.className = "validation-metrics";
 
-  wrap.appendChild(createMetricRow("Raw rows", validation.rawRowCount));
-  wrap.appendChild(createMetricRow("Clean rows", validation.cleanRowCount));
+  wrap.appendChild(createMetricRow(t("validation.rawRows"), validation.rawRowCount));
+  wrap.appendChild(createMetricRow(t("validation.cleanRows"), validation.cleanRowCount));
   if (profile === "ESG") {
     // Informational only: ESG report/template section boundaries, never a
     // blocking issue (see computeGroupValidation in validation-engine.js).
-    wrap.appendChild(createMetricRow("ESG Report Groups", validation.esgReportGroups));
+    wrap.appendChild(createMetricRow(t("validation.esgReportGroups"), validation.esgReportGroups));
   } else {
-    wrap.appendChild(createMetricRow("Lost rows", validation.lostRowCount));
+    wrap.appendChild(createMetricRow(t("validation.lostRows"), validation.lostRowCount));
   }
   wrap.appendChild(
-    createMetricRow("Raw tonnage", formatDecimal(validation.rawTonnage, decimalSeparator))
+    createMetricRow(t("validation.rawTonnage"), formatDecimal(validation.rawTonnage, decimalSeparator))
   );
   wrap.appendChild(
-    createMetricRow("Clean tonnage", formatDecimal(validation.cleanTonnage, decimalSeparator))
+    createMetricRow(t("validation.cleanTonnage"), formatDecimal(validation.cleanTonnage, decimalSeparator))
   );
   wrap.appendChild(
     createMetricRow(
-      "Tonnage difference",
+      t("validation.tonnageDifference"),
       formatDecimal(validation.tonnageDifference, decimalSeparator)
     )
   );
-  wrap.appendChild(createMetricRow("Duplicate NO.NOTA", validation.duplicateNotaCount));
-  wrap.appendChild(createMetricRow("Missing Contractor", validation.missingContractorCount));
-  wrap.appendChild(createMetricRow("Missing Source", validation.missingSourceCount));
-  wrap.appendChild(createMetricRow("Missing Grade", validation.missingGradeCount));
-  wrap.appendChild(createMetricRow("Unmatched DT rows", validation.unmatchedDtCount));
+  wrap.appendChild(createMetricRow(t("validation.duplicateNota"), validation.duplicateNotaCount));
+  wrap.appendChild(createMetricRow(t("validation.missingContractor"), validation.missingContractorCount));
+  wrap.appendChild(createMetricRow(t("validation.missingSource"), validation.missingSourceCount));
+  wrap.appendChild(createMetricRow(t("validation.missingGrade"), validation.missingGradeCount));
+  wrap.appendChild(createMetricRow(t("validation.unmatchedDtRows"), validation.unmatchedDtCount));
   wrap.appendChild(
-    createMetricRow("Timestamp window informational rows", validation.shiftWarningCount)
+    createMetricRow(t("validation.timestampWindowInfoRows"), validation.shiftWarningCount)
   );
-  wrap.appendChild(createMetricRow("PILE ID / Source conflicts", validation.pileIdSourceConflictCount));
+  wrap.appendChild(
+    createMetricRow(t("validation.pileIdSourceConflicts"), validation.pileIdSourceConflictCount)
+  );
 
   container.appendChild(wrap);
 }

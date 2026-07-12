@@ -1,3 +1,5 @@
+import { t, subscribeLanguage } from "./i18n.js";
+
 const OPTIONS = [
   { value: ".", label: "1.20" },
   { value: ",", label: "1,20" },
@@ -9,7 +11,11 @@ export function mountDecimalFormatSelector(container, { initialValue = ".", onCh
 
   const label = document.createElement("label");
   label.setAttribute("for", "decimal-format-select");
-  label.textContent = "Excel Decimal Format:";
+  label.textContent = `${t("header.decimalFormat")}:`;
+
+  subscribeLanguage(() => {
+    label.textContent = `${t("header.decimalFormat")}:`;
+  });
 
   const select = document.createElement("select");
   select.id = "decimal-format-select";

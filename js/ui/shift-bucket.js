@@ -2,6 +2,7 @@ import { renderFileList } from "./imported-file-list.js";
 import { detectFileShift, evaluateBucketMatch } from "../core/shift-bucket-validator.js";
 import { showWrongBucketModal } from "./wrong-bucket-modal.js";
 import { announce } from "./live-announcer.js";
+import { t, subscribeLanguage } from "./i18n.js";
 
 const ACCEPTED_EXTENSIONS = [".xlsx", ".xlsm"];
 
@@ -10,7 +11,7 @@ function isAcceptedFile(file) {
   return ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext));
 }
 
-export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
+export function createShiftBucket({ id, labelKey, hintKey, bucketId, onChange }) {
   // Internal state is entries ({ id, file }), not bare File objects (Phase
   // B) — the id is the stable identity used to remove exactly one uploaded
   // file even when two entries share the same filename (or name+size).
@@ -42,21 +43,18 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
   root.id = id;
 
   const heading = document.createElement("h2");
-  heading.textContent = label;
+  heading.textContent = t(labelKey);
 
   const hintText = document.createElement("p");
   hintText.className = "shift-bucket-hint";
-  hintText.textContent = hint;
+  hintText.textContent = t(hintKey);
 
   const dropZone = document.createElement("div");
   dropZone.className = "drop-zone";
   dropZone.tabIndex = 0;
   dropZone.setAttribute("role", "button");
-  dropZone.setAttribute(
-    "aria-label",
-    `${label} drop zone, click or drop Excel files here`
-  );
-  dropZone.textContent = "Insert Excel Files or drop files here";
+  dropZone.setAttribute("aria-label", t("import.dropZoneAriaLabel", { label: t(labelKey) }));
+  dropZone.textContent = t("import.dropZoneText");
 
   const fileInput = document.createElement("input");
   fileInput.type = "file";
@@ -83,7 +81,7 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
     entries = entries.filter((entry) => entry.id !== entryId);
     refresh();
     notifyChange();
-    if (removed) announce(`Removed ${removed.file.name}.`);
+    if (removed) announce(t("import.fileRemovedAnnounce", { filename: removed.file.name }));
   }
 
   // Reads and shift-classifies a single candidate file against this
@@ -178,13 +176,31 @@ export function createShiftBucket({ id, label, hint, bucketId, onChange }) {
 
   refresh();
 
+  // Persistent, mounted once per bucket — re-renders its own static text and
+  // the current file list's remove-button labels in place on a language
+  // change, without touching entries/state (Part 4 of the C1 spec).
+  subscribeLanguage(() => {
+    heading.textContent = t(labelKey);
+    hintText.textContent = t(hintKey);
+    dropZone.setAttribute("aria-label", t("import.dropZoneAriaLabel", { label: t(labelKey) }));
+    dropZone.textContent = t("import.dropZoneText");
+    refresh();
+  });
+
   return {
     element: root,
     getFiles: () => entries.map((entry) => entry.file),
-    reset: () => {
+    // notify:false ("silent reset") clears this bucket's own entries/UI
+    // without emitting notifyChange() — used by import-page.js's atomic
+    // resetAll() so neither bucket's individual reset can emit an
+    // intermediate "one bucket empty, the other still populated" state
+    // that would kick off a stale cleaning run. Per-file removal
+    // (removeEntry above) is unaffected — it always calls notifyChange()
+    // directly, never through this reset() path.
+    reset: ({ notify = true } = {}) => {
       entries = [];
       refresh();
-      notifyChange();
+      if (notify) notifyChange();
     },
   };
 }

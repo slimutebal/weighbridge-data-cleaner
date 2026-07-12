@@ -1,4 +1,5 @@
 import { createShiftBucket } from "./shift-bucket.js";
+import { t } from "./i18n.js";
 
 export function mountImportPage(container, { onFilesChange } = {}) {
   let dayFiles = [];
@@ -18,8 +19,8 @@ export function mountImportPage(container, { onFilesChange } = {}) {
 
   const dayShiftBucket = createShiftBucket({
     id: "day-shift-bucket",
-    label: "Day Shift Input",
-    hint: "Accepts HYNC, SLNC, ESG Day Shift source files.",
+    labelKey: "import.dayShift",
+    hintKey: "import.dayHint",
     bucketId: "DS",
     onChange: (_bucketId, files) => {
       dayFiles = files;
@@ -29,8 +30,8 @@ export function mountImportPage(container, { onFilesChange } = {}) {
 
   const nightShiftBucket = createShiftBucket({
     id: "night-shift-bucket",
-    label: "Night Shift Input",
-    hint: "Accepts HYNC, SLNC, ESG Night Shift source files.",
+    labelKey: "import.nightShift",
+    hintKey: "import.nightHint",
     bucketId: "NS",
     onChange: (_bucketId, files) => {
       nightFiles = files;
@@ -46,9 +47,18 @@ export function mountImportPage(container, { onFilesChange } = {}) {
   return {
     getDayShiftFiles: dayShiftBucket.getFiles,
     getNightShiftFiles: nightShiftBucket.getFiles,
+    // Atomic global reset: both buckets are cleared silently (no
+    // intermediate notifyChange from either one), local state is
+    // resynced directly from each now-empty bucket, and exactly one
+    // combined empty-file update is emitted — so Clear/Reset can never
+    // kick off a new cleaning run against whichever bucket happened to
+    // still hold files at the moment the other bucket was reset.
     reset: () => {
-      dayShiftBucket.reset();
-      nightShiftBucket.reset();
+      dayShiftBucket.reset({ notify: false });
+      nightShiftBucket.reset({ notify: false });
+      dayFiles = dayShiftBucket.getFiles();
+      nightFiles = nightShiftBucket.getFiles();
+      emitChange();
     },
   };
 }

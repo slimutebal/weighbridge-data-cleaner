@@ -1,5 +1,6 @@
 import { formatOutputCell } from "../core/output-formatter.js";
 import { OUTPUT_COLUMN_ORDER } from "../core/tsv-exporter.js";
+import { t } from "./i18n.js";
 
 let dialogEl = null;
 let lastTrigger = null;
@@ -73,18 +74,18 @@ export function openViewAllRowsModal(groupInfo, decimalSeparator, triggerButton)
 
   const titleWrap = document.createElement("div");
   const title = document.createElement("h3");
-  title.textContent = "Clean Data Preview";
+  title.textContent = t("results.cleanDataPreview");
   titleWrap.appendChild(title);
   const subtitle = document.createElement("p");
   subtitle.className = "view-all-subtitle";
-  subtitle.textContent = `${profile} | ${date} | ${bucket} — ${rows.length} rows`;
+  subtitle.textContent = t("results.viewAllSubtitle", { profile, date, bucket, count: rows.length });
   titleWrap.appendChild(subtitle);
   header.appendChild(titleWrap);
 
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
   closeBtn.className = "btn-secondary";
-  closeBtn.textContent = "Close";
+  closeBtn.textContent = t("common.close");
   closeBtn.addEventListener("click", () => dialog.close());
   header.appendChild(closeBtn);
 

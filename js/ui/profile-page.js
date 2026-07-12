@@ -5,24 +5,48 @@ import {
   extractNumericGrade,
 } from "../core/output-formatter.js";
 import { renderValidation } from "./validation-panel.js";
-import {
-  computeGroupReadiness,
-  summarizeGroupReadiness,
-  READINESS,
-  READINESS_SHORT_LABEL,
-} from "../core/readiness.js";
+import { computeGroupReadiness, summarizeGroupReadiness, READINESS } from "../core/readiness.js";
 import { OUTPUT_COLUMN_ORDER } from "../core/tsv-exporter.js";
 import { getGroupKey } from "../core/group-key.js";
 import { openViewAllRowsModal } from "./view-all-modal.js";
+import { t } from "./i18n.js";
 
 const PREVIEW_ROW_LIMIT = 25;
+
+// Maps the core readiness enum (js/core/readiness.js, untouched) to
+// translation keys — display-only remapping, see result-page.js's matching
+// READINESS_SHORT_KEY comment.
+const READINESS_LABEL_KEY = {
+  [READINESS.READY]: "readiness.ready",
+  [READINESS.READY_WITH_INFO]: "readiness.readyInfo",
+  [READINESS.ACTION_REQUIRED]: "readiness.actionRequired",
+  [READINESS.FAILED]: "readiness.failed",
+};
+
+const READINESS_SHORT_KEY = {
+  [READINESS.READY]: "readiness.short.ready",
+  [READINESS.READY_WITH_INFO]: "readiness.short.readyInfo",
+  [READINESS.ACTION_REQUIRED]: "readiness.short.actionRequired",
+  [READINESS.FAILED]: "readiness.short.failed",
+};
+
+// "Other Blocking Issues" categories are keyed by computeOtherBlockingIssues'
+// stable `key` field (js/core/readiness.js) — used here instead of that
+// function's own English `label` text, which is not translated.
+const BLOCKING_CATEGORY_KEY = {
+  missingSource: "blocking.missingSource",
+  missingGrade: "blocking.missingGrade",
+  duplicateNota: "blocking.duplicateNota",
+  pileIdSourceConflict: "blocking.pileIdSourceConflict",
+  lostRows: "blocking.lostRows",
+};
 
 export function renderProfilePagePlaceholder(container) {
   container.innerHTML = "";
 
   const placeholder = document.createElement("p");
   placeholder.className = "placeholder-text";
-  placeholder.textContent = "No rows for this profile yet.";
+  placeholder.textContent = t("results.noRowsProfile");
 
   container.appendChild(placeholder);
 }
@@ -44,7 +68,7 @@ function renderSummaryTable(
   if (!entries.length) {
     const empty = document.createElement("p");
     empty.className = "placeholder-text";
-    empty.textContent = "No data.";
+    empty.textContent = t("profile.noData");
     wrap.appendChild(empty);
     container.appendChild(wrap);
     return;
@@ -54,7 +78,13 @@ function renderSummaryTable(
   table.className = "summary-table";
 
   const thead = document.createElement("thead");
-  thead.innerHTML = "<tr><th>Key</th><th>Rows</th><th>Net Total</th></tr>";
+  const headRow = document.createElement("tr");
+  [t("profile.key"), t("profile.rows"), t("profile.netTotal")].forEach((text) => {
+    const th = document.createElement("th");
+    th.textContent = text;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
@@ -82,13 +112,13 @@ function renderOperationalSummary(container, entries, decimalSeparator) {
   wrap.className = "summary-table-wrap";
 
   const heading = document.createElement("h4");
-  heading.textContent = "Operational Summary";
+  heading.textContent = t("profile.operationalSummary");
   wrap.appendChild(heading);
 
   if (!entries.length) {
     const empty = document.createElement("p");
     empty.className = "placeholder-text";
-    empty.textContent = "No data.";
+    empty.textContent = t("profile.noData");
     wrap.appendChild(empty);
     container.appendChild(wrap);
     return;
@@ -98,9 +128,15 @@ function renderOperationalSummary(container, entries, decimalSeparator) {
   table.className = "summary-table operational-summary-table";
 
   const thead = document.createElement("thead");
-  thead.innerHTML =
-    "<tr><th>PILE ID</th><th>Source</th><th>Contractor</th><th>Rows</th>" +
-    "<th>Net Total</th><th>Remark</th></tr>";
+  const headRow = document.createElement("tr");
+  ["PILE ID", "Source", "Contractor", t("profile.rows"), t("profile.netTotal"), t("profile.remark")].forEach(
+    (text) => {
+      const th = document.createElement("th");
+      th.textContent = text;
+      headRow.appendChild(th);
+    }
+  );
+  thead.appendChild(headRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
@@ -108,9 +144,9 @@ function renderOperationalSummary(container, entries, decimalSeparator) {
     const tr = document.createElement("tr");
     if (entry.remark) tr.className = "operational-summary-row-flagged";
     [
-      entry.pileId || "(blank)",
-      entry.source || "(blank)",
-      entry.contractor || "(blank)",
+      entry.pileId || t("profile.blank"),
+      entry.source || t("profile.blank"),
+      entry.contractor || t("profile.blank"),
       String(entry.rowCount),
       formatDecimal(entry.netTotal, decimalSeparator),
       entry.remark || "",
@@ -138,7 +174,7 @@ function renderUnmatchedDt(container, group) {
   details.open = true;
 
   const summary = document.createElement("summary");
-  summary.textContent = `Unmatched DT Rows (${rows.length}) — Action required`;
+  summary.textContent = t("profile.unmatchedDtHeading", { count: rows.length });
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -146,9 +182,7 @@ function renderUnmatchedDt(container, group) {
 
   const note = document.createElement("p");
   note.className = "placeholder-text";
-  note.textContent =
-    `These NO. DT values were not found in List DT. Add them to List DT (or fix the raw ` +
-    `DT ID) and re-run cleaning. Source file(s): ${group.sourceFiles.join(", ")}.`;
+  note.textContent = t("profile.unmatchedDtNote", { files: group.sourceFiles.join(", ") });
   body.appendChild(note);
 
   const wrap = document.createElement("div");
@@ -196,7 +230,7 @@ function renderShiftWarningRows(container, group) {
   details.open = false;
 
   const summary = document.createElement("summary");
-  summary.textContent = `Timestamp Window Notes (${rows.length}) — Information only`;
+  summary.textContent = t("profile.timestampWindowNotesHeading", { count: rows.length });
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -204,9 +238,7 @@ function renderShiftWarningRows(container, group) {
 
   const note = document.createElement("p");
   note.className = "placeholder-text";
-  note.textContent =
-    `${rows.length} row(s) fall outside the nominal time window for the selected ${group.bucket} bucket. ` +
-    `They remain classified as ${group.bucket}. No action is required.`;
+  note.textContent = t("profile.timestampWindowNote", { count: rows.length, bucket: group.bucket });
   body.appendChild(note);
 
   const wrap = document.createElement("div");
@@ -248,14 +280,15 @@ function renderBlockingCategory(container, category) {
   const wrap = document.createElement("div");
   wrap.className = "summary-table-wrap";
 
+  const categoryLabel = t(BLOCKING_CATEGORY_KEY[category.key] || category.label);
   const heading = document.createElement("h4");
-  heading.textContent = `${category.label} (${category.count})`;
+  heading.textContent = `${categoryLabel} (${category.count})`;
   wrap.appendChild(heading);
 
   if (!category.rows || !category.rows.length) {
     const note = document.createElement("p");
     note.className = "placeholder-text";
-    note.textContent = "See Validation Report for the count. Row-level detail is not tracked for this category.";
+    note.textContent = t("profile.blockingCategoryNoRows");
     wrap.appendChild(note);
     container.appendChild(wrap);
     return;
@@ -303,7 +336,7 @@ function renderOtherBlockingIssues(container, readiness) {
   details.open = true;
 
   const summary = document.createElement("summary");
-  summary.textContent = `Other Blocking Issues (${readiness.otherBlockingCount}) — Action required`;
+  summary.textContent = t("profile.otherBlockingHeading", { count: readiness.otherBlockingCount });
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -320,7 +353,7 @@ function renderPreview(container, group, groupKey, decimalSeparator) {
   wrap.className = "summary-table-wrap";
 
   const heading = document.createElement("h4");
-  heading.textContent = "Clean Data Preview";
+  heading.textContent = t("results.cleanDataPreview");
   wrap.appendChild(heading);
 
   const shown = Math.min(PREVIEW_ROW_LIMIT, rows.length);
@@ -330,14 +363,14 @@ function renderPreview(container, group, groupKey, decimalSeparator) {
 
   const showingText = document.createElement("span");
   showingText.className = "placeholder-text";
-  showingText.textContent = `Showing ${shown} of ${rows.length} rows`;
+  showingText.textContent = t("results.showingRows", { shown, total: rows.length });
   previewActions.appendChild(showingText);
 
   if (rows.length > PREVIEW_ROW_LIMIT) {
     const viewAllBtn = document.createElement("button");
     viewAllBtn.type = "button";
     viewAllBtn.className = "btn-secondary";
-    viewAllBtn.textContent = `View All ${rows.length} Rows`;
+    viewAllBtn.textContent = t("results.viewAllRows", { count: rows.length });
     viewAllBtn.addEventListener("click", () => {
       // Same clean row objects used by TSV output — no second transformed
       // copy of the clean dataset is created for this view. The modal is
@@ -414,7 +447,7 @@ const READINESS_CHIP_CLASS = {
 function renderCleaningStatus(container, readiness) {
   const statusEl = document.createElement("div");
   statusEl.className = `cleaning-status ${STATUS_CLASS[readiness.status]}`;
-  statusEl.textContent = readiness.label;
+  statusEl.textContent = t(READINESS_LABEL_KEY[readiness.status]);
   container.appendChild(statusEl);
 }
 
@@ -423,23 +456,37 @@ function renderCleaningStatus(container, readiness) {
 // ordering of already-computed validation counts — no new validation logic.
 function buildBlockingSummaryText(validation) {
   const items = [];
-  if (validation.unmatchedDtCount > 0) items.push(`${validation.unmatchedDtCount} unmatched DT`);
-  if (validation.missingSourceCount > 0) items.push(`${validation.missingSourceCount} missing Source`);
-  if (validation.missingGradeCount > 0) items.push(`${validation.missingGradeCount} missing Grade`);
-  if (validation.duplicateNotaCount > 0) items.push(`${validation.duplicateNotaCount} duplicate NO.NOTA`);
-  if (validation.lostRowCount > 0) items.push(`${validation.lostRowCount} lost rows`);
+  if (validation.unmatchedDtCount > 0) {
+    items.push(t("blockingSummary.unmatchedDt", { count: validation.unmatchedDtCount }));
+  }
+  if (validation.missingSourceCount > 0) {
+    items.push(t("blockingSummary.missingSource", { count: validation.missingSourceCount }));
+  }
+  if (validation.missingGradeCount > 0) {
+    items.push(t("blockingSummary.missingGrade", { count: validation.missingGradeCount }));
+  }
+  if (validation.duplicateNotaCount > 0) {
+    items.push(t("blockingSummary.duplicateNota", { count: validation.duplicateNotaCount }));
+  }
+  if (validation.lostRowCount > 0) {
+    items.push(t("blockingSummary.lostRows", { count: validation.lostRowCount }));
+  }
   if (validation.pileIdSourceConflictCount > 0) {
-    items.push(`${validation.pileIdSourceConflictCount} PILE ID/Source conflicts`);
+    items.push(
+      t("blockingSummary.pileIdSourceConflict", { count: validation.pileIdSourceConflictCount })
+    );
   }
 
   const shown = items.slice(0, 3);
   const remaining = items.length - shown.length;
-  return remaining > 0 ? `${shown.join(" | ")} | + ${remaining} more` : shown.join(" | ");
+  return remaining > 0
+    ? `${shown.join(" | ")} | ${t("blockingSummary.more", { count: remaining })}`
+    : shown.join(" | ");
 }
 
 function buildHeaderDetailText(validation, readiness) {
   if (readiness.status === READINESS.READY_WITH_INFO) {
-    return `${validation.shiftWarningCount} timestamp note(s)`;
+    return t("profile.timestampNoteCount", { count: validation.shiftWarningCount });
   }
   if (readiness.status === READINESS.ACTION_REQUIRED) {
     return buildBlockingSummaryText(validation);
@@ -459,11 +506,11 @@ function buildGroupHeaderContent(group, readiness) {
   summaryLine.className = "group-summary-line";
   summaryLine.appendChild(createChip(group.profile, "group-chip-profile"));
   summaryLine.appendChild(createChip(group.date, "group-chip-date"));
-  summaryLine.appendChild(createChip(`Bucket: ${group.bucket}`, "group-chip-shift"));
-  summaryLine.appendChild(createChip(`${group.rows.length} rows`));
+  summaryLine.appendChild(createChip(t("profile.bucketLabel", { bucket: group.bucket }), "group-chip-shift"));
+  summaryLine.appendChild(createChip(t("profile.rowsCount", { count: group.rows.length })));
   summaryLine.appendChild(createChip(group.sourceFiles.join(", ")));
   summaryLine.appendChild(
-    createChip(READINESS_SHORT_LABEL[readiness.status], READINESS_CHIP_CLASS[readiness.status])
+    createChip(t(READINESS_SHORT_KEY[readiness.status]), READINESS_CHIP_CLASS[readiness.status])
   );
   wrap.appendChild(summaryLine);
 
@@ -488,13 +535,13 @@ function renderGroupBody(body, group, groupKey, readiness, decimalSeparator) {
 
   // 3. Validation Report
   const validationHeading = document.createElement("h4");
-  validationHeading.textContent = "Validation Report";
+  validationHeading.textContent = t("validation.title");
   body.appendChild(validationHeading);
   renderValidation(body, group.validation, decimalSeparator, group.profile);
 
   // 4. Main Summary
   const operationalHeading = document.createElement("h4");
-  operationalHeading.textContent = "Main Summary";
+  operationalHeading.textContent = t("profile.mainSummary");
   body.appendChild(operationalHeading);
   renderOperationalSummary(body, group.summary.operational, decimalSeparator);
 
@@ -502,14 +549,14 @@ function renderGroupBody(body, group, groupKey, readiness, decimalSeparator) {
   const detailDetails = document.createElement("details");
   detailDetails.className = "additional-breakdown-details";
   const detailSummary = document.createElement("summary");
-  detailSummary.textContent = "Additional Breakdown (Contractor / PILE ID / Source / Grade)";
+  detailSummary.textContent = t("profile.additionalBreakdown");
   detailDetails.appendChild(detailSummary);
-  renderSummaryTable(detailDetails, "By Contractor", group.summary.byContractor, decimalSeparator);
-  renderSummaryTable(detailDetails, "By PILE ID", group.summary.byPileId, decimalSeparator);
-  renderSummaryTable(detailDetails, "By Source", group.summary.bySource, decimalSeparator);
+  renderSummaryTable(detailDetails, t("profile.byContractor"), group.summary.byContractor, decimalSeparator);
+  renderSummaryTable(detailDetails, t("profile.byPileId"), group.summary.byPileId, decimalSeparator);
+  renderSummaryTable(detailDetails, t("profile.bySource"), group.summary.bySource, decimalSeparator);
   renderSummaryTable(
     detailDetails,
-    "By Grade",
+    t("profile.byGrade"),
     group.summary.byGrade,
     decimalSeparator,
     formatGradeKey(decimalSeparator)
@@ -593,19 +640,25 @@ function renderProfileSummary(groups) {
   wrap.className = "profile-summary";
 
   const heading = document.createElement("h3");
-  heading.textContent = `${groups[0].profile} Summary`;
+  heading.textContent = t("profile.summaryHeading", { profile: groups[0].profile });
   wrap.appendChild(heading);
 
   const line1 = document.createElement("p");
   line1.className = "profile-summary-line";
-  line1.textContent = `${summary.totalGroups} groups | ${summary.totalRows} rows`;
+  line1.textContent = t("profile.summaryGroupsRows", {
+    groups: summary.totalGroups,
+    rows: summary.totalRows,
+  });
   wrap.appendChild(line1);
 
   const line2 = document.createElement("p");
   line2.className = "profile-summary-line";
-  line2.textContent =
-    `Ready: ${summary.readyCount} | Ready with Information: ${summary.readyWithInfoCount} | ` +
-    `Action Required: ${summary.actionRequiredCount} | Failed: ${summary.failedCount}`;
+  line2.textContent = t("profile.summaryStatusLine", {
+    ready: summary.readyCount,
+    readyInfo: summary.readyWithInfoCount,
+    actionRequired: summary.actionRequiredCount,
+    failed: summary.failedCount,
+  });
   wrap.appendChild(line2);
 
   return wrap;
