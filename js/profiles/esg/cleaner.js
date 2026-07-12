@@ -34,6 +34,33 @@ function isParseableNumber(value) {
   return !Number.isNaN(Number(value));
 }
 
+// ESG-only Source separator normalization. KODE ORE source segments arrive
+// with inconsistent hyphen/underscore separators (e.g. "L31-08", "L31_08",
+// "BR_C12-L10" all denote the same source). Canonical form depends on
+// segment count: 2 segments -> "A_B", 3 segments -> "A-B_C". Idempotent —
+// re-running on an already-canonical value reproduces the same value,
+// since it always rebuilds from freshly-split segments rather than doing
+// an in-place character replace. Only ever called from this file: HYNC and
+// SLNC read Source straight from parseSourceGrade() in core/normalizers.js
+// and must never pass through this. Any shape outside 2 or 3 segments (0,
+// 1, or 4+) is returned trimmed-but-otherwise-unchanged rather than forced
+// into a pattern, so an unrecognized value is never silently mangled.
+function normalizeEsgSourceSeparators(value) {
+  const trimmed = value === undefined || value === null ? "" : String(value).trim();
+  if (!trimmed) return trimmed;
+
+  const segments = trimmed.split(/[-_]+/).filter((segment) => segment !== "");
+
+  if (segments.length === 2) {
+    return `${segments[0]}_${segments[1]}`;
+  }
+  if (segments.length === 3) {
+    return `${segments[0]}-${segments[1]}_${segments[2]}`;
+  }
+
+  return trimmed;
+}
+
 export function clean(workbook, { joinContractor, listDt }) {
   const cleanRows = [];
   const lostRows = [];
@@ -125,7 +152,7 @@ export function clean(workbook, { joinContractor, listDt }) {
         Buyer: deriveBuyerEsg(pileId),
         Net: Number(netRaw),
         "PILE ID": pileId,
-        Source: source,
+        Source: normalizeEsgSourceSeparators(source),
         Grade: grade,
         Profile: PROFILE_ID,
         _timestamp: timestamp,
