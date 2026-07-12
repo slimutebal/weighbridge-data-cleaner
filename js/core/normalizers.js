@@ -13,8 +13,10 @@ const SCM_UNIT_PATTERN = /^SCM[\s-]+([A-Z]+)[\s-]+(\d+[A-Z]*)$/;
 // Shared first pass for any DT id, used by both the matching key
 // (normalizeDtId) and the canonical master display format
 // (toCanonicalDtId) below: uppercase, trim, strip invisible characters,
-// normalize underscore separators, remove a trailing "DT" suffix in
-// whatever form it was separated, then clean up anything left dangling.
+// treat underscores as a separator equivalent to space/hyphen (some
+// sources spell the id "SCM_LIM_231"), remove a trailing "DT" suffix in
+// whatever form it was separated, then clean up anything left dangling
+// (v0.2.0-prepilot revision 6).
 function cleanDtIdBase(value) {
   if (value === undefined || value === null) return "";
 

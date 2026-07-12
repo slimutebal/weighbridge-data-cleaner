@@ -244,13 +244,16 @@ Status column.
 
 **Unknown DT is standardized to canonical master format before display or
 save.** The table shows the canonical master DT id, not the raw source
-value — e.g. source cells reading `SCM-LIM 221 DT.`, `SCM LIM 221 DT`, or
-`SCM-LIM-221-DT` all display as **`SCM-LIM 221`**; `SCM HLG 958 DT` and
-`SCM-HLG 958 DT` both display as **`SCM-HLG 958`**. The canonical format
-for SCM unit ids is `SCM-<UNIT> <NUMBER>` — a hyphen between `SCM` and the
-unit family (`LIM`, `HLG`, ...), a space before the number, uppercase, and
-the raw trailing "DT" suffix removed regardless of how it was separated
-(`" DT"`, `"-DT"`, `".DT"`, `"DT."`). This canonical value (via
+value — e.g. source cells reading `SCM-LIM 221 DT.`, `SCM LIM 221 DT`,
+`SCM_LIM_221`, or `SCM-LIM-221-DT` all display as **`SCM-LIM 221`**;
+`SCM HLG 958 DT`, `SCM-HLG 958 DT`, and `SCM_HLG_958` all display as
+**`SCM-HLG 958`**. The canonical format for SCM unit ids is `SCM-<UNIT>
+<NUMBER>` — a hyphen between `SCM` and the unit family (`LIM`, `HLG`,
+...), a space before the number, uppercase, and the raw trailing "DT"
+suffix removed regardless of how it was separated (`" DT"`, `"-DT"`,
+`".DT"`, `"DT."`). Spaces, hyphens, and underscores are all treated as
+equivalent separators, and runs of repeated separators collapse to one.
+This canonical value (via
 `toCanonicalDtId()` in `js/core/normalizers.js`) is used consistently for
 the table display, the local List DT cache, the pending sync queue, and the
 Google Sheet POST payload — never the raw "... DT" value. The raw source

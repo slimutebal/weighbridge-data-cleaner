@@ -282,7 +282,7 @@ normalizeDtId(value):
   - convert to uppercase
   - remove trailing " DT" suffix
   - collapse multiple internal spaces to one
-  - normalize common separators (treat "-" and " " as equivalent for
+  - normalize common separators (treat "-", " ", and "_" as equivalent for
     matching purposes, per blueprint §14 examples)
   - remove invisible/non-breaking space characters
   - applied identically to raw NO. DT values and to List DT dt_id values
