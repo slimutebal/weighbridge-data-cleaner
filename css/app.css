@@ -56,31 +56,77 @@
   --color-focus-ring: #3b82f6;
   --color-chip-neutral-bg: #e5e7eb;
 
-  /* Glassmorphism surfaces (v1.0.1-predeploy). --glass-bg is for large
-     panels (cards, tab bar, modal); --glass-bg-strong is for elements
-     that must stay legible while sticky/overlaid (header, bottom action
-     bar, modal). Large data tables intentionally do NOT use these — see
-     .summary-table-wrap / .groups-table, which stay on opaque
-     --color-surface so numbers stay readable through the blurred chrome. */
+  /* Glassmorphism surfaces (v1.0.1-predeploy; floating-shell revision
+     v1.1.0-phaseA). --glass-bg-strong is reserved for genuinely floating
+     shell surfaces that overlap content: header, profile-tab nav, bottom
+     action dock, and modals — the only elements that keep backdrop-filter.
+     --surface-card is for normal document-flow content cards (result
+     sections, group cards, shift buckets): a high-alpha tinted surface
+     with NO blur of its own, so glass is never nested inside glass. Large
+     data tables intentionally stay fully opaque on --color-surface — see
+     .summary-table-wrap / .groups-table — so numbers stay readable
+     regardless of what's blurred elsewhere. */
   --glass-bg: rgba(255, 255, 255, 0.68);
   --glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --glass-bg-strong-fallback: rgba(255, 255, 255, 0.97);
   --glass-border: rgba(148, 163, 184, 0.38);
   --glass-shadow: 0 8px 32px rgba(31, 41, 51, 0.14);
   --glass-blur: 16px;
+  --glass-saturate: saturate(1.5);
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 
+  --surface-card: rgba(255, 255, 255, 0.9);
+  --surface-card-strong: rgba(255, 255, 255, 0.97);
+
   --app-bg-gradient:
-    radial-gradient(circle at 12% 8%, rgba(191, 219, 254, 0.55), transparent 42%),
-    radial-gradient(circle at 88% 4%, rgba(199, 234, 255, 0.5), transparent 40%),
-    linear-gradient(180deg, #eef2f7 0%, #e6ebf2 100%);
+    radial-gradient(circle at 15% 8%, rgba(59, 130, 246, 0.16), transparent 46%),
+    radial-gradient(circle at 88% 6%, rgba(56, 189, 248, 0.13), transparent 42%),
+    radial-gradient(circle at 80% 86%, rgba(217, 119, 6, 0.08), transparent 48%),
+    radial-gradient(circle at 6% 92%, rgba(79, 70, 229, 0.1), transparent 48%),
+    linear-gradient(165deg, #eef1f7 0%, #e6eaf2 55%, #dfe4ee 100%);
 
   /* Day/Night bucket accents (v1.0.1-predeploy) — subtle warm vs. cool
-     distinction layered on top of the shared glass surface (.shift-bucket
+     distinction layered on top of the shared card surface (.shift-bucket
      in the Upload buckets block below), not a replacement for it. */
   --shift-day-accent: #d97706;
   --shift-day-bg: linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(217, 119, 6, 0) 55%);
   --shift-night-accent: #4f46e5;
   --shift-night-bg: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(79, 70, 229, 0) 55%);
+
+  /* Typography (v1.1.0-phaseA) — offline-safe system stack, no remote
+     fonts. Explicit scale so the app title (brand mark) and page/section
+     headings never invert (previously default-UA h2 rendered larger than
+     the app's own h1). */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --fs-app-title: 1.1rem;
+  --fs-page-title: 1.05rem;
+  --fs-section-title: 1rem;
+  --fs-card-title: 0.95rem;
+  --fs-body: 0.9rem;
+  --fs-helper: 0.85rem;
+  --fs-table: 0.85rem;
+  --fs-label: 0.75rem;
+
+  /* Radius hierarchy (v1.1.0-phaseA) — shell/modals get the largest
+     radius, content cards a step down, inner surfaces/inputs/tables a
+     further step down, controls slightly tighter, chips/segmented nav a
+     full pill. Dense tables intentionally stay on --radius-inner or
+     less, never the shell radius. */
+  --radius-shell: 22px;
+  --radius-card: 16px;
+  --radius-inner: 11px;
+  --radius-control: 10px;
+  --radius-pill: 999px;
+
+  /* Shadow hierarchy (v1.1.0-phaseA) — two-layer (wide ambient + tight
+     key) built from the existing theme-tuned --color-shadow /
+     --color-shadow-strong / --glass-shadow tokens so light/dark don't
+     need separate raw shadow-color duplication. */
+  --shadow-shell: var(--glass-shadow), 0 2px 8px var(--color-shadow);
+  --shadow-card: 0 10px 24px -8px var(--color-shadow-strong), 0 1px 3px var(--color-shadow);
+  --shadow-control: 0 1px 2px var(--color-shadow);
+  --shadow-control-hover: 0 6px 16px -4px var(--color-shadow-strong), 0 2px 4px var(--color-shadow);
+  --shadow-control-pressed: 0 1px 1px var(--color-shadow) inset;
 }
 
 :root[data-theme="dark"] {
@@ -128,15 +174,21 @@
 
   --glass-bg: rgba(15, 23, 42, 0.72);
   --glass-bg-strong: rgba(15, 23, 42, 0.86);
-  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-bg-strong-fallback: rgba(15, 23, 42, 0.97);
+  --glass-border: rgba(255, 255, 255, 0.13);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   --glass-blur: 18px;
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
+  --surface-card: rgba(26, 31, 38, 0.92);
+  --surface-card-strong: rgba(20, 24, 30, 0.97);
+
   --app-bg-gradient:
-    radial-gradient(circle at 12% 8%, rgba(37, 63, 102, 0.42), transparent 42%),
-    radial-gradient(circle at 88% 4%, rgba(30, 41, 59, 0.45), transparent 40%),
-    linear-gradient(180deg, #0b0f16 0%, #10151d 100%);
+    radial-gradient(circle at 15% 8%, rgba(59, 130, 246, 0.22), transparent 46%),
+    radial-gradient(circle at 88% 6%, rgba(99, 102, 241, 0.2), transparent 44%),
+    radial-gradient(circle at 82% 88%, rgba(251, 191, 36, 0.07), transparent 50%),
+    radial-gradient(circle at 6% 92%, rgba(129, 140, 248, 0.16), transparent 48%),
+    linear-gradient(165deg, #0a0e15 0%, #0d121a 55%, #10151f 100%);
 
   --shift-day-accent: #fbbf24;
   --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
@@ -190,15 +242,21 @@
 
     --glass-bg: rgba(15, 23, 42, 0.72);
     --glass-bg-strong: rgba(15, 23, 42, 0.86);
-    --glass-border: rgba(255, 255, 255, 0.09);
+    --glass-bg-strong-fallback: rgba(15, 23, 42, 0.97);
+    --glass-border: rgba(255, 255, 255, 0.13);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     --glass-blur: 18px;
     --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
+    --surface-card: rgba(26, 31, 38, 0.92);
+    --surface-card-strong: rgba(20, 24, 30, 0.97);
+
     --app-bg-gradient:
-      radial-gradient(circle at 12% 8%, rgba(37, 63, 102, 0.42), transparent 42%),
-      radial-gradient(circle at 88% 4%, rgba(30, 41, 59, 0.45), transparent 40%),
-      linear-gradient(180deg, #0b0f16 0%, #10151d 100%);
+      radial-gradient(circle at 15% 8%, rgba(59, 130, 246, 0.22), transparent 46%),
+      radial-gradient(circle at 88% 6%, rgba(99, 102, 241, 0.2), transparent 44%),
+      radial-gradient(circle at 82% 88%, rgba(251, 191, 36, 0.07), transparent 50%),
+      radial-gradient(circle at 6% 92%, rgba(129, 140, 248, 0.16), transparent 48%),
+      linear-gradient(165deg, #0a0e15 0%, #0d121a 55%, #10151f 100%);
 
     --shift-day-accent: #fbbf24;
     --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
@@ -212,14 +270,30 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
+  position: relative;
+  font-family: var(--font-sans);
   margin: 0;
   padding: 0 24px;
-  background: var(--app-bg-gradient);
-  background-attachment: fixed;
+  background: var(--color-bg);
   min-height: 100vh;
   color: var(--color-text);
   transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Decorative background layer (v1.1.0-phaseA), replacing
+   `background-attachment: fixed` on body — a fixed pseudo-element behind
+   all content instead. Same visual effect (the gradient stays put while
+   content scrolls) without the paint/scroll-perf cost some mobile
+   browsers have with a fixed background-attachment. pointer-events: none
+   keeps it fully inert; z-index: -1 keeps it behind every normal-flow
+   descendant of body without needing z-index on anything else. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--app-bg-gradient);
+  pointer-events: none;
 }
 
 /* Visible in both themes; matches the global focus ring color so keyboard
@@ -237,27 +311,29 @@ input:focus-visible,
    App header (toolbar)
    ========================================================================== */
 
-/* Sticky top header (v0.2.0-prepilot revision 4): stays visible while
-   scrolling long cleaning results. body's spacing moved from margin to
-   padding so the header can sit flush at top:0 with no gap once stuck.
-
-   v1.0.1-predeploy: #app-header is now the full-bleed sticky glass bar —
-   its `margin: 0 -24px` exactly cancels body's `padding: 0 24px` so the
-   background spans the full viewport width (matching
-   #bottom-action-bar-container) without resorting to 100vw, which would
-   risk a horizontal scrollbar from the vertical scrollbar gutter.
-   #app-header-inner carries the old max-width/padding/flex layout so the
-   title/controls stay aligned with the rest of the page content. */
+/* Floating application header (v1.1.0-phaseA, superseding the
+   v1.0.1-predeploy full-bleed bar): sticky with a `top` inset so it
+   detaches from the viewport edge instead of sitting flush against it,
+   and carries its own max-width/radius/border on all four sides so it
+   reads as an independent floating surface rather than a page-width
+   toolbar. body's `padding: 0 24px` now supplies the side inset directly
+   (no more `margin: 0 -24px` full-bleed cancellation). The `margin-top`
+   below matches `top` so the gap above the header is identical whether
+   the page is scrolled to 0 or stuck. #app-header-inner keeps carrying
+   the max-width/padding/flex layout so title/controls stay aligned with
+   the rest of the page content — unchanged from v1.0.1-predeploy. */
 #app-header {
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 100;
-  margin: 0 -24px;
+  max-width: 1200px;
+  margin: 12px auto 0;
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border-bottom: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-shell);
+  box-shadow: var(--shadow-shell), var(--glass-highlight);
 }
 
 #app-header-inner {
@@ -273,7 +349,9 @@ input:focus-visible,
 
 #app-header h1 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: var(--fs-app-title);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--color-text);
 }
 
@@ -302,16 +380,23 @@ input:focus-visible,
 #app {
   max-width: 1200px;
   margin: 0 auto;
-  /* Bottom padding clears the fixed bottom action bar so it never covers
-     the last bit of content. */
-  padding: 20px 0 96px;
+  /* Bottom padding clears the floating bottom action dock so it never
+     covers the last bit of content. Generous on purpose: the dock can
+     wrap to two rows at narrow widths and there is no JS height
+     measurement (unlike the header) backing this value in Phase A. */
+  padding: 20px 0 calc(140px + env(safe-area-inset-bottom));
 }
 
 /* ==========================================================================
-   Buttons
-   Shared base + primary / secondary / danger variants, each with a
-   consistent disabled state. Selectors target existing buttons by their
-   container/id so no JS/DOM changes were needed to apply these styles.
+   Buttons (v1.1.0-phaseA)
+   Shared structural base (sizing/radius/transition), applied by container
+   selector as before, plus three explicit color tiers applied via class
+   hooks added in the JS UI modules: .btn-primary (the one workflow action
+   per region — Start/Refresh Cleaning), .btn-secondary (View All, Close,
+   Update, Sync, Copy actions, utility actions), and #reset-btn itself as
+   the quiet-danger tier (Clear / Reset — already uniquely identified, no
+   class needed). Splitting structure from color lets most buttons share
+   one tonal look instead of every button defaulting to primary blue.
    ========================================================================== */
 
 #reset-btn,
@@ -323,61 +408,70 @@ input:focus-visible,
 .wrong-bucket-modal button,
 .preview-actions button,
 .view-all-modal button {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  padding: 9px 18px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-body);
   font-family: inherit;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.1s ease, box-shadow 0.15s ease;
 }
 
-/* Primary: main affirmative actions (Update List DT, Start/Refresh
-   Cleaning, Copy All Groups, Copy This Profile, unmatched-DT Update,
-   modal OK, View All Rows / modal Close). */
-#bottom-action-bar button,
-.result-section button,
-#list-dt-page button,
-.summary-table-wrap > button,
-.wrong-bucket-modal button,
-.preview-actions button,
-.view-all-modal button {
+.btn-primary {
   border: 1px solid var(--color-primary);
   background: var(--color-primary);
   color: var(--color-primary-contrast);
-  box-shadow: 0 2px 8px var(--color-shadow);
+  box-shadow: var(--shadow-control);
 }
 
-#bottom-action-bar button:hover:not(:disabled),
-.result-section button:hover:not(:disabled),
-#list-dt-page button:hover:not(:disabled),
-.summary-table-wrap > button:hover:not(:disabled),
-.wrong-bucket-modal button:hover:not(:disabled),
-.preview-actions button:hover:not(:disabled),
-.view-all-modal button:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-}
-
-/* Secondary: supplementary/retry action (Sync Pending DT). */
-.pending-sync-row button {
+.btn-secondary {
   border: 1px solid var(--glass-border);
-  background: var(--glass-bg-strong);
-  color: var(--color-text);
+  background: var(--color-primary-bg-tint);
+  color: var(--color-primary-text-strong);
+  box-shadow: var(--shadow-control);
 }
 
-.pending-sync-row button:hover:not(:disabled) {
-  background: var(--color-surface-muted);
+/* Hover-lift only where hover is a meaningful signal (pointer: fine) — a
+   touch device that only ever sees :active would otherwise get a
+   "stuck hover" look after tapping. */
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+    box-shadow: var(--shadow-control-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-control-hover);
+    transform: translateY(-1px);
+  }
+
+  #reset-btn:hover:not(:disabled) {
+    background: var(--color-danger-border);
+    box-shadow: var(--shadow-control-hover);
+    transform: translateY(-1px);
+  }
 }
 
-/* Danger: destructive action (Clear / Reset). */
+/* Pressed state on every pointer type (touch included — most browsers
+   apply :active on tap). */
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled),
+#reset-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-control-pressed);
+}
+
+/* Quiet danger: destructive action (Clear / Reset). */
 #reset-btn {
   border: 1px solid var(--color-danger-border);
   background: var(--color-danger-bg);
   color: var(--color-danger);
-}
-
-#reset-btn:hover {
-  background: var(--color-danger-border);
+  box-shadow: var(--shadow-control);
 }
 
 #reset-btn:disabled,
@@ -392,35 +486,52 @@ input:focus-visible,
   background: var(--color-surface-muted);
   color: var(--color-border-strong);
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* ==========================================================================
    Bottom action bar
    ========================================================================== */
 
-/* Sticky bottom action bar (v0.2.0-prepilot revision 4): primary operator
-   copy/refresh location, pinned to the viewport regardless of scroll. */
+/* Floating action dock (v1.1.0-phaseA, replacing the v0.2.0-prepilot
+   edge-to-edge bar): the outer container spans the viewport but is inert
+   (pointer-events: none) and transparent — it exists only to center and
+   inset its child. #bottom-action-bar is the actual glass surface, sized
+   to fit its buttons (not stretched full-width) so it reads as a
+   detached floating dock on desktop. pointer-events is re-enabled on the
+   dock itself so its buttons stay clickable. On narrow/mobile widths
+   (see media query below) the dock switches to an edge-anchored,
+   full-width bar instead — a floating pill would cramp three buttons at
+   that width. */
 #bottom-action-bar-container {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 100;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border-top: 1px solid var(--glass-border);
-  box-shadow: 0 -4px 24px var(--color-shadow);
+  display: flex;
+  justify-content: center;
+  padding: 0 24px 20px;
+  pointer-events: none;
 }
 
 #bottom-action-bar {
-  max-width: 1200px;
+  pointer-events: auto;
+  width: fit-content;
+  max-width: calc(100% - 8px);
   margin: 0 auto;
-  padding: 12px 24px;
+  padding: 12px 20px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-shell);
+  box-shadow: var(--shadow-shell), var(--glass-highlight);
 }
 
 #bottom-action-bar button {
@@ -445,18 +556,20 @@ input:focus-visible,
   }
 }
 
+/* Content-flow card (v1.1.0-phaseA): no backdrop-filter — this sits in
+   normal document flow, not overlapping other content, so it uses a
+   high-alpha tinted --surface-card instead of nesting blur inside the
+   header's/tabs'/dock's blur ("blur only what floats over content"). */
 .shift-bucket {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--surface-card);
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  box-shadow: var(--shadow-card), var(--glass-highlight);
 }
 
 /* Day/Night accents (v1.0.1-predeploy): a subtle warm/cool tint layered
-   over the shared glass background above, plus a left border and a small
+   over the shared card background above, plus a left border and a small
    heading marker, so the two cards read apart at a glance without adding
    noise or touching the (already-readable, opaque) .drop-zone inside. */
 .shift-bucket--day {
@@ -471,7 +584,8 @@ input:focus-visible,
 
 .shift-bucket h2 {
   margin-top: 0;
-  font-size: 1.1rem;
+  font-size: var(--fs-section-title);
+  font-weight: 650;
   color: var(--color-text);
 }
 
@@ -502,7 +616,7 @@ input:focus-visible,
 
 .drop-zone {
   border: 2px dashed var(--color-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-inner);
   padding: 24px 16px;
   text-align: center;
   color: var(--color-text-muted);
@@ -536,8 +650,8 @@ input:focus-visible,
 }
 
 .file-list-empty {
-  color: var(--color-border-strong);
-  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-size: var(--fs-helper);
   margin: 0;
 }
 
@@ -562,26 +676,42 @@ input:focus-visible,
    Result sections / cards
    ========================================================================== */
 
+/* Content-flow card (v1.1.0-phaseA) — see .shift-bucket comment above for
+   why this has no backdrop-filter of its own. */
 .result-section {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--surface-card);
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
   margin-bottom: 16px;
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  box-shadow: var(--shadow-card), var(--glass-highlight);
 }
 
 .result-section h3 {
   margin-top: 0;
-  font-size: 1rem;
+  font-size: var(--fs-section-title);
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+/* Page-title tier (v1.1.0-phaseA) — the bare <h2> headings rendered
+   directly into #result-page ("Cleaning Results") and #list-dt-page
+   ("List DT (Master Data)") previously had no dedicated rule and fell
+   back to the browser's default h2 size, which rendered larger than the
+   app's own <h1> title. Targeted by the existing stable section IDs, no
+   JS/markup change needed. */
+#result-page > h2,
+#list-dt-page > h2 {
+  margin: 4px 0 16px;
+  font-size: var(--fs-page-title);
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--color-text);
 }
 
 .placeholder-text {
-  color: var(--color-border-strong);
-  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  font-size: var(--fs-body);
   margin: 0;
 }
 
@@ -597,9 +727,10 @@ input:focus-visible,
 .groups-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: var(--fs-table);
   color: var(--color-text);
   background: var(--color-surface);
+  font-variant-numeric: tabular-nums;
 }
 
 .groups-table th,
@@ -633,10 +764,10 @@ input:focus-visible,
   background: var(--color-warning-bg);
   border: 1px solid var(--color-warning-border);
   border-left: 4px solid var(--color-warning);
-  border-radius: 4px;
+  border-radius: var(--radius-inner);
   padding: 8px 12px;
   margin-bottom: 6px;
-  font-size: 0.85rem;
+  font-size: var(--fs-helper);
   color: var(--color-warning);
 }
 
@@ -663,14 +794,17 @@ input:focus-visible,
    result-page.js (single-open accordion across a profile's groups), not
    independent per-element <details> state, so a plain <div> + <button>
    header is used instead. */
+/* Content-flow card (v1.1.0-phaseA), nested one level deeper than
+   .result-section — no backdrop-filter (see .shift-bucket comment
+   above); a step down the radius hierarchy (--radius-inner vs.
+   --radius-card) visually marks it as nested rather than a sibling
+   top-level surface. */
 .group-card {
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border-radius: var(--radius-inner);
   margin-bottom: 12px;
-  padding: 8px 12px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  padding: 10px 14px;
+  background: var(--surface-card);
 }
 
 /* Scoped as ".group-card .group-header-btn" (two classes) rather than the
@@ -737,9 +871,9 @@ input:focus-visible,
   white-space: nowrap;
   background: var(--color-chip-neutral-bg);
   color: var(--color-text);
-  border-radius: 4px;
-  padding: 2px 8px;
-  font-size: 0.85rem;
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: var(--fs-helper);
   font-weight: normal;
 }
 
@@ -801,15 +935,16 @@ input:focus-visible,
 
 .profile-summary {
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border-radius: var(--radius-inner);
   margin-bottom: 12px;
   padding: 10px 14px;
-  background: var(--glass-bg-strong);
+  background: var(--surface-card-strong);
 }
 
 .profile-summary h3 {
   margin: 0 0 6px;
-  font-size: 0.95rem;
+  font-size: var(--fs-card-title);
+  font-weight: 650;
   color: var(--color-text);
 }
 
@@ -823,25 +958,32 @@ input:focus-visible,
    Sticky profile tabs
    ========================================================================== */
 
-/* Sticky profile tabs (v0.2.0-prepilot revision 7): stick directly below
-   the sticky app header so Overview/HYNC/SLNC/ESG stay reachable while
-   scrolling long result content. z-index sits below the header (100) but
-   above normal result content so it layers correctly without hiding
-   behind the header or blending into the content scrolling underneath. */
+/* Floating segmented profile nav (v1.1.0-phaseA, replacing the
+   v0.2.0-prepilot folder-tab strip): a rounded pill-shaped floating shell
+   whose individual buttons are transparent until active, at which point
+   the active button becomes a raised, solid inner segment — instead of
+   tabs that visually (but not structurally) "connect" to the panel below
+   them. Still sticks directly below the floating app header so
+   Overview/HYNC/SLNC/ESG stay reachable while scrolling long result
+   content; the `top` offset adds a floating gap below the header instead
+   of sitting flush against it. z-index stays below the header (100) but
+   above normal result content. */
 .result-tabs {
   position: sticky;
-  top: var(--sticky-header-height);
+  top: calc(var(--sticky-header-height) + 24px);
   z-index: 90;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 16px;
-  padding: 8px 8px 0;
+  max-width: 1200px;
+  margin: 0 auto 16px;
+  padding: 6px;
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border-bottom: 2px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-shell), var(--glass-highlight);
 }
 
 .result-tab-btn {
@@ -850,14 +992,14 @@ input:focus-visible,
   align-items: flex-start;
   gap: 2px;
   padding: 8px 16px;
-  border: 1px solid var(--color-border);
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  background: var(--color-surface-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .result-tab-label {
@@ -873,18 +1015,23 @@ input:focus-visible,
   color: var(--color-text-muted);
 }
 
-.result-tab-btn:hover {
-  background: var(--color-border);
+@media (hover: hover) and (pointer: fine) {
+  .result-tab-btn:hover {
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+  }
 }
 
 .result-tab-btn-active {
   background: var(--color-surface);
   color: var(--color-text);
-  font-weight: bold;
-  border-color: var(--color-border);
-  border-top: 2px solid var(--color-primary);
-  position: relative;
-  top: 2px;
+  font-weight: 700;
+  border-color: var(--glass-border);
+  box-shadow: var(--shadow-control);
+}
+
+.result-tab-btn-active .result-tab-label {
+  color: var(--color-primary);
 }
 
 /* ==========================================================================
@@ -899,7 +1046,8 @@ input:focus-visible,
 
 .group-details-body h4 {
   margin: 16px 0 8px;
-  font-size: 0.95rem;
+  font-size: var(--fs-card-title);
+  font-weight: 650;
   color: var(--color-text);
 }
 
@@ -925,6 +1073,7 @@ input:focus-visible,
 .metric-value {
   font-weight: bold;
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Near-solid card, deliberately not glass: these wrap the operator-facing
@@ -937,15 +1086,16 @@ input:focus-visible,
   margin-bottom: 12px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-inner);
   padding: 4px;
 }
 
 .summary-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: var(--fs-table);
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .summary-table th,
@@ -984,9 +1134,9 @@ input:focus-visible,
 .additional-breakdown-details {
   margin: 8px 0 16px;
   border: 1px solid var(--glass-border);
-  border-radius: 6px;
+  border-radius: var(--radius-inner);
   padding: 8px 12px;
-  background: var(--glass-bg-strong);
+  background: var(--surface-card-strong);
 }
 
 .additional-breakdown-details summary {
@@ -1003,9 +1153,9 @@ input:focus-visible,
 .cleaning-status {
   display: inline-block;
   margin: 4px 0 12px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-body);
   font-weight: bold;
 }
 
@@ -1034,9 +1184,9 @@ input:focus-visible,
   margin: 8px 0 16px;
   border: 1px solid var(--color-info-border);
   border-left: 4px solid var(--color-info);
-  border-radius: 6px;
+  border-radius: var(--radius-inner);
   padding: 8px 12px;
-  background: var(--glass-bg-strong);
+  background: var(--surface-card-strong);
 }
 
 .info-details summary {
@@ -1057,7 +1207,7 @@ input:focus-visible,
   margin: 8px 0 16px;
   border: 1px solid var(--color-danger-border);
   border-left: 4px solid var(--color-danger);
-  border-radius: 6px;
+  border-radius: var(--radius-inner);
   padding: 8px 12px;
   background: var(--color-danger-bg);
 }
@@ -1100,13 +1250,13 @@ input:focus-visible,
   height: calc(100% - 48px);
   max-height: 900px;
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
+  border-radius: var(--radius-shell);
   padding: 16px 20px;
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
   color: var(--color-text);
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  box-shadow: var(--shadow-shell), var(--glass-highlight);
   display: flex;
   flex-direction: column;
 }
@@ -1140,7 +1290,8 @@ input:focus-visible,
 
 .view-all-header h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--fs-page-title);
+  font-weight: 650;
   color: var(--color-text);
 }
 
@@ -1161,11 +1312,12 @@ input:focus-visible,
   overflow: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-inner);
 }
 
 .view-all-table {
   width: 100%;
+  font-variant-numeric: tabular-nums;
 }
 
 .view-all-table thead th {
@@ -1183,15 +1335,15 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
 }
 
 .decimal-format-selector label,
 .theme-mode-selector label {
-  font-size: 0.9rem;
+  font-size: var(--fs-helper);
   color: var(--color-text-muted);
 }
 
@@ -1199,7 +1351,7 @@ input:focus-visible,
 .theme-mode-selector select {
   padding: 4px 8px;
   border: 1px solid var(--color-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-inner);
   background: var(--color-input-bg);
   color: var(--color-text);
 }
@@ -1241,10 +1393,10 @@ input:focus-visible,
   min-width: 140px;
   padding: 6px 8px;
   border: 1px solid var(--color-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-inner);
   background: var(--color-input-bg);
   color: var(--color-text);
-  font-size: 0.85rem;
+  font-size: var(--fs-table);
   font-family: inherit;
 }
 
@@ -1263,13 +1415,13 @@ input:focus-visible,
   max-width: 480px;
   width: calc(100% - 48px);
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
+  border-radius: var(--radius-shell);
   padding: 20px 24px;
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
   color: var(--color-text);
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  box-shadow: var(--shadow-shell), var(--glass-highlight);
 }
 
 .wrong-bucket-modal::backdrop {
@@ -1280,6 +1432,8 @@ input:focus-visible,
 
 .wrong-bucket-modal h3 {
   margin: 0 0 8px;
+  font-size: var(--fs-page-title);
+  font-weight: 700;
   color: var(--color-danger);
 }
 
@@ -1308,4 +1462,64 @@ input:focus-visible,
 .wrong-bucket-modal button {
   margin-top: 16px;
   padding: 8px 20px;
+}
+
+/* ==========================================================================
+   backdrop-filter fallback (v1.1.0-phaseA)
+   Browsers without backdrop-filter support get more opaque shell/modal
+   surfaces instead of keeping the same alpha and losing the blur —
+   readability wins over visual fidelity when the effect isn't available.
+   ========================================================================== */
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #app-header,
+  .result-tabs,
+  #bottom-action-bar,
+  .view-all-modal,
+  .wrong-bucket-modal {
+    background: var(--glass-bg-strong-fallback);
+  }
+}
+
+/* ==========================================================================
+   Narrow / mobile widths (v1.1.0-phaseA)
+   Smaller floating insets so the header, tabs, and dock keep usable
+   horizontal space instead of desktop-sized gaps eating into the content
+   area. The bottom dock also switches from a detached floating pill to an
+   edge-anchored, safe-area-padded bar — a floating pill cramps three
+   buttons at this width.
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  body {
+    padding: 0 12px;
+  }
+
+  #app-header {
+    top: 8px;
+    margin-top: 8px;
+    border-radius: var(--radius-card);
+  }
+
+  #app-header-inner {
+    padding: 12px 16px;
+  }
+
+  .result-tabs {
+    top: calc(var(--sticky-header-height) + 16px);
+    border-radius: var(--radius-card);
+  }
+
+  #bottom-action-bar-container {
+    padding: 0;
+  }
+
+  #bottom-action-bar {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    border-width: 1px 0 0 0;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
 }

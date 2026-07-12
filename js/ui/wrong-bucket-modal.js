@@ -72,6 +72,7 @@ export function showWrongBucketModal(rejections) {
 
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
+  closeBtn.className = "btn-secondary";
   closeBtn.textContent = "OK";
   closeBtn.addEventListener("click", () => dialog.close());
   dialog.appendChild(closeBtn);

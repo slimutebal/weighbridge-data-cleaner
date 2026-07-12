@@ -4,6 +4,7 @@ export function mountActionBar(container, { onRefresh, onCopyAll, onCopyProfile 
 
   const refreshBtn = document.createElement("button");
   refreshBtn.type = "button";
+  refreshBtn.className = "btn-primary";
   refreshBtn.textContent = "Start Cleaning";
   refreshBtn.addEventListener("click", () => {
     if (onRefresh) onRefresh();
@@ -11,6 +12,7 @@ export function mountActionBar(container, { onRefresh, onCopyAll, onCopyProfile 
 
   const copyAllBtn = document.createElement("button");
   copyAllBtn.type = "button";
+  copyAllBtn.className = "btn-secondary";
   copyAllBtn.textContent = "Copy All Groups";
   copyAllBtn.addEventListener("click", () => {
     if (onCopyAll) onCopyAll(copyAllBtn);
@@ -18,6 +20,7 @@ export function mountActionBar(container, { onRefresh, onCopyAll, onCopyProfile 
 
   const copyProfileBtn = document.createElement("button");
   copyProfileBtn.type = "button";
+  copyProfileBtn.className = "btn-secondary";
   copyProfileBtn.textContent = "Copy This Profile";
   copyProfileBtn.addEventListener("click", () => {
     if (onCopyProfile) onCopyProfile(copyProfileBtn);

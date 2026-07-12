@@ -336,6 +336,7 @@ function renderPreview(container, group, groupKey, decimalSeparator) {
   if (rows.length > PREVIEW_ROW_LIMIT) {
     const viewAllBtn = document.createElement("button");
     viewAllBtn.type = "button";
+    viewAllBtn.className = "btn-secondary";
     viewAllBtn.textContent = `View All ${rows.length} Rows`;
     viewAllBtn.addEventListener("click", () => {
       // Same clean row objects used by TSV output — no second transformed

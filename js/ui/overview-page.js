@@ -167,6 +167,7 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
 
   const syncPendingBtn = document.createElement("button");
   syncPendingBtn.type = "button";
+  syncPendingBtn.className = "btn-secondary";
   syncPendingBtn.textContent = "Sync Pending DT";
   syncPendingBtn.disabled = pendingCount === 0;
   syncPendingBtn.addEventListener("click", async () => {
@@ -242,6 +243,7 @@ function renderUnmatchedDtCorrection(sectionContainer, groups, { listDtEndpoint,
 
   const updateBtn = document.createElement("button");
   updateBtn.type = "button";
+  updateBtn.className = "btn-secondary";
   updateBtn.textContent = "Update";
   updateBtn.addEventListener("click", async () => {
     const rawEntries = uniqueUnmatched

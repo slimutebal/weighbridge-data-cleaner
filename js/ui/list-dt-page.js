@@ -16,6 +16,7 @@ export function mountListDtPage(container, { onUpdated } = {}) {
 
   const updateBtn = document.createElement("button");
   updateBtn.type = "button";
+  updateBtn.className = "btn-secondary";
   updateBtn.textContent = "Update List DT";
 
   const feedback = document.createElement("p");

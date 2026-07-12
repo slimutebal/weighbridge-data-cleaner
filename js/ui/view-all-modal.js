@@ -83,6 +83,7 @@ export function openViewAllRowsModal(groupInfo, decimalSeparator, triggerButton)
 
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
+  closeBtn.className = "btn-secondary";
   closeBtn.textContent = "Close";
   closeBtn.addEventListener("click", () => dialog.close());
   header.appendChild(closeBtn);
