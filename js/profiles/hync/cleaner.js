@@ -2,6 +2,7 @@ import {
   findHeaderRowIndex,
   buildHeaderMap,
   rowContainsMarker,
+  isRowBlank,
 } from "../../core/schema-detector.js";
 import { combineDateAndTime, toDateKey, parseCellDateTime } from "../../core/datetime-utils.js";
 import {
@@ -34,6 +35,7 @@ const PROFILE_ID = "HYNC";
 export function clean(workbook, { joinContractor, listDt }) {
   const cleanRows = [];
   const lostRows = [];
+  const skippedRows = [];
 
   // Only the first worksheet is treated as detail data. HYNC/SLNC workbooks
   // carry later "汇总表" / "1 HARI" summary sheets that must never be parsed
@@ -63,6 +65,22 @@ export function clean(workbook, { joinContractor, listDt }) {
   if (!hasMarker) return null;
 
   dataRows.forEach((row, index) => {
+    // 1-based Excel row number for this data row (headerIndex is a 0-based
+    // array index; dataRows[0] is the row immediately below the header).
+    const excelRowNumber = headerIndex + index + 2;
+    const sourceRowId = `${sheet.name}#R${excelRowNumber}`;
+
+    // A worksheet's used range can extend past its last real data row
+    // (formatting/merged cells reaching far below row 440, for example) —
+    // sheet_to_json still yields one row per index in that range. Those
+    // rows carry no data at all and are not detail-row candidates; scoring
+    // them against timestamp/ticket-id validity would misreport them as
+    // excluded rows even though they were never real source data.
+    if (isRowBlank(row, headerMap)) {
+      skippedRows.push({ sourceRowId, rowIndex: excelRowNumber, reason: "blank-row" });
+      return;
+    }
+
     const timestamp = combineDateAndTime(
       dateColumn !== undefined ? row[dateColumn] : undefined,
       row[timestampColumn]
@@ -72,7 +90,8 @@ export function clean(workbook, { joinContractor, listDt }) {
 
     if (!timestamp || !hasTicketId) {
       lostRows.push({
-        rowIndex: headerIndex + 1 + index,
+        sourceRowId,
+        rowIndex: excelRowNumber,
         reason: !timestamp ? "invalid-datetime" : "missing-ticket-id",
       });
       return;
@@ -114,8 +133,9 @@ export function clean(workbook, { joinContractor, listDt }) {
       Profile: PROFILE_ID,
       _timestamp: timestamp,
       _rawDtId: dtIdRaw,
+      _sourceRowId: sourceRowId,
     });
   });
 
-  return { cleanRows, lostRows };
+  return { cleanRows, lostRows, skippedRows };
 }

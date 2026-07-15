@@ -103,6 +103,7 @@ export async function runCleaning(bucketedFiles) {
             sourceFiles: new Set(),
             skippedRowsCount: 0,
             lostRowsCount: 0,
+            lostRowsDetail: [],
           });
         }
         const group = groupMap.get(key);
@@ -114,6 +115,14 @@ export async function runCleaning(bucketedFiles) {
         const group = groupMap.get(key);
         group.skippedRowsCount += skippedRows.length;
         group.lostRowsCount += result.lostRows.length;
+        // Genuinely lost rows never reach a TANGGAL grouping (parsing
+        // failed before a report date could be derived), so their detail
+        // is attached to every group this file touched — mirrors the
+        // existing lostRowsCount aggregation above, just carrying the
+        // per-row reason/identity alongside the count for auditability.
+        result.lostRows.forEach((lostRow) => {
+          group.lostRowsDetail.push({ ...lostRow, fileName: file.name, profile: profileId });
+        });
       });
     } catch (error) {
       fileErrors.push({ fileName: file.name, message: error.message });

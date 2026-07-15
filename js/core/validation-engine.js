@@ -53,11 +53,24 @@ export function computeGroupValidation(group) {
   // and keep the original blocking lostRowCount unchanged.
   const isEsg = group.profile === "ESG";
   const structuralRowCount = group.lostRowsCount || 0;
+  const cleanRowCount = rows.length;
+  const lostRowCount = isEsg ? 0 : structuralRowCount;
+  // Raw rows = every candidate source row this file offered for this group:
+  // rows that were emitted plus rows that were genuine detail-row
+  // candidates but failed validation (lostRowCount). Rows that never looked
+  // like detail data at all (blank padding rows from the sheet's used
+  // range, ESG template/subtotal rows) are not candidates and are excluded
+  // from both counts — see isRowBlank() in schema-detector.js and the
+  // skippedRows handling in the HYNC/SLNC/ESG cleaners. This keeps
+  // 0 <= lostRowCount <= rawRowCount an actual invariant instead of two
+  // counters that can silently drift apart.
+  const rawRowCount = cleanRowCount + lostRowCount;
 
   return {
-    rawRowCount: rows.length,
-    cleanRowCount: rows.length,
-    lostRowCount: isEsg ? 0 : structuralRowCount,
+    rawRowCount,
+    cleanRowCount,
+    lostRowCount,
+    lostRowDetails: isEsg ? [] : group.lostRowsDetail || [],
     esgReportGroups: isEsg ? structuralRowCount : 0,
     rawTonnage: tonnage,
     cleanTonnage: tonnage,
