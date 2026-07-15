@@ -1,6 +1,7 @@
 import { readWorkbook } from "./excel-reader.js";
 import { loadShiftRules, classifyShift } from "./shift-classifier.js";
 import { loadListDt, joinContractor } from "./list-dt-manager.js";
+import { loadAppConfig } from "./app-settings.js";
 import { computeGroupValidation } from "./validation-engine.js";
 import { buildGroupSummary } from "./report-builder.js";
 import { clean as cleanHync } from "../profiles/hync/cleaner.js";
@@ -14,7 +15,16 @@ const PROFILE_CLEANERS = [
 ];
 
 export async function runCleaning(bucketedFiles) {
-  const [shiftRules, listDt] = await Promise.all([loadShiftRules(), loadListDt()]);
+  const [shiftRules, listDt, appConfig] = await Promise.all([
+    loadShiftRules(),
+    loadListDt(),
+    loadAppConfig(),
+  ]);
+  // Row-level weight integrity (v1.1.0, DECISIONS.md D010) is profile-aware
+  // and config-driven (config/app-config.json "weightIntegrity"), reusing
+  // the same app-config loader the UI shell already uses — see
+  // js/core/weight-integrity.js for the shared validation module.
+  const weightIntegrityConfig = appConfig.weightIntegrity || {};
 
   const warnings = [];
   const fileErrors = [];
@@ -27,7 +37,7 @@ export async function runCleaning(bucketedFiles) {
       let profileId = null;
       let result = null;
       for (const cleaner of PROFILE_CLEANERS) {
-        const attempt = cleaner.clean(workbook, { joinContractor, listDt });
+        const attempt = cleaner.clean(workbook, { joinContractor, listDt, weightIntegrityConfig });
         if (attempt) {
           profileId = cleaner.id;
           result = attempt;
@@ -91,6 +101,12 @@ export async function runCleaning(bucketedFiles) {
         // use — it must never overwrite the clean output Shift field.
         row._detectedShift = classifyShift(row._timestamp, profileId, shiftRules);
         row.Shift = bucket;
+        // Traceability for the weight-exception approval record (v1.2.0,
+        // §9) — a group can merge rows from more than one uploaded file, so
+        // group.sourceFiles alone can't identify which exact file a given
+        // row came from. Internal field only, never part of the output
+        // schema/TSV (same convention as _rawDtId/_timestamp/_sourceRowId).
+        row._sourceFilename = file.name;
 
         const key = `${profileId}|${row.TANGGAL}|${bucket}`;
         groupKeysTouched.add(key);

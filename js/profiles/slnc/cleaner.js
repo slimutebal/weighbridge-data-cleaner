@@ -11,6 +11,7 @@ import {
   deriveType,
   deriveBuyerHyncSlnc,
 } from "../../core/normalizers.js";
+import { validateWeightIntegrity } from "../../core/weight-integrity.js";
 
 const REQUIRED_HEADERS = [
   "流水号",
@@ -25,13 +26,15 @@ const MARKER = "SCSL";
 const MARKER_HEADER_CANDIDATES = ["备注", "PILE ID"];
 const SERIAL_HEADER = "流水号";
 const DT_ID_HEADER = "车号";
+const GROSS_HEADER = "毛重";
+const TARE_HEADER = "皮重";
 const NET_HEADER = "净重";
 const DATE_HEADER = "日期";
 const TIMESTAMP_HEADER = "毛重时间";
 const SPEC_HEADER = "规格";
 const PROFILE_ID = "SLNC";
 
-export function clean(workbook, { joinContractor, listDt }) {
+export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig }) {
   const cleanRows = [];
   const lostRows = [];
   const skippedRows = [];
@@ -54,6 +57,8 @@ export function clean(workbook, { joinContractor, listDt }) {
   const dateColumn = headerMap[DATE_HEADER];
   const serialColumn = headerMap[SERIAL_HEADER];
   const dtIdColumn = headerMap[DT_ID_HEADER];
+  const grossColumn = headerMap[GROSS_HEADER];
+  const tareColumn = headerMap[TARE_HEADER];
   const netColumn = headerMap[NET_HEADER];
   const specColumn = headerMap[SPEC_HEADER];
 
@@ -114,6 +119,20 @@ export function clean(workbook, { joinContractor, listDt }) {
     const { source, grade } = parseSourceGrade(spec);
     const { contractor, normalizedDtId } = joinContractor(dtIdRaw, listDt);
 
+    // Row-level weight integrity (v1.1.0, DECISIONS.md D010): validated
+    // against the raw source cells at source precision, before any /1000
+    // tonnage conversion — never against the converted Net value below.
+    // The result is validation metadata only; Recorded Net (netRaw/Net)
+    // continues unmodified regardless of the outcome.
+    const weightIntegrity = validateWeightIntegrity({
+      gross: grossColumn !== undefined ? row[grossColumn] : undefined,
+      tare: tareColumn !== undefined ? row[tareColumn] : undefined,
+      recordedNet: netColumn !== undefined ? row[netColumn] : undefined,
+      profile: PROFILE_ID,
+      config: weightIntegrityConfig,
+      sourceRowId,
+    });
+
     cleanRows.push({
       TANGGAL: toDateKey(reportDate),
       "NO. DT": normalizedDtId,
@@ -131,6 +150,7 @@ export function clean(workbook, { joinContractor, listDt }) {
       _timestamp: timestamp,
       _rawDtId: dtIdRaw,
       _sourceRowId: sourceRowId,
+      _weightIntegrity: weightIntegrity,
     });
   });
 

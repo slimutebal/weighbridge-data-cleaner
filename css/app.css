@@ -423,7 +423,8 @@ input:focus-visible,
 .wrong-bucket-modal button,
 .preview-actions button,
 .view-all-modal button,
-.settings-modal button {
+.settings-modal button,
+.weight-exception-modal button {
   padding: 9px 18px;
   border-radius: var(--radius-control);
   font-size: var(--fs-body);
@@ -498,7 +499,8 @@ input:focus-visible,
 .pending-sync-row button:disabled,
 .preview-actions button:disabled,
 .view-all-modal button:disabled,
-.settings-modal button:disabled {
+.settings-modal button:disabled,
+.weight-exception-modal button:disabled {
   border-color: var(--color-border);
   background: var(--color-surface-muted);
   color: var(--color-border-strong);
@@ -1869,19 +1871,30 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Horizontal scroll-edge indicators (Phase C2)
+   Horizontal scroll-edge indicators (Phase C2, restructured v1.2.0 §16)
    Purely decorative overlays (aria-hidden, pointer-events: none) created by
    js/ui/scroll-edge-indicators.js on any scrollable table wrapper — never
    part of copied/exported output. A soft inward fade from each edge,
    toggled by opacity only (no layout shift), using the existing
    --color-shadow-strong token so it stays theme-aware without a new color.
+
+   .scroll-shadow-shell wraps the scrollable element (inserted by JS) and
+   is the *only* positioning context for the two .scroll-shadow overlays —
+   they are its direct children, siblings of .scroll-shadow-scroll (the
+   actual overflow-x: auto element), never descendants of it. That is
+   exactly what keeps them visually fixed to the viewport edges while the
+   table content scrolls underneath: an element positioned relative to a
+   non-scrolling ancestor is unaffected by a *different* descendant's own
+   scroll offset, whereas the previous implementation nested the shadows
+   inside the scrolling element itself, so they scrolled along with it.
    ========================================================================== */
 
-.scroll-edge-container {
+.scroll-shadow-shell {
   position: relative;
+  overflow: hidden;
 }
 
-.scroll-edge-indicator {
+.scroll-shadow {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -1892,12 +1905,12 @@ input:focus-visible,
   z-index: 2;
 }
 
-.scroll-edge-indicator-left {
+.scroll-shadow-left {
   left: 0;
   background: linear-gradient(to right, var(--color-shadow-strong), transparent);
 }
 
-.scroll-edge-indicator-right {
+.scroll-shadow-right {
   right: 0;
   background: linear-gradient(to left, var(--color-shadow-strong), transparent);
 }
@@ -2041,6 +2054,182 @@ input:focus-visible,
 }
 
 /* ==========================================================================
+   Weight-exception confirmation dialog (v1.2.0, §6-8)
+   Same glass modal treatment as .wrong-bucket-modal — row-scoped, opened
+   from the Konfirmasi Tim Timbangan action in the Weight Integrity Issues
+   table (js/ui/weight-exception-dialog.js).
+   ========================================================================== */
+
+.weight-exception-modal {
+  max-width: 520px;
+  width: calc(100% - 48px);
+  max-height: calc(100% - 48px);
+  overflow-y: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-shell);
+  padding: 20px 24px;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
+  color: var(--color-text);
+  box-shadow: var(--shadow-shell), var(--glass-highlight);
+}
+
+.weight-exception-modal::backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.weight-exception-header h3 {
+  margin: 0 0 12px;
+  font-size: var(--fs-page-title);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.weight-exception-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-inner);
+}
+
+.weight-exception-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.weight-exception-detail-label {
+  color: var(--color-text-muted);
+}
+
+.weight-exception-detail-value {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.weight-exception-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.weight-exception-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.weight-exception-option-body {
+  margin: 0 0 16px;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-inner);
+}
+
+.weight-exception-field {
+  margin-bottom: 12px;
+}
+
+.weight-exception-field:last-child {
+  margin-bottom: 0;
+}
+
+.weight-exception-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.weight-exception-field-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-inner);
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  font-size: var(--fs-body);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+textarea.weight-exception-field-input {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.weight-exception-disclaimer {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.weight-exception-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   Weight-exception resolution summary + status (v1.2.0, §5, §11)
+   ========================================================================== */
+
+.weight-exception-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.weight-exception-summary-label {
+  color: var(--color-text-muted);
+}
+
+.weight-exception-summary-value {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.resolution-status {
+  display: inline-block;
+  font-size: 0.85rem;
+}
+
+.resolution-status-unresolved {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.resolution-status-approved {
+  color: var(--color-info);
+  font-weight: 600;
+}
+
+.resolution-status-detail {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* ==========================================================================
    backdrop-filter fallback (v1.1.0-phaseA)
    Browsers without backdrop-filter support get more opaque shell/modal
    surfaces instead of keeping the same alpha and losing the blur —
@@ -2053,7 +2242,8 @@ input:focus-visible,
   #bottom-action-bar,
   .view-all-modal,
   .wrong-bucket-modal,
-  .settings-modal {
+  .settings-modal,
+  .weight-exception-modal {
     background: var(--glass-bg-strong-fallback);
   }
 }

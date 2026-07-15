@@ -3,9 +3,12 @@ import { renderProfilePage } from "./profile-page.js";
 import { mountActionBar } from "./action-bar.js";
 import { rowsToTsv } from "../core/tsv-exporter.js";
 import { copyToClipboard } from "./clipboard-utils.js";
-import { computeGroupReadiness, summarizeGroupReadiness, READINESS } from "../core/readiness.js";
+import { READINESS } from "../core/readiness.js";
+import { getGroupReadiness, summarizeGroupReadiness } from "./group-readiness.js";
+import { startNewRun as startNewWeightExceptionRun } from "../core/weight-exception-store.js";
 import { getGroupKey } from "../core/group-key.js";
 import { closeViewAllRowsModal } from "./view-all-modal.js";
+import { closeWeightExceptionDialog } from "./weight-exception-dialog.js";
 import { t, subscribeLanguage } from "./i18n.js";
 
 const PROFILE_ORDER = ["HYNC", "SLNC", "ESG"];
@@ -92,7 +95,7 @@ export function mountResultPage(
   // while it has blocking issues (Unmatched DT / Other Blocking Issues);
   // Timestamp Window Notes alone never block copying.
   function isGroupBlocked(group) {
-    return computeGroupReadiness(group.validation).blocking;
+    return getGroupReadiness(group).blocking;
   }
 
   function updateActionBar() {
@@ -257,13 +260,25 @@ export function mountResultPage(
       renderProfilePage(panelContainer, profileGroups, currentDecimalSeparator, {
         activeGroupKey: validKey,
         onToggleGroup: handleToggleGroup,
+        // A weight-exception approve/revoke changes copy-gating readiness
+        // (v1.2.0, §12-13) — re-render the panel (fresh effective
+        // validation per group) and refresh the action bar's disabled
+        // state, exactly like a group toggle does.
+        onWeightExceptionChanged: () => {
+          renderPanel();
+          updateActionBar();
+        },
       });
     }
   }
 
   function reset() {
-    // ON CLEAR / RESET (section 14).
+    // ON CLEAR / RESET (section 14). Also clears every session-scoped
+    // approved weight exception (v1.2.0, §10) — an approval must never
+    // survive a Clear/Reset.
     closeViewAllRowsModal();
+    closeWeightExceptionDialog();
+    startNewWeightExceptionRun();
     activeGroupKey = null;
     currentResult = { groups: [], warnings: [], fileErrors: [], listDtInfo: null };
     activeTab = "overview";
@@ -278,8 +293,15 @@ export function mountResultPage(
     // ON REFRESH CLEANING (section 14): close View All and clear the
     // active group before the rebuilt groups are applied — a previous
     // group's identity may no longer exist, or may now mean something
-    // different, once results are recomputed.
+    // different, once results are recomputed. Also starts a new weight-
+    // exception approval run (v1.2.0, §10) — every path that replaces the
+    // result set (Refresh Cleaning, a new upload, a file removal producing
+    // a new empty/changed result) must invalidate prior session approvals,
+    // since the underlying rows (and their Gross/Tare/Recorded Net) may
+    // have changed.
     closeViewAllRowsModal();
+    closeWeightExceptionDialog();
+    startNewWeightExceptionRun();
     activeGroupKey = null;
     currentResult = {
       groups: result.groups || [],

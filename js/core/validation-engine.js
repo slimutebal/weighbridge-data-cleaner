@@ -1,3 +1,5 @@
+import { WEIGHT_ISSUE_CODES } from "./weight-integrity.js";
+
 export function computeGroupValidation(group) {
   const rows = group.rows;
 
@@ -66,6 +68,34 @@ export function computeGroupValidation(group) {
   // counters that can silently drift apart.
   const rawRowCount = cleanRowCount + lostRowCount;
 
+  // Row-level weight integrity (v1.1.0, DECISIONS.md D010): each clean row
+  // carries a _weightIntegrity result attached by its profile cleaner
+  // (js/core/weight-integrity.js) — disabled/valid rows have issueCode ===
+  // null and are excluded here. A row only ever carries one, most-specific
+  // issue code, so these per-code counts never double-count a row and
+  // always sum to weightIntegrityIssueCount.
+  const weightIntegrityIssueRows = rows.filter(
+    (row) => row._weightIntegrity && row._weightIntegrity.issueCode
+  );
+  const weightMismatchRows = weightIntegrityIssueRows.filter(
+    (row) => row._weightIntegrity.issueCode === WEIGHT_ISSUE_CODES.WEIGHT_CALCULATION_MISMATCH
+  );
+  const invalidGrossWeightRows = weightIntegrityIssueRows.filter(
+    (row) => row._weightIntegrity.issueCode === WEIGHT_ISSUE_CODES.INVALID_GROSS_WEIGHT
+  );
+  const invalidTareWeightRows = weightIntegrityIssueRows.filter(
+    (row) => row._weightIntegrity.issueCode === WEIGHT_ISSUE_CODES.INVALID_TARE_WEIGHT
+  );
+  const invalidRecordedNetWeightRows = weightIntegrityIssueRows.filter(
+    (row) => row._weightIntegrity.issueCode === WEIGHT_ISSUE_CODES.INVALID_RECORDED_NET_WEIGHT
+  );
+  const negativeWeightValueRows = weightIntegrityIssueRows.filter(
+    (row) => row._weightIntegrity.issueCode === WEIGHT_ISSUE_CODES.NEGATIVE_WEIGHT_VALUE
+  );
+  const grossBelowTareRows = weightIntegrityIssueRows.filter(
+    (row) => row._weightIntegrity.issueCode === WEIGHT_ISSUE_CODES.GROSS_BELOW_TARE
+  );
+
   return {
     rawRowCount,
     cleanRowCount,
@@ -90,5 +120,19 @@ export function computeGroupValidation(group) {
     conflictingPileIds,
     pileIdSourceConflictCount: conflictingPileIds.length,
     pileIdSourceConflictRows,
+    weightIntegrityIssueCount: weightIntegrityIssueRows.length,
+    weightIntegrityIssueRows,
+    weightMismatchCount: weightMismatchRows.length,
+    weightMismatchRows,
+    invalidGrossWeightCount: invalidGrossWeightRows.length,
+    invalidGrossWeightRows,
+    invalidTareWeightCount: invalidTareWeightRows.length,
+    invalidTareWeightRows,
+    invalidRecordedNetWeightCount: invalidRecordedNetWeightRows.length,
+    invalidRecordedNetWeightRows,
+    negativeWeightValueCount: negativeWeightValueRows.length,
+    negativeWeightValueRows,
+    grossBelowTareCount: grossBelowTareRows.length,
+    grossBelowTareRows,
   };
 }

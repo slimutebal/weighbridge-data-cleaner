@@ -162,5 +162,41 @@ export function renderValidation(container, validation, decimalSeparator = ".", 
     createMetricRow(t("validation.pileIdSourceConflicts"), validation.pileIdSourceConflictCount)
   );
 
+  // Weight Integrity metrics (v1.1.0 D010, resolution workflow v1.2.0
+  // D011) — compact per-category counts; full row-level detail lives in
+  // the dedicated Weight Integrity Issues section (js/ui/profile-page.js),
+  // never duplicated here. Total/Unresolved/Approved must stay visibly
+  // distinct (§14 of the v1.2.0 spec): an approved exception is never
+  // folded back into "0 mismatches" — the mathematical total always
+  // remains visible even once every mismatch has been approved.
+  wrap.appendChild(
+    createMetricRow(
+      t("validation.totalWeightMismatches"),
+      validation.totalWeightMismatchCount ?? validation.weightMismatchCount
+    )
+  );
+  wrap.appendChild(
+    createMetricRow(
+      t("validation.unresolvedWeightMismatches"),
+      validation.unresolvedWeightMismatchCount ?? validation.weightMismatchCount
+    )
+  );
+  wrap.appendChild(
+    createMetricRow(t("validation.approvedWeightExceptions"), validation.approvedWeightExceptionCount || 0)
+  );
+  wrap.appendChild(
+    createMetricRow(t("validation.invalidGrossWeight"), validation.invalidGrossWeightCount)
+  );
+  wrap.appendChild(
+    createMetricRow(t("validation.invalidTareWeight"), validation.invalidTareWeightCount)
+  );
+  wrap.appendChild(
+    createMetricRow(t("validation.invalidRecordedNetWeight"), validation.invalidRecordedNetWeightCount)
+  );
+  wrap.appendChild(createMetricRow(t("validation.grossBelowTare"), validation.grossBelowTareCount));
+  wrap.appendChild(
+    createMetricRow(t("validation.negativeWeightValue"), validation.negativeWeightValueCount)
+  );
+
   container.appendChild(wrap);
 }

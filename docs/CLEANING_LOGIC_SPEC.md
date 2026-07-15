@@ -498,6 +498,14 @@ IV-7  Clean output "Shift" (v0.2 pilot fix) is always the group's
       Detected shift remains available only as an internal
       `_detectedShift` field for Shift Warning Rows, the validation
       report's shift warning count, and wrong-bucket validation.
+
+IV-8  Row-level weight integrity (v1.1.0, D010, §19): every candidate
+      detail row is checked for Gross - Tare == Recorded Net at raw
+      source precision. An unresolved mismatch (or an invalid/negative
+      Gross, Tare, or Recorded Net, or Gross below Tare) is always
+      blocking and never silently repairs Recorded Net, Gross, or Tare —
+      this is an additional validation layer, not a replacement for any
+      existing cleaning transformation.
 ```
 
 ---
@@ -519,6 +527,7 @@ invalid Date/Time row count
 unmatched DT row count
 shift mismatch warning count   (bucket vs. detected shift, IV-3)
 mixed-shift-in-file warning    (IV-2)
+weight integrity issue count, broken down by issue code (IV-8, §19)
 ```
 
 Issue tables to produce (blueprint §10):
@@ -530,6 +539,7 @@ missing Grade rows
 missing Source rows
 invalid Date/Time rows
 unmatched DT rows
+weight integrity issue rows, with source identity and issue code (§19)
 ```
 
 ---
@@ -660,4 +670,131 @@ from this list.
   as separately identifiable rule sets in code (e.g. distinct functions
   or clearly commented sections), not interleaved, so either set can be
   audited or adjusted independently later.
+```
+
+---
+
+## 19. Row-Level Weight Integrity Validation (v1.1.0, D010)
+
+Implemented in the shared, profile-agnostic module `js/core/weight-
+integrity.js`. Every profile pipeline (§7-§9) only supplies the correct
+raw Gross/Tare/Recorded Net field values and profile id — the arithmetic
+and classification below live in exactly one place, never duplicated per
+profile.
+
+```text
+Confirmed raw field mapping (checked against samples/hync/, samples/slnc/,
+samples/esg/ — 337 + 109 + 230 real rows, zero mismatches at the stated
+precision, not assumed):
+
+HYNC   Gross = 毛重, Tare = 皮重, Recorded Net = 净重.
+       Source unit: kg. Precision: integer (0 decimal places).
+
+SLNC   Gross = 毛重, Tare = 皮重, Recorded Net = 净重.
+       Source unit: kg. Precision: integer (0 decimal places).
+
+ESG    Gross = TIMBANGAN ISI, Tare = TIMBANGAN KOSONG,
+       Recorded Net = TIMBANGAN BERSIH.
+       Source unit: tonnes (already in tonnes per LC-4 — no /1000
+       conversion). Precision: 2 decimal places (hundredths of a
+       tonne / 10 kg).
+```
+
+Validation logic (`validateWeightIntegrity()`):
+
+```text
+1. Parse Gross, Tare, Recorded Net from the raw source cell at the
+   profile's configured decimalPlaces, as an exact scaled integer
+   ("minor units") — never by comparing floating-point tonnage values
+   after conversion (§3 of the phase spec). Uses the parsed number's own
+   canonical string form to shift the decimal point exactly, only
+   falling back to a rounded multiply if the source ever supplies more
+   fractional digits than configured.
+2. Calculated Net (minor units) = Gross - Tare.
+3. Difference (minor units) = Calculated Net - Recorded Net.
+4. Classify, most-specific issue wins (never more than one issue per
+   row, never a duplicate root cause):
+     a. Gross unparseable/missing       -> INVALID_GROSS_WEIGHT
+     b. Tare unparseable/missing        -> INVALID_TARE_WEIGHT
+     c. Recorded Net unparseable/missing -> INVALID_RECORDED_NET_WEIGHT
+     d. any parsed value negative       -> NEGATIVE_WEIGHT_VALUE
+     e. Gross < Tare                    -> GROSS_BELOW_TARE
+     f. abs(Difference) > configured tolerance -> WEIGHT_CALCULATION_MISMATCH
+     g. otherwise                       -> valid, no issue
+   A mathematically valid zero value is never automatically treated as
+   invalid.
+5. Tolerance (toleranceMinorUnits) is profile-configurable in
+   config/app-config.json under "weightIntegrity". All three profiles
+   default to zero tolerance at their confirmed source precision — this
+   is backed by the zero-mismatch result across all inspected sample
+   rows, not an invented allowance. A future nonzero tolerance must be
+   justified by observed weighbridge behavior.
+```
+
+Non-negotiable business rule (D010): this is detection and reporting
+only. Recorded Net, Gross, and Tare are never rewritten by the
+calculated value; the clean output Net and TSV export always continue
+to use the recorded source Net. Every weight issue is blocking (no
+"Ignore" control in this version) — it drives the affected Cleaning
+Group to `ACTION_REQUIRED` and disables copy for that group's scope,
+through the same centralized readiness/copy-gating model as every other
+blocking category (`js/core/readiness.js`), never a separate ad-hoc
+check. The affected row is not dropped: it remains visible in Clean
+Data Preview and is not counted as a lost row. Required operator
+workflow: confirm the discrepancy with the weighbridge team, correct
+the source file outside the app, re-upload, and re-run cleaning.
+
+Row-level traceability: each weight issue result carries the row's
+sourceRowId (`<sheet name>#R<Excel row number>`, the same mechanism
+HYNC/SLNC already used, now also added to ESG for this purpose) plus
+Gross/Tare/Recorded Net/Calculated Net/Difference in minor units, so the
+UI (Weight Integrity Issues section) can present enough detail for
+operational confirmation without exposing internal fields in the TSV
+or clean output schema (§6, §15).
+
+---
+
+## 20. Weight Exception Resolution (v1.2.0, D011)
+
+Extends §19 with a per-row operational resolution workflow for
+`WEIGHT_CALCULATION_MISMATCH` rows only — every other weight issue code
+(§19 step 4a-4e) has no resolution workflow and stays unconditionally
+blocking.
+
+```text
+1. All weight-integrity issue rows for one Cleaning Group render inside
+   exactly one panel and one table (never one per row) — see
+   group.validation.weightIntegrityIssueRows, unchanged from §19.
+2. Each WEIGHT_CALCULATION_MISMATCH row may carry an operator-recorded
+   "approved weight exception" (js/core/weight-exception-store.js), keyed
+   to the current in-memory run id + cleaning group id + sourceRowId +
+   Gross/Tare/Recorded Net minor units — never to filename, row number,
+   or NO.NOTA alone, so a changed source value can never inherit a stale
+   approval.
+3. Granting an exception (js/ui/weight-exception-dialog.js) requires an
+   operator-entered "Confirmed by" and "Reference / reason" (both
+   required); the app records these plus a timestamp, but never
+   independently verifies them (no login/backend) and states this
+   plainly in the dialog.
+4. An approved exception never mutates Gross, Tare, or Recorded Net, and
+   never removes the row or its mismatch numbers from the issue table —
+   it only changes that row's operational resolution status.
+5. Readiness distinguishes:
+     totalWeightMismatchCount     = validation.weightMismatchCount
+     approvedWeightExceptionCount = approved rows for this group
+     unresolvedWeightMismatchCount = total - approved
+   Only unresolvedWeightMismatchCount (plus every non-approvable weight
+   issue type and every other existing blocking category) drives
+   ACTION_REQUIRED. Zero unresolved mismatches with at least one approved
+   exception and no other blockers is READY_WITH_INFO, never plain READY.
+6. Revocation deletes the approval record only — the row and its mismatch
+   data are never deleted, and blocking readiness is restored immediately.
+7. Approvals are session-scoped to the current cleaning result ("run"):
+   Refresh Cleaning, Clear/Reset, and any new upload that replaces the
+   result set all start a fresh run with zero approvals
+   (js/ui/result-page.js's reset()/showGroups(), via
+   startNewRun() in the store).
+8. There is no "Approve All" / "Override All" / group-wide or
+   profile-wide override anywhere — resolution is always one row at a
+   time.
 ```

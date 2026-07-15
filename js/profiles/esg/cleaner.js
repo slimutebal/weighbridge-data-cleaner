@@ -10,6 +10,7 @@ import {
   deriveType,
   deriveBuyerEsg,
 } from "../../core/normalizers.js";
+import { validateWeightIntegrity } from "../../core/weight-integrity.js";
 
 const REQUIRED_HEADERS = [
   "TIMBANGAN ISI",
@@ -20,6 +21,8 @@ const DATE_HEADER = "TANGGAL";
 const TIMESTAMP_HEADER = "JAM TIMBANG ISI";
 const NOTA_HEADER = "NO.NOTA";
 const DT_ID_HEADER = "NO. DT";
+const GROSS_HEADER = "TIMBANGAN ISI";
+const TARE_HEADER = "TIMBANGAN KOSONG";
 const NET_HEADER = "TIMBANGAN BERSIH";
 const PILE_ID_HEADER = "PILE ID";
 const KODE_ORE_HEADER = "KODE ORE";
@@ -61,7 +64,7 @@ function normalizeEsgSourceSeparators(value) {
   return trimmed;
 }
 
-export function clean(workbook, { joinContractor, listDt }) {
+export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig }) {
   const cleanRows = [];
   const lostRows = [];
   const skippedRows = [];
@@ -84,6 +87,8 @@ export function clean(workbook, { joinContractor, listDt }) {
     const dateColumn = headerMap[DATE_HEADER];
     const notaColumn = headerMap[NOTA_HEADER];
     const dtIdColumn = headerMap[DT_ID_HEADER];
+    const grossColumn = headerMap[GROSS_HEADER];
+    const tareColumn = headerMap[TARE_HEADER];
     const netColumn = headerMap[NET_HEADER];
     const pileIdColumn = headerMap[PILE_ID_HEADER];
     const kodeOreColumn = headerMap[KODE_ORE_HEADER];
@@ -91,6 +96,10 @@ export function clean(workbook, { joinContractor, listDt }) {
 
     for (let i = dataStart; i < dataEnd; i++) {
       const row = sheet.rows[i];
+      // 1-based Excel row number for this data row (i is a 0-based array
+      // index into sheet.rows) — same sourceRowId shape as HYNC/SLNC
+      // (v1.1.0), used for weight-integrity traceability (§7).
+      const sourceRowId = `${sheet.name}#R${i + 1}`;
       if (!row || row.length === 0) {
         skippedRows.push({ rowIndex: i, reason: "blank-row" });
         continue;
@@ -141,6 +150,20 @@ export function clean(workbook, { joinContractor, listDt }) {
       const { source, grade } = parseSourceGrade(kodeOre);
       const { contractor, normalizedDtId } = joinContractor(dtIdRaw, listDt);
 
+      // Row-level weight integrity (v1.1.0, DECISIONS.md D010): ESG Gross/
+      // Tare/Recorded Net are already in tonnes (LC-4) — validated at that
+      // same source precision (config decimalPlaces), never against a
+      // converted value. The result is validation metadata only; Recorded
+      // Net (netRaw/Net) continues unmodified regardless of the outcome.
+      const weightIntegrity = validateWeightIntegrity({
+        gross: grossColumn !== undefined ? row[grossColumn] : undefined,
+        tare: tareColumn !== undefined ? row[tareColumn] : undefined,
+        recordedNet: netColumn !== undefined ? row[netColumn] : undefined,
+        profile: PROFILE_ID,
+        config: weightIntegrityConfig,
+        sourceRowId,
+      });
+
       cleanRows.push({
         TANGGAL: toDateKey(reportDate),
         "NO. DT": normalizedDtId,
@@ -156,6 +179,8 @@ export function clean(workbook, { joinContractor, listDt }) {
         Grade: grade,
         Profile: PROFILE_ID,
         _timestamp: timestamp,
+        _sourceRowId: sourceRowId,
+        _weightIntegrity: weightIntegrity,
         _rawDtId: dtIdRaw,
       });
     }

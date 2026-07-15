@@ -81,3 +81,82 @@ of validating/grouping by row timestamp:
   (internal `_detectedShift` field), surfaced in the UI as Timestamp
   Window Information / Shift Window Audit Note, never as a warning
   that blocks copy/readiness.
+
+## D010 - Row-Level Weight Integrity Is Blocking, Never Auto-Corrected (v1.1.0)
+
+Every candidate detail row is checked for `Gross - Tare == Recorded Net`
+(within a profile-configured tolerance), computed in the shared
+`js/core/weight-integrity.js` module and attached to each clean row as
+`_weightIntegrity` validation metadata:
+
+- the app is a cleaning/validation tool, not an authority to rewrite
+  weighbridge source values — Recorded Net (and Gross/Tare) is never
+  automatically replaced by the calculated value, and the final clean
+  Net / TSV output always continues to use the recorded source Net;
+- an unresolved weight integrity issue (mismatch, invalid Gross/Tare/
+  Recorded Net, negative weight, or Gross below Tare — see
+  `CLEANING_LOGIC_SPEC.md` §19) is always blocking: it drives group
+  readiness to `ACTION_REQUIRED` and disables copy for that group's
+  profile/all-groups scope, through the same centralized
+  readiness/copy-gating model used by every other blocking category
+  (`js/core/readiness.js`) — no separate ad-hoc gating was added;
+- the affected row is not dropped or hidden — it remains visible in
+  Clean Data Preview and is not counted as a lost row;
+- comparison happens at raw source precision and unit (integer kg for
+  HYNC/SLNC, hundredths of a tonne for ESG — confirmed against the
+  bundled sample files, not assumed) via decimal-safe scaled-integer
+  arithmetic, never by comparing floating-point tonnage values;
+- tolerance is profile-configurable (`config/app-config.json`
+  `weightIntegrity.<PROFILE>.toleranceMinorUnits`), defaulting to zero at
+  the confirmed source precision for all three profiles — a nonzero
+  tolerance is not invented and must be justified by observed
+  weighbridge behavior before being configured;
+- required operational workflow on a mismatch: the app detects and
+  reports it, the operator confirms the discrepancy with the weighbridge
+  team, the source file is corrected outside the app, the corrected file
+  is re-uploaded, and cleaning is rerun — there is no in-app "Ignore" or
+  override control in this version.
+
+## D011 - Weight Exception Resolution Is Per-Row, Session-Scoped, and Never Hides Evidence (v1.2.0)
+
+Building on D010, `WEIGHT_CALCULATION_MISMATCH` rows can be individually
+resolved via an operator-recorded "approved weight exception"
+(`js/core/weight-exception-store.js`), without weakening the underlying
+mathematical validation from D010:
+
+- resolution is per source row only. There is no "Approve All", "Override
+  All", or profile/group-wide override anywhere in the UI or the store's
+  API — every approval is granted through a dialog scoped to one exact
+  row (`js/ui/weight-exception-dialog.js`);
+- an approval never mutates Gross, Tare, or Recorded Net, and never
+  deletes the underlying `WEIGHT_CALCULATION_MISMATCH` evidence — the row
+  stays in the same consolidated Weight Integrity Issues table with its
+  original mismatch numbers, permanently, for audit;
+- an approval requires an operator-entered "Confirmed by" and
+  "Reference / reason" (both required); the UI carries an explicit notice
+  that this is an operator-recorded declaration, not an independently
+  verified identity, since the app has no login/backend;
+- approvals are scoped to the current in-memory cleaning result (a
+  "run"): they are bound to the current run id, the cleaning group id,
+  the row's `sourceRowId`, and its Gross/Tare/Recorded Net minor-unit
+  values — never to filename, row number, or NO.NOTA alone — so a changed
+  source value (re-uploaded corrected file) can never inherit a stale
+  approval, and a fresh Refresh Cleaning / Clear-Reset / new upload always
+  starts a new run with zero approvals;
+- readiness distinguishes total mathematical mismatches from unresolved
+  ones: `unresolvedWeightMismatchCount = totalWeightMismatchCount -
+  approvedWeightExceptionCount`. Only the unresolved count blocks copy
+  (`ACTION_REQUIRED`); a group with zero unresolved mismatches but at
+  least one approved exception is `READY_WITH_INFO`
+  ("Siap Disalin — Pengecualian Berat Disetujui"), never plain `READY`
+  — an approved exception is informational, not "fully clean";
+  every other weight issue type (invalid Gross/Tare/Recorded Net,
+  negative weight, Gross below Tare) has no approval workflow at all and
+  stays unconditionally blocking;
+- revocation ("Batalkan Konfirmasi") deletes the approval record and
+  immediately restores blocking readiness for that row — it never
+  deletes the row or its mismatch data;
+- all weight-integrity issues for one cleaning group render inside
+  exactly one panel and one table (carried over from D010, made explicit
+  here because it is now load-bearing for the resolution UI too) — never
+  one panel/table per mismatch row.

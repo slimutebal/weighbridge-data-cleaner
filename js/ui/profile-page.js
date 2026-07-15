@@ -5,7 +5,11 @@ import {
   extractNumericGrade,
 } from "../core/output-formatter.js";
 import { renderValidation } from "./validation-panel.js";
-import { computeGroupReadiness, summarizeGroupReadiness, READINESS } from "../core/readiness.js";
+import { computeGroupReadiness, READINESS } from "../core/readiness.js";
+import { getEffectiveValidation, summarizeGroupReadiness } from "./group-readiness.js";
+import { WEIGHT_ISSUE_CODES, parseSourceRowId } from "../core/weight-integrity.js";
+import { getApproval, revokeException } from "../core/weight-exception-store.js";
+import { openWeightExceptionDialog } from "./weight-exception-dialog.js";
 import { OUTPUT_COLUMN_ORDER } from "../core/tsv-exporter.js";
 import { getGroupKey } from "../core/group-key.js";
 import { openViewAllRowsModal } from "./view-all-modal.js";
@@ -60,6 +64,44 @@ const BLOCKING_CATEGORY_KEY = {
   pileIdSourceConflict: "blocking.pileIdSourceConflict",
   lostRows: "blocking.lostRows",
 };
+
+// Maps each weight-integrity issue code (js/core/weight-integrity.js) to
+// its translated per-row Issue column text (§11 of the phase spec).
+const WEIGHT_ISSUE_LABEL_KEY = {
+  [WEIGHT_ISSUE_CODES.WEIGHT_CALCULATION_MISMATCH]: "weightIntegrity.issue.mismatch",
+  [WEIGHT_ISSUE_CODES.INVALID_GROSS_WEIGHT]: "weightIntegrity.issue.invalidGross",
+  [WEIGHT_ISSUE_CODES.INVALID_TARE_WEIGHT]: "weightIntegrity.issue.invalidTare",
+  [WEIGHT_ISSUE_CODES.INVALID_RECORDED_NET_WEIGHT]: "weightIntegrity.issue.invalidRecordedNet",
+  [WEIGHT_ISSUE_CODES.NEGATIVE_WEIGHT_VALUE]: "weightIntegrity.issue.negativeWeight",
+  [WEIGHT_ISSUE_CODES.GROSS_BELOW_TARE]: "weightIntegrity.issue.grossBelowTare",
+};
+
+// Formats a minor-units integer (js/core/weight-integrity.js) back to a
+// human-readable source-precision value for display only — the comparison
+// itself already happened on the exact scaled integer, never on this
+// formatted string (§11: "Use the application decimal-format preference
+// for display only").
+function formatWeightMinorUnits(minorUnits, decimalPlaces, sourceUnit, decimalSeparator) {
+  if (minorUnits === null || minorUnits === undefined || decimalPlaces === undefined) return "—";
+  const scale = Math.pow(10, decimalPlaces);
+  const fixed = (minorUnits / scale).toFixed(decimalPlaces);
+  const withSeparator = decimalSeparator === "," ? fixed.replace(".", ",") : fixed;
+  return sourceUnit ? `${withSeparator} ${sourceUnit}` : withSeparator;
+}
+
+// Difference must always show an explicit sign (§3, §11) — a positive
+// difference means the calculated value is higher than the recorded Net.
+function formatSignedWeightMinorUnits(minorUnits, decimalPlaces, sourceUnit, decimalSeparator) {
+  if (minorUnits === null || minorUnits === undefined) return "—";
+  const sign = minorUnits > 0 ? "+" : "";
+  return `${sign}${formatWeightMinorUnits(minorUnits, decimalPlaces, sourceUnit, decimalSeparator)}`;
+}
+
+// "过磅明细#R27" -> "27"; falls back to the raw id if it doesn't match the
+// sourceRowId shape emitted by the profile cleaners.
+function extractSourceRowNumber(sourceRowId) {
+  return parseSourceRowId(sourceRowId).sourceRowNumber || String(sourceRowId ?? "");
+}
 
 export function renderProfilePagePlaceholder(container) {
   container.innerHTML = "";
@@ -252,6 +294,205 @@ function renderUnmatchedDt(container, group) {
       td.textContent = text;
       tr.appendChild(td);
     });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  attachTableScrollIndicators(wrap);
+  body.appendChild(wrap);
+
+  details.appendChild(body);
+  container.appendChild(details);
+}
+
+function weightIntegrityKeyFields(wi) {
+  return {
+    sourceRowId: wi.sourceRowId,
+    grossMinorUnits: wi.grossMinorUnits,
+    tareMinorUnits: wi.tareMinorUnits,
+    recordedNetMinorUnits: wi.recordedNetMinorUnits,
+  };
+}
+
+function createResolutionSummary(effectiveValidation) {
+  const wrap = document.createElement("div");
+  wrap.className = "weight-exception-summary";
+  [
+    [t("profile.weightIntegrityTotalMismatches"), effectiveValidation.totalWeightMismatchCount],
+    [t("profile.weightIntegrityUnresolved"), effectiveValidation.unresolvedWeightMismatchCount],
+    [t("profile.weightIntegrityApproved"), effectiveValidation.approvedWeightExceptionCount],
+  ].forEach(([label, value]) => {
+    const item = document.createElement("span");
+    item.className = "weight-exception-summary-item";
+    const labelEl = document.createElement("span");
+    labelEl.className = "weight-exception-summary-label";
+    labelEl.textContent = `${label}: `;
+    const valueEl = document.createElement("span");
+    valueEl.className = "weight-exception-summary-value";
+    valueEl.textContent = String(value);
+    item.appendChild(labelEl);
+    item.appendChild(valueEl);
+    wrap.appendChild(item);
+  });
+  return wrap;
+}
+
+// Builds the Resolution Status + Action cells for one row. Only
+// WEIGHT_CALCULATION_MISMATCH rows are ever actionable (§6) — every other
+// weight issue type (invalid Gross/Tare/Recorded Net, negative weight,
+// Gross below Tare) has no calculated-vs-recorded comparison to reason
+// about and so has no resolution workflow; those rows show a fixed,
+// non-interactive status instead.
+function buildResolutionCells(row, group, groupId, decimalSeparator, onChanged) {
+  const wi = row._weightIntegrity;
+  const statusTd = document.createElement("td");
+  const actionTd = document.createElement("td");
+
+  if (wi.issueCode !== WEIGHT_ISSUE_CODES.WEIGHT_CALCULATION_MISMATCH) {
+    statusTd.textContent = t("profile.weightIntegrityNotApplicable");
+    return [statusTd, actionTd];
+  }
+
+  const approval = getApproval({ groupId, ...weightIntegrityKeyFields(wi) });
+
+  if (approval) {
+    const statusWrap = document.createElement("div");
+    statusWrap.className = "resolution-status resolution-status-approved";
+    const statusLine = document.createElement("div");
+    statusLine.textContent = t("profile.weightIntegrityApprovedStatus");
+    statusWrap.appendChild(statusLine);
+    const detailLine = document.createElement("div");
+    detailLine.className = "resolution-status-detail";
+    detailLine.textContent = t("profile.weightIntegrityApprovedDetail", {
+      confirmedBy: approval.confirmedBy,
+      reference: approval.confirmationReference,
+      time: new Date(approval.confirmedAt).toLocaleString(),
+    });
+    statusWrap.appendChild(detailLine);
+    statusTd.appendChild(statusWrap);
+
+    const revokeBtn = document.createElement("button");
+    revokeBtn.type = "button";
+    revokeBtn.className = "btn-secondary";
+    revokeBtn.textContent = t("weightException.revoke");
+    revokeBtn.addEventListener("click", () => {
+      revokeException({ groupId, ...weightIntegrityKeyFields(wi) });
+      if (onChanged) onChanged();
+    });
+    actionTd.appendChild(revokeBtn);
+  } else {
+    const statusWrap = document.createElement("span");
+    statusWrap.className = "resolution-status resolution-status-unresolved";
+    statusWrap.textContent = t("profile.weightIntegrityUnresolvedStatus");
+    statusTd.appendChild(statusWrap);
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "btn-secondary";
+    confirmBtn.textContent = t("weightException.confirmRow");
+    confirmBtn.addEventListener("click", () => {
+      openWeightExceptionDialog({ row, group, groupId, decimalSeparator }, onChanged, confirmBtn);
+    });
+    actionTd.appendChild(confirmBtn);
+  }
+
+  return [statusTd, actionTd];
+}
+
+// Weight Integrity Issues (v1.1.0 D010, resolution workflow added in
+// v1.2.0 D011) is its own dedicated panel — never merged into Timestamp
+// Window Notes, Unmatched DT Rows, or Other Blocking Issues (§3) — exactly
+// one panel and one table for the whole group, one row per affected
+// source row (§2), rendered only when at least one row has a weight
+// issue. Recorded Net is shown as-is and never replaced; the row itself
+// always remains visible in Clean Data Preview below regardless of
+// resolution state.
+function renderWeightIntegrityIssues(container, group, decimalSeparator, groupId, effectiveValidation, onChanged) {
+  const rows = group.validation.weightIntegrityIssueRows;
+  if (!rows || !rows.length) return;
+
+  // Whether anything in this table still blocks copy (§12): the raw total
+  // across every weight issue type, minus only the approved
+  // WEIGHT_CALCULATION_MISMATCH rows — see applyApprovalsToValidation()
+  // (js/core/weight-exception-store.js) for why this single subtraction is
+  // always correct (approvals can only ever reduce the mismatch bucket).
+  const hasUnresolved = effectiveValidation.weightIntegrityIssueCount > 0;
+
+  const details = document.createElement("details");
+  details.className = hasUnresolved ? "blocking-issues-details" : "info-details";
+  details.open = hasUnresolved;
+
+  const summary = document.createElement("summary");
+  summary.textContent = hasUnresolved
+    ? t("profile.weightIntegrityHeading", { count: rows.length })
+    : t("profile.weightExceptionsApprovedHeading", { count: rows.length });
+  details.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = hasUnresolved ? "blocking-issues-body" : "info-details-body";
+
+  const note = document.createElement("p");
+  note.className = "placeholder-text";
+  note.textContent = hasUnresolved
+    ? t("profile.weightIntegrityNote")
+    : t("profile.weightExceptionsApprovedNote");
+  body.appendChild(note);
+
+  body.appendChild(createResolutionSummary(effectiveValidation));
+
+  const wrap = document.createElement("div");
+  wrap.className = "summary-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "summary-table";
+
+  const columns = [
+    "Source Row",
+    "NO.NOTA",
+    "NO. DT",
+    "Datetime",
+    "PILE ID",
+    "Gross",
+    "Tare",
+    "Recorded Net",
+    "Calculated Net",
+    "Difference",
+    t("profile.weightIntegrityIssueColumn"),
+    t("profile.weightIntegrityStatusColumn"),
+    t("profile.weightIntegrityActionColumn"),
+  ];
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  columns.forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  rows.forEach((row) => {
+    const wi = row._weightIntegrity;
+    const tr = document.createElement("tr");
+    [
+      extractSourceRowNumber(wi.sourceRowId),
+      String(row["NO.NOTA"] ?? ""),
+      String(row["NO. DT"] ?? ""),
+      row.Datetime instanceof Date ? formatFullDatetime(row.Datetime) : "",
+      String(row["PILE ID"] ?? ""),
+      formatWeightMinorUnits(wi.grossMinorUnits, wi.decimalPlaces, wi.sourceUnit, decimalSeparator),
+      formatWeightMinorUnits(wi.tareMinorUnits, wi.decimalPlaces, wi.sourceUnit, decimalSeparator),
+      formatWeightMinorUnits(wi.recordedNetMinorUnits, wi.decimalPlaces, wi.sourceUnit, decimalSeparator),
+      formatWeightMinorUnits(wi.calculatedNetMinorUnits, wi.decimalPlaces, wi.sourceUnit, decimalSeparator),
+      formatSignedWeightMinorUnits(wi.differenceMinorUnits, wi.decimalPlaces, wi.sourceUnit, decimalSeparator),
+      t(WEIGHT_ISSUE_LABEL_KEY[wi.issueCode] || wi.issueCode),
+    ].forEach((text) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    buildResolutionCells(row, group, groupId, decimalSeparator, onChanged).forEach((td) => tr.appendChild(td));
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
@@ -505,6 +746,9 @@ function renderCleaningStatus(container, readiness) {
 // ordering of already-computed validation counts — no new validation logic.
 function buildBlockingSummaryText(validation) {
   const items = [];
+  if (validation.weightIntegrityIssueCount > 0) {
+    items.push(t("blockingSummary.weightIntegrity", { count: validation.weightIntegrityIssueCount }));
+  }
   if (validation.unmatchedDtCount > 0) {
     items.push(t("blockingSummary.unmatchedDt", { count: validation.unmatchedDtCount }));
   }
@@ -547,7 +791,7 @@ function buildHeaderDetailText(validation, readiness) {
 // without opening it (section 7) — profile/date/bucket/rows/source, plus
 // the same centralized readiness object used for the expanded Cleaning
 // Status (section 8: never recomputed independently).
-function buildGroupHeaderContent(group, readiness) {
+function buildGroupHeaderContent(group, readiness, effectiveValidation) {
   const wrap = document.createElement("span");
   wrap.className = "group-header-content";
 
@@ -563,7 +807,7 @@ function buildGroupHeaderContent(group, readiness) {
   );
   wrap.appendChild(summaryLine);
 
-  const detailText = buildHeaderDetailText(group.validation, readiness);
+  const detailText = buildHeaderDetailText(effectiveValidation, readiness);
   if (detailText) {
     const sub = document.createElement("span");
     sub.className = "group-header-substatus";
@@ -578,7 +822,7 @@ function buildGroupHeaderContent(group, readiness) {
 // single active group — collapsed groups never get this body constructed
 // at all, which is what guarantees no orphaned/stale detail can appear
 // (section 3, 13): there is no hidden-but-present DOM to go stale.
-function renderGroupBody(body, group, groupKey, readiness, decimalSeparator) {
+function renderGroupBody(body, group, groupKey, readiness, decimalSeparator, effectiveValidation, onWeightExceptionChanged) {
   // 2. Cleaning Status
   renderCleaningStatus(body, readiness);
 
@@ -586,7 +830,7 @@ function renderGroupBody(body, group, groupKey, readiness, decimalSeparator) {
   const validationHeading = document.createElement("h4");
   validationHeading.textContent = t("validation.title");
   body.appendChild(validationHeading);
-  renderValidation(body, group.validation, decimalSeparator, group.profile, readiness);
+  renderValidation(body, effectiveValidation, decimalSeparator, group.profile, readiness);
 
   // 4. Main Summary
   const operationalHeading = document.createElement("h4");
@@ -618,6 +862,11 @@ function renderGroupBody(body, group, groupKey, readiness, decimalSeparator) {
   // 7. Unmatched DT Rows — conditional, expanded by default
   renderUnmatchedDt(body, group);
 
+  // 7b. Weight Integrity Issues (v1.1.0 D010, resolution workflow v1.2.0
+  // D011) — conditional, placed after Unmatched DT Rows and before Other
+  // Blocking Issues (§10 of the original spec / §3 of the v1.2.0 spec).
+  renderWeightIntegrityIssues(body, group, decimalSeparator, groupKey, effectiveValidation, onWeightExceptionChanged);
+
   // 8. Other Blocking Issues — conditional, expanded by default
   renderOtherBlockingIssues(body, readiness);
 
@@ -638,9 +887,15 @@ function sanitizeForId(key) {
 // (section 4): that group is always open and has nothing to collapse into,
 // so its header is a static (non-interactive) label rather than a button
 // that would do nothing when clicked.
-function renderGroupCard(group, decimalSeparator, { isOpen, isToggleable, onToggle }) {
+function renderGroupCard(group, decimalSeparator, { isOpen, isToggleable, onToggle, onWeightExceptionChanged }) {
   const groupKey = getGroupKey(group);
-  const readiness = computeGroupReadiness(group.validation);
+  // Approval-adjusted validation (v1.2.0) — the single object used for
+  // every readiness/count/label decision below, so the Cleaning Status,
+  // Validation Report, collapsed-header substatus, and the Weight
+  // Integrity Issues panel itself can never disagree about which
+  // mismatches are still unresolved (see js/ui/group-readiness.js).
+  const effectiveValidation = getEffectiveValidation(group);
+  const readiness = computeGroupReadiness(effectiveValidation);
   const bodyId = `group-body-${sanitizeForId(groupKey)}`;
 
   const card = document.createElement("div");
@@ -665,14 +920,14 @@ function renderGroupCard(group, decimalSeparator, { isOpen, isToggleable, onTogg
     headerEl.className = "group-header-btn group-header-static";
   }
 
-  headerEl.appendChild(buildGroupHeaderContent(group, readiness));
+  headerEl.appendChild(buildGroupHeaderContent(group, readiness, effectiveValidation));
   card.appendChild(headerEl);
 
   if (isOpen) {
     const body = document.createElement("div");
     body.className = "group-details-body";
     body.id = bodyId;
-    renderGroupBody(body, group, groupKey, readiness, decimalSeparator);
+    renderGroupBody(body, group, groupKey, readiness, decimalSeparator, effectiveValidation, onWeightExceptionChanged);
     card.appendChild(body);
   }
 
@@ -721,7 +976,7 @@ export function renderProfilePage(
   container,
   groups,
   decimalSeparator = ".",
-  { activeGroupKey = null, onToggleGroup = () => {} } = {}
+  { activeGroupKey = null, onToggleGroup = () => {}, onWeightExceptionChanged = () => {} } = {}
 ) {
   resetScrollCleanups();
   container.innerHTML = "";
@@ -737,6 +992,7 @@ export function renderProfilePage(
         isOpen: true,
         isToggleable: false,
         onToggle: onToggleGroup,
+        onWeightExceptionChanged,
       })
     );
     return;
@@ -751,6 +1007,7 @@ export function renderProfilePage(
         isOpen,
         isToggleable: true,
         onToggle: onToggleGroup,
+        onWeightExceptionChanged,
       })
     );
   });

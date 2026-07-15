@@ -1,8 +1,28 @@
 {
   "appName": "Weighbridge Data Cleaner",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "listDtEndpoint": "https://script.google.com/macros/s/AKfycbwoakor1_LBN52GYBACijgorUEE5cPqjrnR_ncmCBzJH2YKf6Yl42Ys2m3VpSVoSuFs/exec",
   "defaultIncludeHeader": false,
   "clipboardFormat": "tsv",
-  "decimalSeparator": "auto"
+  "decimalSeparator": "auto",
+  "weightIntegrity": {
+    "HYNC": {
+      "enabled": true,
+      "sourceUnit": "kg",
+      "decimalPlaces": 0,
+      "toleranceMinorUnits": 0
+    },
+    "SLNC": {
+      "enabled": true,
+      "sourceUnit": "kg",
+      "decimalPlaces": 0,
+      "toleranceMinorUnits": 0
+    },
+    "ESG": {
+      "enabled": true,
+      "sourceUnit": "t",
+      "decimalPlaces": 2,
+      "toleranceMinorUnits": 0
+    }
+  }
 }

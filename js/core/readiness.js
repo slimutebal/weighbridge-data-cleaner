@@ -99,12 +99,25 @@ export const READINESS_SHORT_LABEL = {
 export function computeGroupReadiness(validation) {
   const otherBlocking = computeOtherBlockingIssues(validation);
   const otherBlockingCount = otherBlocking.reduce((sum, category) => sum + category.count, 0);
-  const blockingCount = validation.unmatchedDtCount + otherBlockingCount;
+  // Weight Integrity Issues (v1.1.0, D010) has its own dedicated report
+  // section (js/ui/profile-page.js, between Unmatched DT Rows and Other
+  // Blocking Issues) — kept as its own addend here for the same reason
+  // unmatchedDtCount is: never folded into otherBlocking/otherBlockingCount,
+  // which only covers categories rendered inside the generic Other Blocking
+  // Issues panel.
+  const weightIntegrityBlockingCount = validation.weightIntegrityIssueCount || 0;
+  const blockingCount = validation.unmatchedDtCount + otherBlockingCount + weightIntegrityBlockingCount;
 
+  // Approved weight exceptions (v1.2.0, D011) are informational, never
+  // "fully clean" — a group with zero unresolved mismatches but one or
+  // more approved exceptions must still surface as READY_WITH_INFO, not
+  // plain READY, even when there is no shift-warning note. Additive: a
+  // caller that never sets approvedWeightExceptionCount (v1.1.0 behavior)
+  // sees this branch evaluate to the same result as before.
   let status = READINESS.READY;
   if (blockingCount > 0) {
     status = READINESS.ACTION_REQUIRED;
-  } else if (validation.shiftWarningCount > 0) {
+  } else if (validation.shiftWarningCount > 0 || (validation.approvedWeightExceptionCount || 0) > 0) {
     status = READINESS.READY_WITH_INFO;
   }
 
@@ -114,6 +127,7 @@ export function computeGroupReadiness(validation) {
     blocking: status === READINESS.ACTION_REQUIRED,
     otherBlocking,
     otherBlockingCount,
+    weightIntegrityBlockingCount,
     blockingCount,
   };
 }

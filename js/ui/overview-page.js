@@ -1,5 +1,5 @@
 import { formatDecimal } from "../core/output-formatter.js";
-import { computeGroupReadiness } from "../core/readiness.js";
+import { getEffectiveValidation, getGroupReadiness } from "./group-readiness.js";
 import {
   getPendingSyncEntries,
   addPendingSyncEntries,
@@ -99,21 +99,26 @@ function renderMessageList(container, items, className) {
   container.appendChild(list);
 }
 
-// Combines Missing Contractor/Source/Grade into one compact cell/field.
-// `full` reuses the exact same translated field labels already shown in
-// the detailed Validation Report (overview.missingContractor/Source/Grade)
-// — never a new phrase — so the compact abbreviation and the detailed
-// report always describe the same counts the same way.
-function buildMissingSummary(missingContractor, missingSource, missingGrade) {
+// Combines Missing Contractor/Source/Grade + Weight Integrity Issues (v1.1.0,
+// D010 — a concise issue count only, never every affected row, §13) into
+// one compact cell/field. `full` reuses the exact same translated field
+// labels already shown in the detailed Validation Report
+// (overview.missingContractor/Source/Grade, validation.weightMismatch's
+// combined overview.weightIntegrityIssues) — never a new phrase — so the
+// compact abbreviation and the detailed report always describe the same
+// counts the same way.
+function buildMissingSummary(missingContractor, missingSource, missingGrade, weightIntegrityIssues) {
   const compact = t("overview.missingCompact", {
     c: missingContractor,
     s: missingSource,
     g: missingGrade,
+    w: weightIntegrityIssues,
   });
   const full =
     `${t("overview.missingContractor")}: ${missingContractor}. ` +
     `${t("overview.missingSource")}: ${missingSource}. ` +
-    `${t("overview.missingGrade")}: ${missingGrade}.`;
+    `${t("overview.missingGrade")}: ${missingGrade}. ` +
+    `${t("overview.weightIntegrityIssues")}: ${weightIntegrityIssues}.`;
   return { compact, full };
 }
 
@@ -156,10 +161,16 @@ function createCopyStatusPill(blocked) {
 // the narrow-width card fallback below, so the two presentations can never
 // disagree — every value here is read from the already-computed
 // group.validation / group.rows / group.skippedRowsCount, or from
-// computeGroupReadiness(group.validation) (the app's one readiness/copy-
-// gating decision point). Nothing is recalculated.
+// getGroupReadiness(group) (the app's one readiness/copy-gating decision
+// point, approval-aware as of v1.2.0 via js/ui/group-readiness.js).
+// Nothing is recalculated.
 function computeGroupOverviewData(group, decimalSeparator) {
-  const readiness = computeGroupReadiness(group.validation);
+  const readiness = getGroupReadiness(group);
+  // Effective (approval-adjusted) weight-integrity count — an approved
+  // exception is not blocking, so the compact "concise issue count" here
+  // must agree with the Copy Status pill below, not the raw mathematical
+  // total (which stays visible in the detailed Validation Report instead).
+  const effectiveValidation = getEffectiveValidation(group);
   return {
     profile: group.profile,
     date: group.date,
@@ -169,7 +180,8 @@ function computeGroupOverviewData(group, decimalSeparator) {
     missing: buildMissingSummary(
       group.validation.missingContractorCount,
       group.validation.missingSourceCount,
-      group.validation.missingGradeCount
+      group.validation.missingGradeCount,
+      effectiveValidation.weightIntegrityIssueCount || 0
     ),
     information: buildInformationSummary(group.validation.shiftWarningCount, group.skippedRowsCount || 0),
     blocked: readiness.blocking,

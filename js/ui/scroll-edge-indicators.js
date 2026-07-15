@@ -1,9 +1,23 @@
-// Horizontal scroll-edge indicators (Phase C2) — a small reusable helper
-// that overlays subtle, non-interactive left/right fade indicators on a
-// horizontally scrollable element, so an operator can tell at a glance
-// that a wide table has more columns off-screen. Native browser APIs only
-// (scrollLeft/scrollWidth/clientWidth, ResizeObserver, rAF) — no MutationObserver,
-// no external library.
+// Horizontal scroll-edge indicators (Phase C2, restructured v1.2.0 §16).
+// A small reusable helper that overlays subtle, non-interactive left/right
+// fade shadows on a horizontally scrollable element, so an operator can
+// tell at a glance that a wide table has more columns off-screen. Native
+// browser APIs only (scrollLeft/scrollWidth/clientWidth, ResizeObserver,
+// rAF) — no MutationObserver, no external library.
+//
+// v1.2.0 fix: the shadow overlays must stay fixed to the scrollable
+// element's own *viewport* (the fixed-size box the operator actually
+// sees), not scroll along with its content. The previous implementation
+// appended the shadow divs as children of the very element that has
+// overflow-x: auto — even absolutely positioned, a child of the
+// scrolling element is still part of what that element scrolls, so the
+// "fixed" right-edge shadow visibly slid along with the table's columns
+// as soon as the operator scrolled. The fix wraps the scrollable element
+// in a non-scrolling shell (position: relative; overflow: hidden) and
+// attaches the shadows to that shell instead — a sibling of the
+// scrolling content, not a descendant of it — so they read the same
+// scroll position via scrollLeft/scrollWidth/clientWidth on the inner
+// element but are never themselves moved by that scroll.
 //
 // Callers own the lifecycle: attachScrollEdgeIndicators(element) returns a
 // cleanup() function that must be called before the element is discarded
@@ -16,35 +30,44 @@ const EPSILON = 1;
 export function attachScrollEdgeIndicators(element) {
   if (!element) return () => {};
 
-  // The two overlay strips are positioned relative to `element` itself, so
-  // it needs to be a positioning context. Only forced when the caller
-  // hasn't already made it one (harmless to set unconditionally to
-  // "relative" otherwise).
-  const previousPosition = element.style.position;
-  if (!previousPosition && getComputedStyle(element).position === "static") {
-    element.style.position = "relative";
+  const parent = element.parentNode;
+  const nextSibling = element.nextSibling;
+
+  const shell = document.createElement("div");
+  shell.className = "scroll-shadow-shell";
+
+  if (parent) {
+    parent.insertBefore(shell, nextSibling);
   }
-  element.classList.add("scroll-edge-container");
+  shell.appendChild(element);
+  element.classList.add("scroll-shadow-scroll");
 
-  const leftIndicator = document.createElement("div");
-  leftIndicator.className = "scroll-edge-indicator scroll-edge-indicator-left";
-  leftIndicator.setAttribute("aria-hidden", "true");
+  const leftShadow = document.createElement("div");
+  leftShadow.className = "scroll-shadow scroll-shadow-left";
+  leftShadow.setAttribute("aria-hidden", "true");
 
-  const rightIndicator = document.createElement("div");
-  rightIndicator.className = "scroll-edge-indicator scroll-edge-indicator-right";
-  rightIndicator.setAttribute("aria-hidden", "true");
+  const rightShadow = document.createElement("div");
+  rightShadow.className = "scroll-shadow scroll-shadow-right";
+  rightShadow.setAttribute("aria-hidden", "true");
 
-  element.appendChild(leftIndicator);
-  element.appendChild(rightIndicator);
+  // Shadows are siblings of `element` within `shell` — never children of
+  // `element` itself — so scrolling `element`'s content can never move
+  // them (§16).
+  shell.appendChild(leftShadow);
+  shell.appendChild(rightShadow);
 
   function update() {
     const { scrollLeft, scrollWidth, clientWidth } = element;
     const hasOverflow = scrollWidth - clientWidth > EPSILON;
-    const atLeftEdge = scrollLeft <= EPSILON;
-    const atRightEdge = scrollLeft + clientWidth >= scrollWidth - EPSILON;
+    // Minor browser sub-pixel rounding means scrollLeft + clientWidth can
+    // land a fraction short of scrollWidth even at the true scroll end —
+    // the -1 EPSILON absorbs that instead of leaving a permanently "stuck"
+    // right shadow (§16 suggested condition).
+    const canScrollLeft = scrollLeft > EPSILON;
+    const canScrollRight = scrollLeft + clientWidth < scrollWidth - EPSILON;
 
-    leftIndicator.style.opacity = hasOverflow && !atLeftEdge ? "1" : "0";
-    rightIndicator.style.opacity = hasOverflow && !atRightEdge ? "1" : "0";
+    leftShadow.style.opacity = hasOverflow && canScrollLeft ? "1" : "0";
+    rightShadow.style.opacity = hasOverflow && canScrollRight ? "1" : "0";
   }
 
   element.addEventListener("scroll", update, { passive: true });
@@ -69,7 +92,18 @@ export function attachScrollEdgeIndicators(element) {
     } else {
       window.removeEventListener("resize", update);
     }
-    leftIndicator.remove();
-    rightIndicator.remove();
+    leftShadow.remove();
+    rightShadow.remove();
+    element.classList.remove("scroll-shadow-scroll");
+    // Unwrap: restore `element` to exactly where it was before the shell
+    // was inserted, then discard the now-empty shell. In every real call
+    // site the caller's own container.innerHTML reset already destroys
+    // this whole subtree moments later, but reversing the wrap here keeps
+    // this module correct even for a caller that keeps the container
+    // around and only wants the indicators gone.
+    if (shell.parentNode) {
+      shell.parentNode.insertBefore(element, shell);
+      shell.remove();
+    }
   };
 }
