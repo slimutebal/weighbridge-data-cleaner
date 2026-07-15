@@ -1870,6 +1870,24 @@ input:focus-visible,
   z-index: 1;
 }
 
+/* View All modal vertical scroll fix. attachScrollEdgeIndicators()
+   (js/ui/scroll-edge-indicators.js) wraps .view-all-table-wrap in a new
+   .scroll-shadow-shell div, so .view-all-table-wrap is no longer a direct
+   flex child of .view-all-modal — its own `flex: 1; overflow: auto;`
+   above no longer reaches the modal's flex column, and the shell (which
+   only declares `position: relative; overflow: hidden`, no bounded
+   height) grows to the full un-scrolled table height instead, pushing
+   rows past the modal's max-height with no internal scrollbar. Scoped to
+   this modal only — every other .scroll-shadow-shell usage (Weight
+   Integrity Issues, Unmatched DT Rows, etc.) keeps its original block
+   layout, unaffected. */
+.view-all-modal .scroll-shadow-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* ==========================================================================
    Horizontal scroll-edge indicators (Phase C2, restructured v1.2.0 §16)
    Purely decorative overlays (aria-hidden, pointer-events: none) created by
