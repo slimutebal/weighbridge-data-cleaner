@@ -271,7 +271,7 @@ test("F - out-of-window rows stay in one DS group as informational notes only", 
 });
 
 // --- TEST G: TSV schema/column-order non-regression.
-test("G - TSV output schema and column order are unchanged", async () => {
+test("G - TSV output uses the approved 12-column schema and excludes Profile", async () => {
   const rows = Array.from({ length: 6 }, (_, i) => buildValidRow(i));
   const buffer = buildWorkbookBuffer(FULL_HEADERS, rows, { trailingBlankRows: 6 });
   const { result } = await readAndClean(buffer);
@@ -289,7 +289,6 @@ test("G - TSV output schema and column order are unchanged", async () => {
     "PILE ID",
     "Source",
     "Grade",
-    "Profile",
   ]);
 
   const tsv = rowsToTsv(result.cleanRows);

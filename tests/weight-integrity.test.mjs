@@ -583,7 +583,6 @@ test("O - TSV output schema/column order/row count unchanged; no weight-integrit
     "PILE ID",
     "Source",
     "Grade",
-    "Profile",
   ]);
 
   const tsv = rowsToTsv(result.cleanRows);

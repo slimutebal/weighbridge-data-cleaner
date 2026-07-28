@@ -369,7 +369,6 @@ test("K - TSV non-regression: schema/column order unchanged, approval metadata n
     "PILE ID",
     "Source",
     "Grade",
-    "Profile",
   ]);
 
   const tsv = rowsToTsv(rows);

@@ -13,7 +13,6 @@ export const OUTPUT_COLUMN_ORDER = [
   "PILE ID",
   "Source",
   "Grade",
-  "Profile",
 ];
 
 export function rowsToTsv(rows, { includeHeader = false, decimalSeparator = "." } = {}) {
