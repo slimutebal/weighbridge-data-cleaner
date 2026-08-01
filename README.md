@@ -651,3 +651,16 @@ The app is offline-first and never requires network access to clean files:
   file-level warning and error strings) remain English-only, since core
   cleaning logic files were intentionally left unmodified in this phase.
   This does not affect cleaned data, tonnage, or copied/exported output.
+
+---
+
+## License
+
+This project is proprietary and not open source.
+
+Copyright © 2026 Illofiajie. All rights reserved.
+
+Public visibility on GitHub is provided only for deployment and maintenance purposes.  
+Use, copying, modification, redistribution, rebranding, resale, or ownership claims are prohibited without prior written permission.
+
+Authorized use is limited to the approved internal company/work environment only.
