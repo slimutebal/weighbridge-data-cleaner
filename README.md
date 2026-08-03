@@ -1,12 +1,10 @@
 # Weighbridge Data Cleaner
 
-Offline-first local web app for cleaning HYNC, SLNC, and ESG weighbridge Excel source files.
+Offline-first local web app for cleaning weighbridge Excel source files.
 
 See `docs/INFRASTRUCTURE_BLUEPRINT.md` for the confirmed infrastructure reference,
 `docs/CLEANING_LOGIC_SPEC.md` for the exact cleaning rules per profile, and
 `docs/LEGACY_PARITY_PROFILE.md` for the legacy baseline this app targets.
-
-## v0.2 Operational Pilot
 
 **Status: v0.2 Operational Pilot — PASS.** v1.0 preparation is now in its
 final release checklist stage — v1.0 has **not** been tagged yet. Use
