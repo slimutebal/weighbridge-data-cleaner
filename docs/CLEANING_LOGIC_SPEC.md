@@ -798,3 +798,68 @@ blocking.
    profile-wide override anywhere — resolution is always one row at a
    time.
 ```
+
+---
+
+## 21. Low Net Weight Confirmation (v1.3.0, D012)
+
+An additional, independent operational validation layer implemented in
+`js/core/net-weight-validation.js`. Uses the RECORDED source Net value
+only — never Calculated Net:
+
+```text
+HYNC   Recorded Net = 净重 (same field D010 already parses).
+SLNC   Recorded Net = 净重.
+ESG    Recorded Net = TIMBANGAN BERSIH.
+
+Threshold: config/app-config.json "minimumNetWeight.<PROFILE>"
+  { enabled, thresholdTonnes } — all three profiles at 20.00 tonnes today.
+
+Rule:
+  Recorded Net <  threshold -> LOW_NET_WEIGHT, blocking, copy disabled.
+  Recorded Net >= threshold -> valid, passes.
+```
+
+Validation logic (`validateMinimumNetWeight()`):
+
+```text
+1. Reuses the row's already-computed §19 weight-integrity result
+   (recordedNetMinorUnits, sourceUnit, decimalPlaces) — never a second
+   parse of the raw source cell.
+2. If Recorded Net failed to parse, or the row already carries
+   INVALID_GROSS_WEIGHT / INVALID_TARE_WEIGHT / INVALID_RECORDED_NET_WEIGHT
+   / NEGATIVE_WEIGHT_VALUE / GROSS_BELOW_TARE, this check does not run —
+   weight-integrity remains sole authority for that row (no duplicate
+   issue for the same root cause). A WEIGHT_CALCULATION_MISMATCH row's
+   Recorded Net is still a trustworthy parsed number, so it remains
+   independently eligible here — a row can carry both issues.
+3. Converts thresholdTonnes into the same scaled-integer minor-unit
+   system as recordedNetMinorUnits (kg for HYNC/SLNC, hundredths of a
+   tonne for ESG), via parseToMinorUnits() — never a floating-point
+   tonnage comparison.
+4. recordedNetMinorUnits < thresholdMinorUnits -> LOW_NET_WEIGHT
+   (blocking); otherwise valid, no issue.
+```
+
+Non-negotiable business rule (D012): detection and reporting only.
+Recorded Net is never modified; the clean output Net and TSV export
+always continue to use the recorded source Net. The affected row is not
+dropped: it remains visible in Clean Data Preview and is not counted as
+a lost row, and it does not create a new shift group.
+
+Resolution reuses §20's exact operational model (parallel, independent
+session-scoped store `js/core/low-net-weight-store.js` and dialog
+`js/ui/low-net-weight-dialog.js`): per-row only, "Confirmed by" +
+"Reference / reason" required for approval, Recorded Net never mutated,
+the finding never deleted from its table, approvals keyed to run id +
+group id + sourceRowId + recordedNetMinorUnits, cleared by every path
+that starts a new run. `unresolvedLowNetCount` /
+`approvedLowNetExceptionCount` feed `js/core/readiness.js` exactly like
+their weight-mismatch counterparts (own addend into the blocking count;
+an approved-only group is `READY_WITH_INFO`, never plain `READY`).
+
+Rendered as its own dedicated panel ("Net Below 20 Tonnes" /
+"Net < 20 Tonnes Approved" once fully approved), positioned after Weight
+Integrity Issues and before Other Blocking Issues — never merged into
+another panel, never one panel per row. The approved 12-column TSV/clean
+output schema (§15) is unchanged.

@@ -25,6 +25,10 @@ export async function runCleaning(bucketedFiles) {
   // the same app-config loader the UI shell already uses — see
   // js/core/weight-integrity.js for the shared validation module.
   const weightIntegrityConfig = appConfig.weightIntegrity || {};
+  // Low Net Weight Confirmation (v1.3.0) — same config-loading pattern,
+  // config/app-config.json "minimumNetWeight" — see
+  // js/core/net-weight-validation.js.
+  const minimumNetWeightConfig = appConfig.minimumNetWeight || {};
 
   const warnings = [];
   const fileErrors = [];
@@ -37,7 +41,12 @@ export async function runCleaning(bucketedFiles) {
       let profileId = null;
       let result = null;
       for (const cleaner of PROFILE_CLEANERS) {
-        const attempt = cleaner.clean(workbook, { joinContractor, listDt, weightIntegrityConfig });
+        const attempt = cleaner.clean(workbook, {
+          joinContractor,
+          listDt,
+          weightIntegrityConfig,
+          minimumNetWeightConfig,
+        });
         if (attempt) {
           profileId = cleaner.id;
           result = attempt;

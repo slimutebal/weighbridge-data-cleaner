@@ -160,3 +160,47 @@ mathematical validation from D010:
   exactly one panel and one table (carried over from D010, made explicit
   here because it is now load-bearing for the resolution UI too) — never
   one panel/table per mismatch row.
+
+## D012 - Low Net Weight Confirmation Reuses the D011 Exception Model (v1.3.0)
+
+Adds a second, independent operational validation layer: every candidate
+detail row's Recorded Net (source field, never Calculated Net) is
+compared against a configured minimum tonnage threshold
+(`config/app-config.json` `minimumNetWeight.<PROFILE>.thresholdTonnes`,
+20.00 tonnes for HYNC/SLNC/ESG today), computed in
+`js/core/net-weight-validation.js` and attached to each clean row as
+`_lowNetWeight`:
+
+- Recorded Net < threshold is blocking (`LOW_NET_WEIGHT`); exactly at or
+  above the threshold passes. The comparison reuses weight-integrity's
+  already-parsed `recordedNetMinorUnits` and its scaled-integer
+  (`parseToMinorUnits`) machinery — never a second raw-cell parse and
+  never a floating-point tonnage comparison;
+- invalid-weight precedence: a row whose Gross/Tare/Recorded Net is
+  already invalid, negative, or Gross-below-Tare (D010's other issue
+  codes) is not additionally flagged `LOW_NET_WEIGHT` for the same root
+  cause — weight-integrity stays sole authority for that row. A
+  `WEIGHT_CALCULATION_MISMATCH` row's Recorded Net is still a trustworthy
+  parsed number, so it remains independently eligible for its own
+  low-net comparison — a row can carry both issues at once;
+- resolution reuses D011's exact operational model, via a parallel,
+  independent session-scoped store (`js/core/low-net-weight-store.js`)
+  and dialog (`js/ui/low-net-weight-dialog.js`): per-row only, "Confirmed
+  by" + "Reference / reason" required, Recorded Net never mutated, the
+  low-net finding never deleted from the table, approvals keyed to run
+  id + group id + `sourceRowId` + `recordedNetMinorUnits` (never
+  filename/row-number/NO.NOTA alone), and cleared by every path that
+  starts a new run (Refresh Cleaning, Clear/Reset, new upload);
+- readiness tracks `unresolvedLowNetCount` /
+  `approvedLowNetExceptionCount` exactly like the weight-mismatch
+  counterparts, added as its own addend into `computeGroupReadiness`'s
+  blocking count (`js/core/readiness.js`) — a group with zero unresolved
+  low-net rows and at least one approved exception is `READY_WITH_INFO`,
+  never plain `READY`;
+- rendered as its own dedicated panel ("Net Below 20 Tonnes" / collapses
+  to "Net < 20 Tonnes Approved" once fully approved), positioned after
+  Weight Integrity Issues and before Other Blocking Issues — never merged
+  into any other panel, and never one panel per row;
+- the approved 12-column TSV/clean output schema is unchanged: Recorded
+  Net is what's copied, and no threshold/status/confirmation field ever
+  enters the output.

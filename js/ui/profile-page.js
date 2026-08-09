@@ -10,6 +10,8 @@ import { getEffectiveValidation, summarizeGroupReadiness } from "./group-readine
 import { WEIGHT_ISSUE_CODES, parseSourceRowId } from "../core/weight-integrity.js";
 import { getApproval, revokeException } from "../core/weight-exception-store.js";
 import { openWeightExceptionDialog } from "./weight-exception-dialog.js";
+import { getLowNetApproval, revokeLowNetException } from "../core/low-net-weight-store.js";
+import { openLowNetWeightDialog } from "./low-net-weight-dialog.js";
 import { OUTPUT_COLUMN_ORDER } from "../core/tsv-exporter.js";
 import { getGroupKey } from "../core/group-key.js";
 import { openViewAllRowsModal } from "./view-all-modal.js";
@@ -504,6 +506,186 @@ function renderWeightIntegrityIssues(container, group, decimalSeparator, groupId
   container.appendChild(details);
 }
 
+function lowNetWeightKeyFields(lnw) {
+  return {
+    sourceRowId: lnw.sourceRowId,
+    recordedNetMinorUnits: lnw.recordedNetMinorUnits,
+  };
+}
+
+function createLowNetResolutionSummary(effectiveValidation) {
+  const wrap = document.createElement("div");
+  wrap.className = "weight-exception-summary";
+  [
+    [t("profile.lowNetWeightTotal"), effectiveValidation.totalLowNetCount],
+    [t("profile.lowNetWeightUnresolved"), effectiveValidation.unresolvedLowNetCount],
+    [t("profile.lowNetWeightApproved"), effectiveValidation.approvedLowNetExceptionCount],
+  ].forEach(([label, value]) => {
+    const item = document.createElement("span");
+    item.className = "weight-exception-summary-item";
+    const labelEl = document.createElement("span");
+    labelEl.className = "weight-exception-summary-label";
+    labelEl.textContent = `${label}: `;
+    const valueEl = document.createElement("span");
+    valueEl.className = "weight-exception-summary-value";
+    valueEl.textContent = String(value);
+    item.appendChild(labelEl);
+    item.appendChild(valueEl);
+    wrap.appendChild(item);
+  });
+  return wrap;
+}
+
+// Builds the Resolution Status + Action cells for one LOW_NET_WEIGHT row.
+// Mirrors buildResolutionCells's approved/unresolved branches — every row
+// in this table is always actionable (validation.lowNetWeightRows only
+// ever contains rows with issueCode === LOW_NET_WEIGHT), unlike the
+// weight-integrity table, which also carries non-actionable issue types.
+function buildLowNetResolutionCells(row, group, groupId, decimalSeparator, onChanged) {
+  const lnw = row._lowNetWeight;
+  const statusTd = document.createElement("td");
+  const actionTd = document.createElement("td");
+
+  const approval = getLowNetApproval({ groupId, ...lowNetWeightKeyFields(lnw) });
+
+  if (approval) {
+    const statusWrap = document.createElement("div");
+    statusWrap.className = "resolution-status resolution-status-approved";
+    const statusLine = document.createElement("div");
+    statusLine.textContent = t("profile.weightIntegrityApprovedStatus");
+    statusWrap.appendChild(statusLine);
+    const detailLine = document.createElement("div");
+    detailLine.className = "resolution-status-detail";
+    detailLine.textContent = t("profile.weightIntegrityApprovedDetail", {
+      confirmedBy: approval.confirmedBy,
+      reference: approval.confirmationReference,
+      time: new Date(approval.confirmedAt).toLocaleString(),
+    });
+    statusWrap.appendChild(detailLine);
+    statusTd.appendChild(statusWrap);
+
+    const revokeBtn = document.createElement("button");
+    revokeBtn.type = "button";
+    revokeBtn.className = "btn-secondary";
+    revokeBtn.textContent = t("weightException.revoke");
+    revokeBtn.addEventListener("click", () => {
+      revokeLowNetException({ groupId, ...lowNetWeightKeyFields(lnw) });
+      if (onChanged) onChanged();
+    });
+    actionTd.appendChild(revokeBtn);
+  } else {
+    const statusWrap = document.createElement("span");
+    statusWrap.className = "resolution-status resolution-status-unresolved";
+    statusWrap.textContent = t("profile.weightIntegrityUnresolvedStatus");
+    statusTd.appendChild(statusWrap);
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "btn-secondary";
+    confirmBtn.textContent = t("weightException.confirmRow");
+    confirmBtn.addEventListener("click", () => {
+      openLowNetWeightDialog({ row, group, groupId, decimalSeparator }, onChanged, confirmBtn);
+    });
+    actionTd.appendChild(confirmBtn);
+  }
+
+  return [statusTd, actionTd];
+}
+
+// Low Net Weight Confirmation (v1.3.0, phase spec §9-10) is its own
+// dedicated panel — never merged into Weight Calculation Mismatch,
+// Unmatched DT Rows, Other Blocking Issues, or Timestamp Window Notes —
+// exactly one panel and one table for the whole group, one row per
+// affected source row, rendered only when at least one row is below the
+// configured minimum threshold. Recorded Net is shown as-is and never
+// replaced; the row itself always remains visible in Clean Data Preview
+// below regardless of resolution state.
+function renderLowNetWeightIssues(container, group, decimalSeparator, groupId, effectiveValidation, onChanged) {
+  const rows = group.validation.lowNetWeightRows;
+  if (!rows || !rows.length) return;
+
+  const hasUnresolved = effectiveValidation.unresolvedLowNetCount > 0;
+
+  const details = document.createElement("details");
+  details.className = hasUnresolved ? "blocking-issues-details" : "info-details";
+  details.open = hasUnresolved;
+
+  const summary = document.createElement("summary");
+  summary.textContent = hasUnresolved
+    ? t("profile.lowNetWeightHeading", { count: rows.length })
+    : t("profile.lowNetWeightApprovedHeading", { count: rows.length });
+  details.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = hasUnresolved ? "blocking-issues-body" : "info-details-body";
+
+  const note = document.createElement("p");
+  note.className = "placeholder-text";
+  note.textContent = hasUnresolved
+    ? t("profile.lowNetWeightNote")
+    : t("profile.lowNetWeightApprovedNote");
+  body.appendChild(note);
+
+  body.appendChild(createLowNetResolutionSummary(effectiveValidation));
+
+  const wrap = document.createElement("div");
+  wrap.className = "summary-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "summary-table";
+
+  const columns = [
+    "Source Row",
+    "NO.NOTA",
+    "NO. DT",
+    "Datetime",
+    "PILE ID",
+    t("weightException.recordedNet"),
+    t("profile.lowNetWeightMinimumColumn"),
+    t("profile.lowNetWeightBelowByColumn"),
+    t("profile.weightIntegrityStatusColumn"),
+    t("profile.weightIntegrityActionColumn"),
+  ];
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  columns.forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  rows.forEach((row) => {
+    const lnw = row._lowNetWeight;
+    const tr = document.createElement("tr");
+    [
+      extractSourceRowNumber(lnw.sourceRowId),
+      String(row["NO.NOTA"] ?? ""),
+      String(row["NO. DT"] ?? ""),
+      row.Datetime instanceof Date ? formatFullDatetime(row.Datetime) : "",
+      String(row["PILE ID"] ?? ""),
+      formatWeightMinorUnits(lnw.recordedNetMinorUnits, lnw.decimalPlaces, lnw.sourceUnit, decimalSeparator),
+      formatWeightMinorUnits(lnw.thresholdMinorUnits, lnw.decimalPlaces, lnw.sourceUnit, decimalSeparator),
+      formatWeightMinorUnits(lnw.belowThresholdMinorUnits, lnw.decimalPlaces, lnw.sourceUnit, decimalSeparator),
+    ].forEach((text) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    buildLowNetResolutionCells(row, group, groupId, decimalSeparator, onChanged).forEach((td) => tr.appendChild(td));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  attachTableScrollIndicators(wrap);
+  body.appendChild(wrap);
+
+  details.appendChild(body);
+  container.appendChild(details);
+}
+
 // Timestamp Window Notes is informational only (never blocking): rendered
 // only when count > 0, collapsed by default (section 9).
 function renderShiftWarningRows(container, group) {
@@ -749,6 +931,10 @@ function buildBlockingSummaryText(validation) {
   if (validation.weightIntegrityIssueCount > 0) {
     items.push(t("blockingSummary.weightIntegrity", { count: validation.weightIntegrityIssueCount }));
   }
+  const unresolvedLowNetCount = validation.unresolvedLowNetCount ?? validation.lowNetWeightCount ?? 0;
+  if (unresolvedLowNetCount > 0) {
+    items.push(t("blockingSummary.lowNetWeight", { count: unresolvedLowNetCount }));
+  }
   if (validation.unmatchedDtCount > 0) {
     items.push(t("blockingSummary.unmatchedDt", { count: validation.unmatchedDtCount }));
   }
@@ -822,7 +1008,16 @@ function buildGroupHeaderContent(group, readiness, effectiveValidation) {
 // single active group — collapsed groups never get this body constructed
 // at all, which is what guarantees no orphaned/stale detail can appear
 // (section 3, 13): there is no hidden-but-present DOM to go stale.
-function renderGroupBody(body, group, groupKey, readiness, decimalSeparator, effectiveValidation, onWeightExceptionChanged) {
+function renderGroupBody(
+  body,
+  group,
+  groupKey,
+  readiness,
+  decimalSeparator,
+  effectiveValidation,
+  onWeightExceptionChanged,
+  onLowNetExceptionChanged
+) {
   // 2. Cleaning Status
   renderCleaningStatus(body, readiness);
 
@@ -867,6 +1062,11 @@ function renderGroupBody(body, group, groupKey, readiness, decimalSeparator, eff
   // Blocking Issues (§10 of the original spec / §3 of the v1.2.0 spec).
   renderWeightIntegrityIssues(body, group, decimalSeparator, groupKey, effectiveValidation, onWeightExceptionChanged);
 
+  // 7c. Low Net Weight Confirmation (v1.3.0) — conditional, placed after
+  // Weight Integrity Issues and before Other Blocking Issues (phase
+  // spec §9).
+  renderLowNetWeightIssues(body, group, decimalSeparator, groupKey, effectiveValidation, onLowNetExceptionChanged);
+
   // 8. Other Blocking Issues — conditional, expanded by default
   renderOtherBlockingIssues(body, readiness);
 
@@ -887,7 +1087,11 @@ function sanitizeForId(key) {
 // (section 4): that group is always open and has nothing to collapse into,
 // so its header is a static (non-interactive) label rather than a button
 // that would do nothing when clicked.
-function renderGroupCard(group, decimalSeparator, { isOpen, isToggleable, onToggle, onWeightExceptionChanged }) {
+function renderGroupCard(
+  group,
+  decimalSeparator,
+  { isOpen, isToggleable, onToggle, onWeightExceptionChanged, onLowNetExceptionChanged }
+) {
   const groupKey = getGroupKey(group);
   // Approval-adjusted validation (v1.2.0) — the single object used for
   // every readiness/count/label decision below, so the Cleaning Status,
@@ -927,7 +1131,16 @@ function renderGroupCard(group, decimalSeparator, { isOpen, isToggleable, onTogg
     const body = document.createElement("div");
     body.className = "group-details-body";
     body.id = bodyId;
-    renderGroupBody(body, group, groupKey, readiness, decimalSeparator, effectiveValidation, onWeightExceptionChanged);
+    renderGroupBody(
+      body,
+      group,
+      groupKey,
+      readiness,
+      decimalSeparator,
+      effectiveValidation,
+      onWeightExceptionChanged,
+      onLowNetExceptionChanged
+    );
     card.appendChild(body);
   }
 
@@ -976,7 +1189,16 @@ export function renderProfilePage(
   container,
   groups,
   decimalSeparator = ".",
-  { activeGroupKey = null, onToggleGroup = () => {}, onWeightExceptionChanged = () => {} } = {}
+  {
+    activeGroupKey = null,
+    onToggleGroup = () => {},
+    onWeightExceptionChanged = () => {},
+    // Defaults to the same callback as weight exceptions (both just need
+    // "re-render the panel + refresh action bar readiness") — a caller
+    // that only ever passed onWeightExceptionChanged still gets correct
+    // low-net resolution re-rendering with no call-site changes required.
+    onLowNetExceptionChanged = onWeightExceptionChanged,
+  } = {}
 ) {
   resetScrollCleanups();
   container.innerHTML = "";
@@ -993,6 +1215,7 @@ export function renderProfilePage(
         isToggleable: false,
         onToggle: onToggleGroup,
         onWeightExceptionChanged,
+        onLowNetExceptionChanged,
       })
     );
     return;
@@ -1008,6 +1231,7 @@ export function renderProfilePage(
         isToggleable: true,
         onToggle: onToggleGroup,
         onWeightExceptionChanged,
+        onLowNetExceptionChanged,
       })
     );
   });

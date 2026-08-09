@@ -12,6 +12,7 @@ import {
   deriveBuyerHyncSlnc,
 } from "../../core/normalizers.js";
 import { validateWeightIntegrity } from "../../core/weight-integrity.js";
+import { validateMinimumNetWeight } from "../../core/net-weight-validation.js";
 
 const REQUIRED_HEADERS = [
   "流水号",
@@ -34,7 +35,7 @@ const TIMESTAMP_HEADER = "毛重时间";
 const SPEC_HEADER = "规格";
 const PROFILE_ID = "SLNC";
 
-export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig }) {
+export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig, minimumNetWeightConfig }) {
   const cleanRows = [];
   const lostRows = [];
   const skippedRows = [];
@@ -133,6 +134,17 @@ export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig 
       sourceRowId,
     });
 
+    // Low Net Weight Confirmation (v1.3.0): reuses the weight-integrity
+    // result's already-parsed recordedNetMinorUnits — never a second
+    // parse of the raw 净重 cell. Validation metadata only; Net (netRaw)
+    // continues unmodified regardless of the outcome.
+    const lowNetWeight = validateMinimumNetWeight({
+      weightIntegrity,
+      profile: PROFILE_ID,
+      config: minimumNetWeightConfig,
+      sourceRowId,
+    });
+
     cleanRows.push({
       TANGGAL: toDateKey(reportDate),
       "NO. DT": normalizedDtId,
@@ -151,6 +163,7 @@ export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig 
       _rawDtId: dtIdRaw,
       _sourceRowId: sourceRowId,
       _weightIntegrity: weightIntegrity,
+      _lowNetWeight: lowNetWeight,
     });
   });
 

@@ -198,5 +198,25 @@ export function renderValidation(container, validation, decimalSeparator = ".", 
     createMetricRow(t("validation.negativeWeightValue"), validation.negativeWeightValueCount)
   );
 
+  // Low Net Weight Confirmation metrics (v1.3.0) — same Total/Unresolved/
+  // Approved distinction as the weight-mismatch metrics above, never
+  // folded into "0" once every low-Net row has been approved (phase spec
+  // §18).
+  wrap.appendChild(
+    createMetricRow(
+      t("validation.lowNetWeightTotal"),
+      validation.totalLowNetCount ?? validation.lowNetWeightCount ?? 0
+    )
+  );
+  wrap.appendChild(
+    createMetricRow(
+      t("validation.lowNetWeightUnresolved"),
+      validation.unresolvedLowNetCount ?? validation.lowNetWeightCount ?? 0
+    )
+  );
+  wrap.appendChild(
+    createMetricRow(t("validation.lowNetWeightApproved"), validation.approvedLowNetExceptionCount || 0)
+  );
+
   container.appendChild(wrap);
 }

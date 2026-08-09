@@ -8,13 +8,21 @@
 // inconsistently across result-page.js / profile-page.js / overview-page.js.
 import { getGroupKey } from "../core/group-key.js";
 import { applyApprovalsToValidation } from "../core/weight-exception-store.js";
+import { applyLowNetApprovalsToValidation } from "../core/low-net-weight-store.js";
 import {
   computeGroupReadiness,
   summarizeGroupReadiness as summarizeGroupReadinessCore,
 } from "../core/readiness.js";
 
+// Chains both session-scoped approval stores (weight exceptions, D011;
+// low-net exceptions, v1.3.0) over the group's raw validation, so every
+// caller sees one single effective validation object and the Cleaning
+// Status, Validation Report, collapsed-header substatus, and both issue
+// panels can never disagree about what's still unresolved.
 export function getEffectiveValidation(group) {
-  return applyApprovalsToValidation(group.validation, getGroupKey(group));
+  const groupId = getGroupKey(group);
+  const withWeightApprovals = applyApprovalsToValidation(group.validation, groupId);
+  return applyLowNetApprovalsToValidation(withWeightApprovals, groupId);
 }
 
 export function getGroupReadiness(group) {

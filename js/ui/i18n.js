@@ -143,6 +143,9 @@ const translations = {
     "validation.invalidRecordedNetWeight": "Invalid Recorded Net",
     "validation.grossBelowTare": "Gross Below Tare",
     "validation.negativeWeightValue": "Negative Weight Values",
+    "validation.lowNetWeightTotal": "Net < 20 Tonnes",
+    "validation.lowNetWeightUnresolved": "Unconfirmed",
+    "validation.lowNetWeightApproved": "Approved Exceptions",
     "validation.placeholder": "Validation and report details will appear here after cleaning is run.",
 
     // Overview
@@ -248,6 +251,24 @@ const translations = {
     "weightIntegrity.issue.invalidRecordedNet": "Invalid Recorded Net weight",
     "weightIntegrity.issue.negativeWeight": "Negative weight value",
     "weightIntegrity.issue.grossBelowTare": "Gross weight below Tare weight",
+    "profile.lowNetWeightHeading": "Net Below 20 Tonnes ({{count}}) — Weighbridge team confirmation required",
+    "profile.lowNetWeightNote":
+      "These rows have a valid Recorded Net below the configured minimum threshold of 20.00 tonnes. Confirm with the weighbridge team whether the recorded raw Net can be used — this app never modifies Net automatically. Recorded Net stays exactly as sourced.",
+    "profile.lowNetWeightApprovedHeading": "Net < 20 Tonnes Approved ({{count}}) — Raw Net in use",
+    "profile.lowNetWeightApprovedNote":
+      "Every low-Net row below has an operator-recorded weighbridge-team confirmation to keep using the recorded raw Net. The underlying low-Net finding stays visible here for audit — nothing was corrected automatically.",
+    "profile.lowNetWeightMinimumColumn": "Minimum",
+    "profile.lowNetWeightBelowByColumn": "Below Threshold By",
+    "profile.lowNetWeightTotal": "Net < 20 Ton total",
+    "profile.lowNetWeightUnresolved": "Unconfirmed",
+    "profile.lowNetWeightApproved": "Approved raw-Net exceptions",
+    "lowNetException.minimum": "Minimum threshold",
+    "lowNetException.belowBy": "Below threshold by",
+    "lowNetException.optionA": "Source file will be corrected by the weighbridge team",
+    "lowNetException.optionANote":
+      "No exception is created. This low-Net finding remains unresolved and copy stays blocked until a corrected source file is re-uploaded and cleaning is re-run.",
+    "lowNetException.optionB": "Weighbridge team confirms the raw Net can be used",
+    "blockingSummary.lowNetWeight": "{{count}} Net <20 t unconfirmed",
     "profile.otherBlockingHeading": "Other Blocking Issues ({{count}}) — Action required",
     "profile.blockingCategoryNoRows":
       "See Validation Report for the count. Row-level detail is not tracked for this category.",
@@ -405,6 +426,9 @@ const translations = {
     "validation.invalidRecordedNetWeight": "Berat Bersih Tercatat Tidak Valid",
     "validation.grossBelowTare": "Berat Kotor Di Bawah Tara",
     "validation.negativeWeightValue": "Nilai Berat Negatif",
+    "validation.lowNetWeightTotal": "Net < 20 Ton",
+    "validation.lowNetWeightUnresolved": "Belum Dikonfirmasi",
+    "validation.lowNetWeightApproved": "Pengecualian Disetujui",
     "validation.placeholder": "Detail validasi dan laporan akan muncul di sini setelah pembersihan dijalankan.",
 
     // Overview
@@ -510,6 +534,24 @@ const translations = {
     "weightIntegrity.issue.invalidRecordedNet": "Berat Bersih Tercatat tidak valid",
     "weightIntegrity.issue.negativeWeight": "Nilai berat negatif",
     "weightIntegrity.issue.grossBelowTare": "Berat Kotor di bawah Berat Tara",
+    "profile.lowNetWeightHeading": "Net di Bawah 20 Ton ({{count}}) — Perlu konfirmasi tim timbangan",
+    "profile.lowNetWeightNote":
+      "Baris ini memiliki Net Tercatat yang valid namun di bawah ambang batas minimum 20,00 ton yang dikonfigurasi. Konfirmasikan dengan tim timbangan apakah Net raw yang tercatat dapat digunakan — aplikasi ini tidak pernah mengubah Net secara otomatis. Net Tercatat tetap sesuai sumber aslinya.",
+    "profile.lowNetWeightApprovedHeading": "Net < 20 Ton Disetujui ({{count}}) — Net raw digunakan",
+    "profile.lowNetWeightApprovedNote":
+      "Setiap baris Net rendah di bawah ini telah memiliki konfirmasi tim timbangan yang dicatat operator untuk tetap menggunakan Net raw yang tercatat. Temuan Net rendah tetap terlihat di sini untuk audit — tidak ada yang diperbaiki secara otomatis.",
+    "profile.lowNetWeightMinimumColumn": "Minimum",
+    "profile.lowNetWeightBelowByColumn": "Kurang Dari Batas",
+    "profile.lowNetWeightTotal": "Total Net < 20 Ton",
+    "profile.lowNetWeightUnresolved": "Belum Dikonfirmasi",
+    "profile.lowNetWeightApproved": "Pengecualian Net raw disetujui",
+    "lowNetException.minimum": "Batas minimum",
+    "lowNetException.belowBy": "Kurang dari batas minimum sebesar",
+    "lowNetException.optionA": "File sumber akan diperbaiki oleh tim timbangan",
+    "lowNetException.optionANote":
+      "Tidak ada pengecualian yang dibuat. Temuan Net rendah ini tetap belum dikonfirmasi dan penyalinan tetap diblokir sampai file sumber yang telah diperbaiki diunggah ulang dan pembersihan dijalankan ulang.",
+    "lowNetException.optionB": "Tim timbangan mengonfirmasi Net raw dapat digunakan",
+    "blockingSummary.lowNetWeight": "{{count}} Net <20 t belum dikonfirmasi",
     "profile.otherBlockingHeading": "Masalah Penghambat Lainnya ({{count}}) — Perlu tindakan",
     "profile.blockingCategoryNoRows":
       "Lihat Laporan Validasi untuk jumlahnya. Detail per baris tidak dilacak untuk kategori ini.",

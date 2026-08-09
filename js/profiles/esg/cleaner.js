@@ -11,6 +11,7 @@ import {
   deriveBuyerEsg,
 } from "../../core/normalizers.js";
 import { validateWeightIntegrity } from "../../core/weight-integrity.js";
+import { validateMinimumNetWeight } from "../../core/net-weight-validation.js";
 
 const REQUIRED_HEADERS = [
   "TIMBANGAN ISI",
@@ -64,7 +65,7 @@ function normalizeEsgSourceSeparators(value) {
   return trimmed;
 }
 
-export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig }) {
+export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig, minimumNetWeightConfig }) {
   const cleanRows = [];
   const lostRows = [];
   const skippedRows = [];
@@ -164,6 +165,18 @@ export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig 
         sourceRowId,
       });
 
+      // Low Net Weight Confirmation (v1.3.0): reuses the weight-integrity
+      // result's already-parsed recordedNetMinorUnits — never a second
+      // parse of the raw TIMBANGAN BERSIH cell. Validation metadata
+      // only; Net (netRaw) continues unmodified regardless of the
+      // outcome.
+      const lowNetWeight = validateMinimumNetWeight({
+        weightIntegrity,
+        profile: PROFILE_ID,
+        config: minimumNetWeightConfig,
+        sourceRowId,
+      });
+
       cleanRows.push({
         TANGGAL: toDateKey(reportDate),
         "NO. DT": normalizedDtId,
@@ -181,6 +194,7 @@ export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig 
         _timestamp: timestamp,
         _sourceRowId: sourceRowId,
         _weightIntegrity: weightIntegrity,
+        _lowNetWeight: lowNetWeight,
         _rawDtId: dtIdRaw,
       });
     }

@@ -106,18 +106,34 @@ export function computeGroupReadiness(validation) {
   // which only covers categories rendered inside the generic Other Blocking
   // Issues panel.
   const weightIntegrityBlockingCount = validation.weightIntegrityIssueCount || 0;
-  const blockingCount = validation.unmatchedDtCount + otherBlockingCount + weightIntegrityBlockingCount;
+  // Low Net Weight Confirmation (v1.3.0) has its own dedicated report
+  // section (js/ui/profile-page.js, between Weight Integrity Issues and
+  // Other Blocking Issues) — kept as its own addend here for the same
+  // reason weightIntegrityBlockingCount is: never folded into
+  // otherBlocking/otherBlockingCount. Only the *unresolved* count blocks
+  // — a caller that never applies low-net approvals (unresolvedLowNetCount
+  // undefined) falls back to the raw total, matching the pre-approval
+  // v1.1.0-era behavior of every other blocking category here.
+  const lowNetBlockingCount =
+    validation.unresolvedLowNetCount ?? validation.lowNetWeightCount ?? 0;
+  const blockingCount =
+    validation.unmatchedDtCount + otherBlockingCount + weightIntegrityBlockingCount + lowNetBlockingCount;
 
-  // Approved weight exceptions (v1.2.0, D011) are informational, never
-  // "fully clean" — a group with zero unresolved mismatches but one or
-  // more approved exceptions must still surface as READY_WITH_INFO, not
-  // plain READY, even when there is no shift-warning note. Additive: a
-  // caller that never sets approvedWeightExceptionCount (v1.1.0 behavior)
-  // sees this branch evaluate to the same result as before.
+  // Approved weight/low-net exceptions (v1.2.0 D011, v1.3.0) are
+  // informational, never "fully clean" — a group with zero unresolved
+  // issues but one or more approved exceptions must still surface as
+  // READY_WITH_INFO, not plain READY, even when there is no shift-warning
+  // note. Additive: a caller that never sets approvedWeightExceptionCount/
+  // approvedLowNetExceptionCount (pre-approval behavior) sees this branch
+  // evaluate to the same result as before.
   let status = READINESS.READY;
   if (blockingCount > 0) {
     status = READINESS.ACTION_REQUIRED;
-  } else if (validation.shiftWarningCount > 0 || (validation.approvedWeightExceptionCount || 0) > 0) {
+  } else if (
+    validation.shiftWarningCount > 0 ||
+    (validation.approvedWeightExceptionCount || 0) > 0 ||
+    (validation.approvedLowNetExceptionCount || 0) > 0
+  ) {
     status = READINESS.READY_WITH_INFO;
   }
 
@@ -128,6 +144,7 @@ export function computeGroupReadiness(validation) {
     otherBlocking,
     otherBlockingCount,
     weightIntegrityBlockingCount,
+    lowNetBlockingCount,
     blockingCount,
   };
 }

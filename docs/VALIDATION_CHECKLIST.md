@@ -127,3 +127,52 @@ No other weight issue type has a resolution workflow.
       clean rows, never lost rows.
 - [ ] Output schema, TSV column order, and List DT matching are
       unchanged.
+
+## Low Net Weight Confirmation checks (v1.3.0, D012)
+
+For every candidate detail row, `js/core/net-weight-validation.js`
+checks the RECORDED source Net (never Calculated Net) against a
+configured minimum threshold (`config/app-config.json`
+`minimumNetWeight.<PROFILE>.thresholdTonnes`, 20.00 tonnes for all three
+profiles), reusing the row's already-parsed weight-integrity
+`recordedNetMinorUnits`:
+
+- [ ] `LOW_NET_WEIGHT` — Recorded Net parseable and non-negative (no
+      suppressing weight-integrity issue), strictly below the
+      threshold. Blocking.
+- [ ] Recorded Net exactly at the threshold passes (no issue); above the
+      threshold passes.
+- [ ] A row whose Gross/Tare/Recorded Net is already invalid, negative,
+      or Gross-below-Tare (D010) is never additionally flagged
+      `LOW_NET_WEIGHT` for the same root cause. A
+      `WEIGHT_CALCULATION_MISMATCH` row's Recorded Net is still
+      independently evaluated (its own row can carry both issues).
+- [ ] A low-net row never removes the row from Clean Data Preview, never
+      counts it as a lost row, and never creates/splits a shift group.
+- [ ] Recorded Net is never rewritten — confirmed by re-running cleaning
+      after a low-net finding and observing the clean output/TSV is
+      unchanged for that row.
+- [ ] Resolution is per-row only (no "Approve All"), via
+      `js/core/low-net-weight-store.js` / `js/ui/low-net-weight-dialog.js`
+      — the same operational model as D011's weight exceptions, kept as
+      an independent store/session run.
+- [ ] All low-net issue rows for one Cleaning Group render inside
+      exactly one panel and one table, positioned after Weight Integrity
+      Issues and before Other Blocking Issues — never merged with any
+      other panel, never one panel per row.
+- [ ] Approving a row preserves Recorded Net, does not delete the row's
+      finding from the table, and decreases the unresolved count by
+      exactly one; approving every low-net row in a group restores copy
+      eligibility only if no other blocking issue exists.
+- [ ] Revoking an approval ("Revoke Confirmation" / "Batalkan
+      Konfirmasi") restores blocking readiness immediately.
+- [ ] Approvals are scoped to the current in-memory result run: Refresh
+      Cleaning and Clear/Reset both start a fresh run with zero
+      approvals, and an approval keyed to a specific Recorded Net does
+      not apply to a row whose Recorded Net has changed.
+- [ ] Validation Report shows Net < 20 Ton total / Unconfirmed / Approved
+      Exceptions as distinct metrics.
+- [ ] TSV output is unaffected: approved 12-column schema unchanged,
+      Recorded Net is what's copied, and no threshold/status/confirmation
+      field (thresholdTonnes, confirmedBy, confirmationReference, notes,
+      confirmedAt, issue code) ever appears in the TSV.

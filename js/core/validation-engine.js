@@ -96,6 +96,14 @@ export function computeGroupValidation(group) {
     (row) => row._weightIntegrity.issueCode === WEIGHT_ISSUE_CODES.GROSS_BELOW_TARE
   );
 
+  // Low Net Weight Confirmation (v1.3.0): each clean row carries a
+  // _lowNetWeight result attached by its profile cleaner
+  // (js/core/net-weight-validation.js) — disabled/valid/not-applicable
+  // rows have issueCode === null and are excluded here.
+  const lowNetWeightRows = rows.filter(
+    (row) => row._lowNetWeight && row._lowNetWeight.issueCode
+  );
+
   return {
     rawRowCount,
     cleanRowCount,
@@ -134,5 +142,7 @@ export function computeGroupValidation(group) {
     negativeWeightValueRows,
     grossBelowTareCount: grossBelowTareRows.length,
     grossBelowTareRows,
+    lowNetWeightCount: lowNetWeightRows.length,
+    lowNetWeightRows,
   };
 }

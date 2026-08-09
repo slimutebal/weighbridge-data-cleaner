@@ -6,9 +6,11 @@ import { copyToClipboard } from "./clipboard-utils.js";
 import { READINESS } from "../core/readiness.js";
 import { getGroupReadiness, summarizeGroupReadiness } from "./group-readiness.js";
 import { startNewRun as startNewWeightExceptionRun } from "../core/weight-exception-store.js";
+import { startNewRun as startNewLowNetExceptionRun } from "../core/low-net-weight-store.js";
 import { getGroupKey } from "../core/group-key.js";
 import { closeViewAllRowsModal } from "./view-all-modal.js";
 import { closeWeightExceptionDialog } from "./weight-exception-dialog.js";
+import { closeLowNetWeightDialog } from "./low-net-weight-dialog.js";
 import { t, subscribeLanguage } from "./i18n.js";
 
 const PROFILE_ORDER = ["HYNC", "SLNC", "ESG"];
@@ -278,7 +280,9 @@ export function mountResultPage(
     // survive a Clear/Reset.
     closeViewAllRowsModal();
     closeWeightExceptionDialog();
+    closeLowNetWeightDialog();
     startNewWeightExceptionRun();
+    startNewLowNetExceptionRun();
     activeGroupKey = null;
     currentResult = { groups: [], warnings: [], fileErrors: [], listDtInfo: null };
     activeTab = "overview";
@@ -301,7 +305,9 @@ export function mountResultPage(
     // have changed.
     closeViewAllRowsModal();
     closeWeightExceptionDialog();
+    closeLowNetWeightDialog();
     startNewWeightExceptionRun();
+    startNewLowNetExceptionRun();
     activeGroupKey = null;
     currentResult = {
       groups: result.groups || [],
