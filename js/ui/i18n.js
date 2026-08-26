@@ -92,9 +92,6 @@ const translations = {
 
     // Results shell
     "results.heading": "Cleaning Results",
-    // Legacy Overview compatibility surface (UI-5B §19) — TEMPORARY, remove
-    // once UI-5C relocates Unmatched DT correction into Cleaning Groups.
-    "results.legacyOverviewButton": "Legacy DT Correction (Overview)",
     "results.copyAll": "Copy All Groups",
     "results.copyProfile": "Copy This Profile",
     "results.copied": "Copied!",
@@ -158,46 +155,42 @@ const translations = {
     "validation.lowNetWeightApproved": "Approved Exceptions",
     "validation.placeholder": "Validation and report details will appear here after cleaning is run.",
 
-    // Overview
-    "overview.profile": "Profile",
+    // Overview (Page 1 Cleaning Overview group table — cleaning-overview-page.js)
     "overview.date": "Date",
     "overview.bucket": "Bucket",
     "overview.rows": "Rows",
     "overview.netTonnage": "Net Tonnage",
-    "overview.missingContractor": "Missing Contractor",
-    "overview.missingSource": "Missing Source",
-    "overview.missingGrade": "Missing Grade",
-    "overview.timestampWindowNotes": "Timestamp Window Notes",
-    "overview.skippedRows": "Skipped Rows",
-    "overview.missing": "Missing",
-    "overview.information": "Information",
-    "overview.missingCompact": "C {{c}} · S {{s}} · G {{g}} · W {{w}}",
-    "overview.weightIntegrityIssues": "Weight Integrity Issues",
-    "overview.informationCompact": "Time {{time}} · Skip {{skip}}",
-    "overview.copyStatus": "Copy Status",
-    "overview.copyStatusReady": "Ready to Copy",
-    "overview.copyStatusBlocked": "Copy Blocked",
-    "overview.unmatchedDtCorrection": "Unmatched DT Correction",
-    "overview.unknownDt": "Unknown DT",
-    "overview.contractorInput": "Contractor input",
     "overview.status": "Status",
+    // Unmatched DT / New Unit contextual correction (UI-5C, js/ui/dt-correction-panel.js)
+    "overview.contractorInput": "Contractor input",
     "overview.contractorPlaceholder": "Contractor name",
-    "overview.noUnmatched": "No unmatched DT IDs in the currently uploaded files.",
     "overview.rawSourceValue": "Raw source value: {{value}}",
     "overview.unmatchedCount": "Unmatched ({{count}} row(s))",
-    "overview.updateBtn": "Update",
-    "overview.enterContractorFirst": "Enter at least one contractor name before clicking Update.",
+    "overview.enterContractorFirst": "Enter at least one contractor name before saving.",
     "overview.summaryNewSaved": "{{count}} new correction(s) saved",
     "overview.summaryAlreadyExisted": "{{count}} already existed (skipped)",
     "overview.summaryConflicts": "{{count}} conflict(s) need review",
     "overview.summaryNoChanges": "No changes.",
     "overview.alreadyExistsSkipped": "Already exists / duplicate skipped (contractor: \"{{contractor}}\").",
-    "overview.conflictExisting": "Conflict: existing contractor differs (existing: \"{{contractor}}\").",
+    "overview.conflictExisting":
+      "Conflict: existing contractor is \"{{contractor}}\" — not overwritten. Review manually.",
     "overview.syncedOk": "Synced to Google Sheet.",
     "overview.syncedDuplicate": "Already exists on Google Sheet.",
     "overview.syncedConflict": "Conflict: Google Sheet has a different contractor for this DT.",
     "overview.syncedPendingLocal": "Saved locally, pending Google Sheet sync.",
     "overview.syncedPendingLocalReason": "Saved locally, pending Google Sheet sync. ({{reason}})",
+
+    // Unmatched DT / New Unit correction panel (UI-5C, design spec §12)
+    "dtCorrection.heading": "Unmatched DT / New Unit ({{count}}) — Action required",
+    "dtCorrection.summaryCount": "{{rows}} affected rows · {{unique}} unique DT",
+    "dtCorrection.note":
+      "Enter a contractor for each unique NO. DT below, then click Save Mapping & Re-clean. Saved mappings apply to List DT immediately and cleaning re-runs automatically — you do not need to leave this group.",
+    "dtCorrection.rowsColumn": "Rows",
+    "dtCorrection.currentColumn": "Current",
+    "dtCorrection.contractorLabel": "Contractor for {{dtId}}",
+    "dtCorrection.saveButton": "Save Mapping & Re-clean",
+    "dtCorrection.viewAffectedRows": "View {{count}} affected rows — {{dtId}}",
+    "dtCorrection.moreCount": "+{{count}} more",
 
     // Profile page
     "profile.mainSummary": "Main Summary",
@@ -216,9 +209,6 @@ const translations = {
     "profile.timestampWindowNotesHeading": "Timestamp Window Notes ({{count}}) — Information only",
     "profile.timestampWindowNote":
       "{{count}} row(s) fall outside the nominal time window for the selected {{bucket}} bucket. They remain classified as {{bucket}}. No action is required.",
-    "profile.unmatchedDtHeading": "Unmatched DT Rows ({{count}}) — Action required",
-    "profile.unmatchedDtNote":
-      "These NO. DT values were not found in List DT. Add them to List DT (or fix the raw DT ID) and re-run cleaning. Source file(s): {{files}}.",
     "profile.weightIntegrityHeading": "Weight Integrity Issues ({{count}}) — Confirmation required",
     "profile.weightIntegrityNote":
       "These rows do not satisfy Gross − Tare = Recorded Net within the configured tolerance. Confirm the discrepancy with the weighbridge team and correct the source file — this app never rewrites Gross, Tare, or Recorded Net automatically. Re-upload the corrected file and re-run cleaning.",
@@ -393,9 +383,6 @@ const translations = {
 
     // Results shell
     "results.heading": "Hasil Pembersihan",
-    // Legacy Overview compatibility surface (UI-5B §19) — SEMENTARA, hapus
-    // setelah UI-5C memindahkan koreksi DT Tidak Cocok ke Cleaning Group.
-    "results.legacyOverviewButton": "Koreksi DT (Ringkasan Lama)",
     "results.copyAll": "Salin Semua Grup",
     "results.copyProfile": "Salin Profil Ini",
     "results.copied": "Tersalin!",
@@ -459,46 +446,42 @@ const translations = {
     "validation.lowNetWeightApproved": "Pengecualian Disetujui",
     "validation.placeholder": "Detail validasi dan laporan akan muncul di sini setelah pembersihan dijalankan.",
 
-    // Overview
-    "overview.profile": "Profil",
+    // Overview (Page 1 Cleaning Overview group table — cleaning-overview-page.js)
     "overview.date": "Tanggal",
     "overview.bucket": "Bucket",
     "overview.rows": "Baris",
     "overview.netTonnage": "Tonase Bersih",
-    "overview.missingContractor": "Kontraktor Tidak Ada",
-    "overview.missingSource": "Source Tidak Ada",
-    "overview.missingGrade": "Grade Tidak Ada",
-    "overview.timestampWindowNotes": "Catatan Jendela Waktu",
-    "overview.skippedRows": "Baris Dilewati",
-    "overview.missing": "Data Kosong",
-    "overview.information": "Informasi",
-    "overview.missingCompact": "K {{c}} · S {{s}} · G {{g}} · W {{w}}",
-    "overview.weightIntegrityIssues": "Masalah Integritas Berat",
-    "overview.informationCompact": "Waktu {{time}} · Lewati {{skip}}",
-    "overview.copyStatus": "Status Salin",
-    "overview.copyStatusReady": "Siap Disalin",
-    "overview.copyStatusBlocked": "Salin Diblokir",
-    "overview.unmatchedDtCorrection": "Koreksi DT Tidak Cocok",
-    "overview.unknownDt": "DT Tidak Diketahui",
-    "overview.contractorInput": "Input Kontraktor",
     "overview.status": "Status",
+    // Unmatched DT / New Unit contextual correction (UI-5C, js/ui/dt-correction-panel.js)
+    "overview.contractorInput": "Input Kontraktor",
     "overview.contractorPlaceholder": "Nama kontraktor",
-    "overview.noUnmatched": "Tidak ada ID DT yang tidak cocok pada file yang sedang diunggah.",
     "overview.rawSourceValue": "Nilai sumber mentah: {{value}}",
     "overview.unmatchedCount": "Tidak cocok ({{count}} baris)",
-    "overview.updateBtn": "Perbarui",
-    "overview.enterContractorFirst": "Masukkan setidaknya satu nama kontraktor sebelum mengklik Perbarui.",
+    "overview.enterContractorFirst": "Masukkan setidaknya satu nama kontraktor sebelum menyimpan.",
     "overview.summaryNewSaved": "{{count}} koreksi baru tersimpan",
     "overview.summaryAlreadyExisted": "{{count}} sudah ada sebelumnya (dilewati)",
     "overview.summaryConflicts": "{{count}} konflik perlu ditinjau",
     "overview.summaryNoChanges": "Tidak ada perubahan.",
     "overview.alreadyExistsSkipped": "Sudah ada / duplikat dilewati (kontraktor: \"{{contractor}}\").",
-    "overview.conflictExisting": "Konflik: kontraktor yang ada berbeda (kontraktor saat ini: \"{{contractor}}\").",
+    "overview.conflictExisting":
+      "Konflik: kontraktor yang ada adalah \"{{contractor}}\" — tidak ditimpa. Tinjau secara manual.",
     "overview.syncedOk": "Disinkronkan ke Google Sheet.",
     "overview.syncedDuplicate": "Sudah ada di Google Sheet.",
     "overview.syncedConflict": "Konflik: Google Sheet memiliki kontraktor berbeda untuk DT ini.",
     "overview.syncedPendingLocal": "Tersimpan secara lokal, menunggu sinkronisasi Google Sheet.",
     "overview.syncedPendingLocalReason": "Tersimpan secara lokal, menunggu sinkronisasi Google Sheet. ({{reason}})",
+
+    // Unmatched DT / New Unit correction panel (UI-5C, design spec §12)
+    "dtCorrection.heading": "DT Tidak Cocok / Unit Baru ({{count}}) — Perlu tindakan",
+    "dtCorrection.summaryCount": "{{rows}} baris terdampak · {{unique}} DT unik",
+    "dtCorrection.note":
+      "Masukkan kontraktor untuk setiap NO. DT unik di bawah ini, lalu klik Simpan Pemetaan & Bersihkan Ulang. Pemetaan yang disimpan langsung diterapkan ke List DT dan pembersihan berjalan ulang secara otomatis — Anda tidak perlu meninggalkan grup ini.",
+    "dtCorrection.rowsColumn": "Baris",
+    "dtCorrection.currentColumn": "Saat Ini",
+    "dtCorrection.contractorLabel": "Kontraktor untuk {{dtId}}",
+    "dtCorrection.saveButton": "Simpan Pemetaan & Bersihkan Ulang",
+    "dtCorrection.viewAffectedRows": "Lihat {{count}} baris terdampak — {{dtId}}",
+    "dtCorrection.moreCount": "+{{count}} lainnya",
 
     // Profile page
     "profile.mainSummary": "Ringkasan Utama",
@@ -517,9 +500,6 @@ const translations = {
     "profile.timestampWindowNotesHeading": "Catatan Jendela Waktu ({{count}}) — Hanya informasi",
     "profile.timestampWindowNote":
       "{{count}} baris berada di luar jendela waktu nominal untuk bucket {{bucket}} yang dipilih. Baris ini tetap diklasifikasikan sebagai {{bucket}}. Tidak diperlukan tindakan.",
-    "profile.unmatchedDtHeading": "Baris DT Tidak Cocok ({{count}}) — Perlu tindakan",
-    "profile.unmatchedDtNote":
-      "Nilai NO. DT ini tidak ditemukan di List DT. Tambahkan ke List DT (atau perbaiki ID DT mentah) lalu jalankan ulang pembersihan. File sumber: {{files}}.",
     "profile.weightIntegrityHeading": "Perbedaan Perhitungan Berat ({{count}}) — Perlu konfirmasi tim timbangan",
     "profile.weightIntegrityNote":
       "Baris ini tidak memenuhi Berat Kotor − Tara = Berat Bersih Tercatat dalam batas toleransi yang dikonfigurasi. Konfirmasikan perbedaan ini dengan tim timbangan dan perbaiki file sumber — aplikasi ini tidak pernah menulis ulang Berat Kotor, Tara, atau Berat Bersih Tercatat secara otomatis. Unggah ulang file yang telah diperbaiki lalu jalankan ulang pembersihan.",

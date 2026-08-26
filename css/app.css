@@ -445,14 +445,14 @@ input:focus-visible,
 }
 
 .app-nav-btn {
-  padding: 8px 20px;
+  padding: 6px 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
   font-family: inherit;
-  font-size: var(--fs-body);
+  font-size: 0.8rem;
   font-weight: 600;
   transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -463,8 +463,8 @@ input:focus-visible,
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  padding: 6px 16px;
+  gap: 1px;
+  padding: 5px 12px;
 }
 
 .app-nav-profile-label {
@@ -472,7 +472,7 @@ input:focus-visible,
 }
 
 .app-nav-profile-badge {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: normal;
   color: var(--color-text-muted);
 }
@@ -685,11 +685,13 @@ input:focus-visible,
   width: fit-content;
   max-width: calc(100% - 8px);
   margin: 0 auto;
-  padding: 10px 14px;
+  padding: 6px 10px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 4px 10px;
   background: var(--glass-bg-strong);
   backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
   -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
@@ -701,20 +703,22 @@ input:focus-visible,
 #bottom-action-bar {
   width: fit-content;
   max-width: 100%;
-  padding: 8px 6px 0;
+  padding-left: 10px;
+  margin-left: 2px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 6px;
   justify-content: center;
-  /* Thin separator from the nav pills stacked above it in #bottom-dock —
-     the two rows serve different concerns (navigation vs. Copy actions)
-     even though they now share one glass surface. */
-  border-top: 1px solid var(--glass-border);
+  /* Thin separator from the nav pills next to it in #bottom-dock — the two
+     groups serve different concerns (navigation vs. Copy actions) even
+     though they now share one row on the same compact surface. */
+  border-left: 1px solid var(--glass-border);
 }
 
 #bottom-action-bar button {
-  padding: 10px 20px;
-  font-size: 0.95rem;
+  padding: 6px 14px;
+  font-size: 0.8rem;
 }
 
 /* ==========================================================================
@@ -1136,38 +1140,6 @@ input:focus-visible,
    instead of the page). .group-section-sticky-bar below is exactly such a
    descendant. */
 
-/* Kept on opaque --color-surface (not glass) even though it sits inside
-   a glass .result-tab-panel — table readability must win over the glass
-   effect (see acceptance criteria in v1.0.1-predeploy).
-   table-layout: fixed (incremental C2 addition) + the explicit
-   .overview-col-* <col> widths below are what let this compact 8-column
-   table fit within the PC-first widths this app targets without ever
-   needing horizontal scrolling — see the Overview section further down
-   for the column widths themselves. */
-.groups-table {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-  font-size: var(--fs-table);
-  color: var(--color-text);
-  background: var(--color-surface);
-  font-variant-numeric: tabular-nums;
-}
-
-.groups-table th,
-.groups-table td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border);
-  overflow-wrap: anywhere;
-}
-
-.groups-table thead th {
-  background: var(--color-table-header-bg);
-  border-bottom: 2px solid var(--color-border);
-  color: var(--color-table-header);
-}
-
 /* ==========================================================================
    Semantic numeric-column alignment (Phase C2)
    Applied via explicit classes set by the renderer per column identity
@@ -1178,149 +1150,11 @@ input:focus-visible,
    outrank each table's own "th, td { text-align: left }" base rule
    (specificity 0-1-1) regardless of which is declared first in this file. */
 
-.groups-table th.table-header-numeric,
-.groups-table td.table-cell-numeric,
 .summary-table th.table-header-numeric,
 .summary-table td.table-cell-numeric,
 .view-all-table th.table-header-numeric,
 .view-all-table td.table-cell-numeric {
   text-align: right;
-}
-
-/* ==========================================================================
-   Compact Overview summary (Phase C2 incremental)
-   The Overview groups-table is a decision summary, not a detailed
-   validation table — it is deliberately narrower (8 columns, Missing and
-   Information each collapsed into one compact cell, plus a Copy Status
-   pill) than the per-profile Validation Report, and is designed to never
-   need horizontal scrolling at the PC-first widths this app targets.
-   Percentages sum to 100% and only apply while .groups-table has
-   table-layout: fixed (see above).
-   ========================================================================== */
-
-.overview-col-profile {
-  width: 8%;
-}
-
-.overview-col-date {
-  width: 10%;
-}
-
-.overview-col-bucket {
-  width: 8%;
-}
-
-.overview-col-rows {
-  width: 8%;
-}
-
-.overview-col-tonnage {
-  width: 12%;
-}
-
-.overview-col-missing {
-  width: 18%;
-}
-
-.overview-col-information {
-  width: 16%;
-}
-
-.overview-col-copy {
-  width: 20%;
-}
-
-/* Compact semantic pill (icon + visible text — never color-only) reusing
-   the exact same success/danger tokens as .cleaning-status-ready/blocked
-   and the headline readiness tile, never a new color decision. */
-.copy-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: var(--fs-helper);
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.copy-status-ready {
-  background: var(--color-success-bg);
-  border: 1px solid var(--color-success-border);
-  color: var(--color-success);
-}
-
-.copy-status-blocked {
-  background: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-border);
-  color: var(--color-danger);
-}
-
-/* Narrow-width stacked-card fallback (Part 6) — hidden on desktop by
-   default; the media query below swaps which of .overview-table-view /
-   .overview-card-view is visible. Both are always present in the DOM
-   (js/ui/overview-page.js renders both), so this is a pure CSS toggle with
-   no resize listener/JS breakpoint logic involved — the hidden view is
-   correctly excluded from the accessibility tree by display: none. */
-.overview-card-view {
-  display: none;
-}
-
-.overview-card {
-  background: var(--surface-card);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-inner);
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  box-shadow: var(--shadow-card), var(--glass-highlight);
-}
-
-.overview-card-title {
-  font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: 8px;
-}
-
-.overview-card-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-bottom: 8px;
-  font-size: var(--fs-body);
-}
-
-.overview-card-field {
-  color: var(--color-text);
-}
-
-.overview-card-block {
-  margin-bottom: 8px;
-  font-size: var(--fs-body);
-}
-
-.overview-card-label {
-  color: var(--color-text-muted);
-  font-size: var(--fs-helper);
-}
-
-.overview-card-status {
-  margin-top: 10px;
-}
-
-/* Same breakpoint the rest of the app already uses for its narrow/mobile
-   layout adjustments (see the @media (max-width: 640px) block at the end
-   of this file) — not a new arbitrary threshold. At and above it the
-   compact table (with table-layout: fixed) stays readable without
-   scrolling at every PC-first width this app targets; below it the
-   stacked cards take over. */
-@media (max-width: 640px) {
-  .overview-table-view {
-    display: none;
-  }
-
-  .overview-card-view {
-    display: block;
-  }
 }
 
 /* ==========================================================================
@@ -1332,7 +1166,6 @@ input:focus-visible,
    .operational-summary-row-flagged, which must always win over either.
    ========================================================================== */
 
-.groups-table tbody tr:nth-child(even),
 .summary-table tbody tr:nth-child(even),
 .view-all-table tbody tr:nth-child(even) {
   background: var(--table-zebra-bg);
@@ -1342,7 +1175,6 @@ input:focus-visible,
    touch tap must never leave a "stuck hover" row behind. Does not move the
    row, change its height, or animate. */
 @media (hover: hover) and (pointer: fine) {
-  .groups-table tbody tr:hover,
   .summary-table tbody tr:hover,
   .view-all-table tbody tr:hover {
     background: var(--color-surface-muted);
@@ -1644,42 +1476,24 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Legacy Overview compatibility surface (UI-5B §19) — TEMPORARY, remove
-   with result-page.js's LEGACY_OVERVIEW_TAB block once UI-5C relocates
-   Unmatched DT correction into Cleaning Groups. Deliberately quiet/small —
-   never a peer of the HYNC/SLNC/ESG pill tabs above.
+   Unmatched DT / New Unit affected-row disclosure (UI-5C §12) — a small
+   nested <details> per unique normalized DT inside the DT correction panel
+   (js/ui/dt-correction-panel.js), quieter than the panel's own
+   .blocking-issues-details so the primary correction table stays the focus.
    ========================================================================== */
 
-.legacy-overview-row {
-  display: flex;
-  justify-content: flex-end;
-  max-width: 1200px;
-  margin: 0 auto 10px;
+.dt-correction-row-details {
+  margin: 6px 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-inner);
+  padding: 6px 10px;
+  background: var(--color-surface);
 }
 
-.legacy-overview-btn {
-  padding: 5px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--color-text-muted);
+.dt-correction-row-details summary {
   cursor: pointer;
-  font-family: inherit;
-  font-size: var(--fs-helper);
-  font-weight: 600;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .legacy-overview-btn:hover {
-    background: var(--color-surface-muted);
-    color: var(--color-text);
-  }
-}
-
-.legacy-overview-btn-active {
-  background: var(--color-surface-muted);
-  border-color: var(--glass-border);
-  color: var(--color-text);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }
 
 /* ==========================================================================
@@ -1909,9 +1723,9 @@ input:focus-visible,
    ACTION_REQUIRED's red/blocking tone, matching the existing
    .cleaning-status-*/.group-chip-readiness-* pattern below). Two size
    variants: compact pill form and a larger prominent form. Additive only
-   — .cleaning-status-*/.group-chip-readiness-*/.copy-status-* above are
-   unchanged and still in use; this is the reusable primitive available for
-   UI-5 screens to adopt. Never color-only: callers render the status text
+   — .cleaning-status-*/.group-chip-readiness-* above are unchanged and
+   still in use; this is the reusable primitive available for UI-5 screens
+   to adopt. Never color-only: callers render the status text
    (and, where appropriate, an icon) inside — color is never the sole
    signal, same as every existing status element in this file.
    ========================================================================== */
@@ -2546,14 +2360,26 @@ textarea.weight-exception-field-input {
     width: 100%;
     max-width: none;
     margin: 0;
+    flex-direction: column;
+    align-items: stretch;
     border-radius: var(--radius-card) var(--radius-card) 0 0;
     border-width: 1px 0 0 0;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   }
 
   .app-nav,
   #bottom-action-bar {
     width: 100%;
     justify-content: center;
+  }
+
+  /* Row layout's vertical divider doesn't make sense once the dock stacks
+     into a column at this width — swap it for a horizontal one. */
+  #bottom-action-bar {
+    margin-left: 0;
+    padding-left: 0;
+    padding-top: 6px;
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
   }
 }

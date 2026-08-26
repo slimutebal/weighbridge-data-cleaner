@@ -15,6 +15,7 @@ import { openLowNetWeightDialog } from "./low-net-weight-dialog.js";
 import { OUTPUT_COLUMN_ORDER } from "../core/tsv-exporter.js";
 import { getGroupKey } from "../core/group-key.js";
 import { openViewAllRowsModal } from "./view-all-modal.js";
+import { renderDtCorrectionPanel } from "./dt-correction-panel.js";
 import { t } from "./i18n.js";
 import { attachScrollEdgeIndicators } from "./scroll-edge-indicators.js";
 import { NUMERIC_OUTPUT_COLUMNS, TABLE_HEADER_NUMERIC_CLASS, TABLE_CELL_NUMERIC_CLASS } from "./table-utils.js";
@@ -250,63 +251,6 @@ function renderOperationalSummary(container, entries, decimalSeparator) {
   wrap.appendChild(table);
   container.appendChild(wrap);
   attachTableScrollIndicators(wrap);
-}
-
-// Unmatched DT Rows is a blocking-issue panel: rendered only when there is
-// at least one row to show, expanded by default (section 10).
-function renderUnmatchedDt(container, group) {
-  const rows = group.validation.unmatchedDtRows;
-  if (!rows.length) return;
-
-  const details = document.createElement("details");
-  details.className = "blocking-issues-details";
-  details.open = true;
-
-  const summary = document.createElement("summary");
-  summary.textContent = t("profile.unmatchedDtHeading", { count: rows.length });
-  details.appendChild(summary);
-
-  const body = document.createElement("div");
-  body.className = "blocking-issues-body";
-
-  const note = document.createElement("p");
-  note.className = "placeholder-text";
-  note.textContent = t("profile.unmatchedDtNote", { files: group.sourceFiles.join(", ") });
-  body.appendChild(note);
-
-  const wrap = document.createElement("div");
-  wrap.className = "summary-table-wrap";
-
-  const table = document.createElement("table");
-  table.className = "summary-table";
-
-  const thead = document.createElement("thead");
-  thead.innerHTML =
-    "<tr><th>NO.NOTA</th><th>Raw NO. DT</th><th>Normalized</th><th>PILE ID</th></tr>";
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-  rows.forEach((row) => {
-    const tr = document.createElement("tr");
-    [
-      String(row["NO.NOTA"]),
-      String(row._rawDtId ?? ""),
-      String(row["NO. DT"]),
-      String(row["PILE ID"] ?? ""),
-    ].forEach((text) => {
-      const td = document.createElement("td");
-      td.textContent = text;
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  wrap.appendChild(table);
-  attachTableScrollIndicators(wrap);
-  body.appendChild(wrap);
-
-  details.appendChild(body);
-  container.appendChild(details);
 }
 
 function weightIntegrityKeyFields(wi) {
@@ -1137,7 +1081,9 @@ function renderValidationIssuesSection(
   readiness,
   decimalSeparator,
   onWeightExceptionChanged,
-  onLowNetExceptionChanged
+  onLowNetExceptionChanged,
+  listDtEndpoint,
+  onRecleanRequested
 ) {
   const validationHeading = document.createElement("h4");
   validationHeading.textContent = t("validation.title");
@@ -1145,7 +1091,18 @@ function renderValidationIssuesSection(
   renderDetailedMetrics(container, effectiveValidation, decimalSeparator, group.profile);
 
   renderShiftWarningRows(container, group);
-  renderUnmatchedDt(container, group);
+
+  // Unmatched DT / New Unit contextual correction (UI-5C, design spec §12)
+  // — lives directly in this Cleaning Group's Validation & Issues, replacing
+  // both the old read-only "Unmatched DT Rows" table and the centralized,
+  // all-groups-combined correction section formerly on the legacy Results
+  // Overview tab. A dedicated container is used (rather than rendering
+  // straight into `container`) since this panel redraws itself in place on
+  // Save, independent of this section's own full re-render.
+  const dtCorrectionContainer = document.createElement("div");
+  container.appendChild(dtCorrectionContainer);
+  renderDtCorrectionPanel(dtCorrectionContainer, group, groupKey, { listDtEndpoint, onRecleanRequested });
+
   renderWeightIntegrityIssues(
     container,
     group,
@@ -1182,7 +1139,14 @@ function renderSelectedGroup(
   container,
   group,
   decimalSeparator,
-  { activeSection, onSelectSection, onWeightExceptionChanged, onLowNetExceptionChanged }
+  {
+    activeSection,
+    onSelectSection,
+    onWeightExceptionChanged,
+    onLowNetExceptionChanged,
+    listDtEndpoint,
+    onRecleanRequested,
+  }
 ) {
   const groupKey = getGroupKey(group);
   // Approval-adjusted validation (v1.2.0) — the single object used for
@@ -1222,7 +1186,9 @@ function renderSelectedGroup(
       readiness,
       decimalSeparator,
       onWeightExceptionChanged,
-      onLowNetExceptionChanged
+      onLowNetExceptionChanged,
+      listDtEndpoint,
+      onRecleanRequested
     );
   } else if (resolvedSection === GROUP_SECTION.CLEAN_DATA) {
     renderCleanDataSection(panel, group, groupKey, decimalSeparator);
@@ -1254,6 +1220,8 @@ export function renderProfilePage(
     // that only ever passed onWeightExceptionChanged still gets correct
     // low-net resolution re-rendering with no call-site changes required.
     onLowNetExceptionChanged = onWeightExceptionChanged,
+    listDtEndpoint,
+    onRecleanRequested = () => {},
   } = {}
 ) {
   resetScrollCleanups();
@@ -1276,5 +1244,7 @@ export function renderProfilePage(
     onSelectSection,
     onWeightExceptionChanged,
     onLowNetExceptionChanged,
+    listDtEndpoint,
+    onRecleanRequested,
   });
 }

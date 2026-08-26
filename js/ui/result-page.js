@@ -1,5 +1,5 @@
-import { renderOverview, resetUnmatchedDtDrafts } from "./overview-page.js";
-import { renderProfilePage, GROUP_SECTION } from "./profile-page.js";
+import { renderProfilePage, renderProfilePagePlaceholder, GROUP_SECTION } from "./profile-page.js";
+import { resetDtCorrectionDrafts } from "./dt-correction-panel.js";
 import { mountActionBar } from "./action-bar.js";
 import { rowsToTsv } from "../core/tsv-exporter.js";
 import { copyToClipboard } from "./clipboard-utils.js";
@@ -15,24 +15,6 @@ import { t, subscribeLanguage } from "./i18n.js";
 import { READINESS_SHORT_KEY } from "./group-status-presentation.js";
 
 const PROFILE_ORDER = ["HYNC", "SLNC", "ESG"];
-
-// Internal tab id for the legacy Results Overview compatibility surface
-// (UI-5B §19 / transitional rule §4). The frozen final design (§7 of the
-// design spec, §4 of this phase's brief) has NO Overview tab inside
-// Results — Overview moves to Page 1 (already done in UI-5A,
-// cleaning-overview-page.js). However, today's Overview page
-// (overview-page.js) still owns the only EDITABLE Unmatched DT Correction
-// workflow (contractor text input + Update button); profile-page.js only
-// renders a read-only Unmatched DT Rows table per group. That correction
-// workflow is not relocated into Cleaning Groups until UI-5C (design spec
-// §12/§30 conflict #7). Until then this tab id is kept internally, but it
-// is deliberately excluded from the primary profilesPresent() tablist below
-// and is only reachable via the small, visually secondary
-// .legacy-overview-btn control — never presented as a peer of HYNC/SLNC/ESG.
-// DELETE this whole compatibility surface (this constant, the legacy
-// button, and every branch that checks for it) once UI-5C relocates
-// Unmatched DT correction into the affected Cleaning Groups.
-const LEGACY_OVERVIEW_TAB = "overview";
 
 export function mountResultPage(
   container,
@@ -64,45 +46,26 @@ export function mountResultPage(
   const heading = document.createElement("h2");
   heading.textContent = t("results.heading");
 
-  // Legacy Overview compatibility surface (UI-5B §19/§4 — see the
-  // LEGACY_OVERVIEW_TAB comment above). A small, visually secondary control
-  // — never part of the primary HYNC/SLNC/ESG tablist/pill row — that
-  // activates the same internal "overview" tab id the old Results Overview
-  // tab used, so its only-editable Unmatched DT Correction workflow stays
-  // reachable until UI-5C relocates it into the affected Cleaning Groups.
-  // DELETE this whole block (and legacyOverviewRow/legacyOverviewBtn) once
-  // that relocation ships.
-  const legacyOverviewRow = document.createElement("div");
-  legacyOverviewRow.className = "legacy-overview-row";
-  const legacyOverviewBtn = document.createElement("button");
-  legacyOverviewBtn.type = "button";
-  legacyOverviewBtn.id = "legacy-overview-btn";
-  legacyOverviewBtn.className = "legacy-overview-btn";
-  legacyOverviewBtn.setAttribute("aria-pressed", "false");
-  legacyOverviewBtn.setAttribute("aria-controls", "result-tab-panel");
-  legacyOverviewBtn.textContent = t("results.legacyOverviewButton");
-  legacyOverviewBtn.addEventListener("click", () => activateTab(LEGACY_OVERVIEW_TAB));
-  legacyOverviewRow.appendChild(legacyOverviewBtn);
-
   const panelContainer = document.createElement("div");
   panelContainer.className = "result-section result-tab-panel";
-  // Single shared panel behind every profile/legacy view (Phase B) —
-  // content is swapped in place rather than one hidden panel per view, so
-  // the legacy toggle button's aria-controls points at this one stable id.
-  // No role="tabpanel" here: profile switching is driven by the merged app
-  // nav's plain navigation buttons (js/ui/app-nav.js), not a
-  // role="tablist"/role="tab" structure, so a tabpanel role here would be
-  // orphaned. aria-label is kept pointed at whichever view is currently
-  // active (updated in renderPanel() below) so it still reads as a
-  // properly labelled region.
+  // Single shared panel behind every profile view — content is swapped in
+  // place rather than one hidden panel per view. No role="tabpanel" here:
+  // profile switching is driven by the merged app nav's plain navigation
+  // buttons (js/ui/app-nav.js), not a role="tablist"/role="tab" structure,
+  // so a tabpanel role here would be orphaned. aria-label is kept pointed at
+  // whichever profile is currently active (updated in renderPanel() below)
+  // so it still reads as a properly labelled region.
   panelContainer.id = "result-tab-panel";
 
   container.appendChild(heading);
-  container.appendChild(legacyOverviewRow);
   container.appendChild(panelContainer);
 
   let currentResult = { groups: [], warnings: [], fileErrors: [], listDtInfo: null };
-  let activeTab = LEGACY_OVERVIEW_TAB;
+  // null when Results has no profile to show yet (no groups at all — the
+  // initial state, or after Clear/Reset). Results has no Overview sub-page
+  // (design spec §7/§29, UI-5C §15) — the only two states are "a specific
+  // HYNC/SLNC/ESG profile is active" or "nothing to show yet".
+  let activeTab = null;
   // Results owns exactly one active Cleaning Group per active profile
   // context (UI-5B §9) — a Map keyed by profileId rather than one flat
   // variable, so switching HYNC -> ESG -> back to HYNC within the same
@@ -131,7 +94,7 @@ export function mountResultPage(
       copyToClipboard(tsv, button);
     },
     onCopyProfile: (button) => {
-      if (activeTab === LEGACY_OVERVIEW_TAB) return;
+      if (!activeTab) return;
       const profileRows = currentResult.groups
         .filter((group) => group.profile === activeTab)
         .flatMap((group) => group.rows);
@@ -155,14 +118,14 @@ export function mountResultPage(
   function updateActionBar() {
     const allBlocked = currentResult.groups.some(isGroupBlocked);
     const profileBlocked =
-      activeTab !== LEGACY_OVERVIEW_TAB &&
+      Boolean(activeTab) &&
       currentResult.groups
         .filter((group) => group.profile === activeTab)
         .some(isGroupBlocked);
 
     actionBar.update({
       hasResults: currentResult.groups.length > 0,
-      isProfileTab: activeTab !== LEGACY_OVERVIEW_TAB && isMainPageResultsActive,
+      isProfileTab: Boolean(activeTab) && isMainPageResultsActive,
       allBlocked,
       profileBlocked,
     });
@@ -236,16 +199,14 @@ export function mountResultPage(
     );
   }
 
-  // Single tab-activation path — used both by the merged app nav's profile
-  // buttons (via openProfileTab below) and the legacy compatibility
-  // button, so those two entry points can never diverge into separate tab
-  // state.
+  // Single tab-activation path — used by the merged app nav's profile
+  // buttons (via openProfileTab below).
   function activateTab(tabId) {
     if (activeTab === tabId) return;
     // ON PROFILE CHANGE (section 14): close any View All panel first.
     closeViewAllRowsModal();
     activeTab = tabId;
-    if (tabId !== LEGACY_OVERVIEW_TAB) {
+    if (tabId) {
       const profileGroups = currentResult.groups.filter((group) => group.profile === tabId);
       ensureGroupSelection(tabId, profileGroups);
     }
@@ -279,7 +240,7 @@ export function mountResultPage(
       // Land on a sensible available profile (mirroring showGroups()'s own
       // fallback) instead of stranding activeTab on a profile the merged app
       // nav won't render a button for (profilesPresent() filtering).
-      activateTab(profilesPresent()[0] || LEGACY_OVERVIEW_TAB);
+      activateTab(profilesPresent()[0] || null);
       return;
     }
     const targetGroup = groupKey ? profileGroups.find((group) => getGroupKey(group) === groupKey) : null;
@@ -302,19 +263,12 @@ export function mountResultPage(
   // which profiles currently have cleaning results and which one (if any)
   // is active here — result-page.js's own currentResult/activeTab stay the
   // single authority for both, never duplicated in that nav module (UI-5B
-  // navigation correction §2/§5). Also updates the legacy compatibility
-  // button's own active styling, replacing the old renderTabs(), which used
-  // to render the primary HYNC/SLNC/ESG pills that now live in that merged
-  // nav instead.
+  // navigation correction §2/§5).
   function syncNavState() {
-    const isLegacyActive = activeTab === LEGACY_OVERVIEW_TAB;
-    legacyOverviewBtn.classList.toggle("legacy-overview-btn-active", isLegacyActive);
-    legacyOverviewBtn.setAttribute("aria-pressed", String(isLegacyActive));
-
     onProfilesChanged(
       profilesPresent().map((profileId) => ({ id: profileId, badgeText: profileTabBadgeText(profileId) }))
     );
-    onActiveTabChanged(isLegacyActive ? null : activeTab);
+    onActiveTabChanged(activeTab);
   }
 
   // Cleaning Group Selector (§8): switching the active group within a
@@ -342,26 +296,28 @@ export function mountResultPage(
 
   function renderPanel() {
     // Keeps the single shared panel's accessible name pointed at whichever
-    // view currently governs it — the active profile (its button now lives
-    // in the merged app nav, outside this module, so there is no local id
-    // to point aria-labelledby at) or (§19) the legacy compatibility label
-    // when that secondary surface is showing.
-    panelContainer.setAttribute(
-      "aria-label",
-      activeTab === LEGACY_OVERVIEW_TAB ? t("results.legacyOverviewButton") : activeTab
-    );
+    // profile currently governs it (its button now lives in the merged app
+    // nav, outside this module, so there is no local id to point
+    // aria-labelledby at).
+    panelContainer.setAttribute("aria-label", activeTab || t("results.heading"));
 
-    if (activeTab === LEGACY_OVERVIEW_TAB) {
-      renderOverview(panelContainer, currentResult, currentDecimalSeparator, {
-        listDtEndpoint,
-        onRecleanRequested,
-      });
+    if (!activeTab) {
+      // No profile to show yet (no groups at all). Results has no Overview
+      // sub-page (design spec §7/§29, UI-5C §15) — Page 1's Cleaning
+      // Overview is the only summary/navigation surface now.
+      panelContainer.innerHTML = "";
+      const placeholder = document.createElement("p");
+      placeholder.className = "placeholder-text";
+      placeholder.textContent = currentResult.fileErrors.length
+        ? t("results.noGroupsErrors")
+        : t("results.noGroupsEmpty");
+      panelContainer.appendChild(placeholder);
       return;
     }
 
     const profileGroups = currentResult.groups.filter((group) => group.profile === activeTab);
     if (!profileGroups.length) {
-      renderProfilePage(panelContainer, profileGroups, currentDecimalSeparator);
+      renderProfilePagePlaceholder(panelContainer);
       return;
     }
 
@@ -385,7 +341,52 @@ export function mountResultPage(
         renderPanel();
         updateActionBar();
       },
+      listDtEndpoint,
+      // Unmatched DT correction (UI-5C §12) now lives inside the affected
+      // Cleaning Group's Validation & Issues section — this wrapper is what
+      // lets the correction workflow trigger the existing internal re-clean
+      // callback without the operator ever leaving the current group/tab.
+      onRecleanRequested: triggerRecleanPreservingContext,
     });
+  }
+
+  // Runs the app's existing internal re-clean (main.js's onRecleanRequested,
+  // the same path already used after Update List DT), then restores the
+  // operator's prior Results context if it is still valid (UI-5C §14): stay
+  // on the same profile tab, the same Cleaning Group, and the same
+  // Validation & Issues section where practical, rather than falling back
+  // to showGroups()'s general "prefer an ACTION_REQUIRED group" default —
+  // which could otherwise jump the operator to a *different* group the
+  // instant this one's Unmatched DT issue is resolved. If the exact group no
+  // longer exists, the safe default already applied by showGroups() (via
+  // renderPanel()'s ensureGroupSelection safety net) is left as-is.
+  async function triggerRecleanPreservingContext() {
+    const preservedProfile = activeTab;
+    const preservedGroupKey = preservedProfile ? activeGroupKeyByProfile.get(preservedProfile) : null;
+    const preservedSection = preservedProfile ? activeSectionByProfile.get(preservedProfile) : null;
+
+    if (onRecleanRequested) await onRecleanRequested();
+
+    if (!preservedProfile || !profilesPresent().includes(preservedProfile)) return;
+
+    const profileGroups = currentResult.groups.filter((group) => group.profile === preservedProfile);
+    const groupStillExists =
+      preservedGroupKey && profileGroups.some((group) => getGroupKey(group) === preservedGroupKey);
+
+    activeTab = preservedProfile;
+    if (groupStillExists) {
+      activeGroupKeyByProfile.set(preservedProfile, preservedGroupKey);
+      if (preservedSection) activeSectionByProfile.set(preservedProfile, preservedSection);
+    }
+    syncNavState();
+    renderPanel();
+    updateActionBar();
+
+    // Avoid dumping focus onto body after the whole panel was rebuilt
+    // (§28) — land it on the newly active section tab, same as every other
+    // section-preserving re-render in this module.
+    const activeSectionTab = panelContainer.querySelector(".group-section-tab-btn-active");
+    if (activeSectionTab) activeSectionTab.focus();
   }
 
   function reset() {
@@ -400,8 +401,8 @@ export function mountResultPage(
     activeGroupKeyByProfile = new Map();
     activeSectionByProfile = new Map();
     currentResult = { groups: [], warnings: [], fileErrors: [], listDtInfo: null };
-    activeTab = LEGACY_OVERVIEW_TAB;
-    resetUnmatchedDtDrafts();
+    activeTab = null;
+    resetDtCorrectionDrafts();
     syncNavState();
     renderPanel();
     updateActionBar();
@@ -433,13 +434,12 @@ export function mountResultPage(
 
     // Result Defaults (§18): retain the current profile tab when it's
     // still present; otherwise land on the first available profile in
-    // canonical order (a "sensible available profile") rather than the
-    // legacy Overview compatibility tab, so a first-ever cleaning run (or
-    // a re-clean that dropped the previously active profile) lands the
-    // operator on real Results content.
+    // canonical order (a "sensible available profile"), so a first-ever
+    // cleaning run (or a re-clean that dropped the previously active
+    // profile) lands the operator on real Results content.
     const tabs = profilesPresent();
     if (!tabs.includes(activeTab)) {
-      activeTab = tabs[0] || LEGACY_OVERVIEW_TAB;
+      activeTab = tabs[0] || null;
     }
 
     syncNavState();
@@ -461,14 +461,12 @@ export function mountResultPage(
     updateActionBar();
   }
 
-  // Re-renders every persistent piece of this page's own text (heading,
-  // legacy button label, nav badge text via syncNavState, panel) from the
-  // existing in-memory currentResult on a language change — never
-  // re-fetches or re-cleans, and never touches file/List DT/readiness
-  // state (Part 4 of the C1 spec).
+  // Re-renders every persistent piece of this page's own text (heading, nav
+  // badge text via syncNavState, panel) from the existing in-memory
+  // currentResult on a language change — never re-fetches or re-cleans, and
+  // never touches file/List DT/readiness state (Part 4 of the C1 spec).
   subscribeLanguage(() => {
     heading.textContent = t("results.heading");
-    legacyOverviewBtn.textContent = t("results.legacyOverviewButton");
     syncNavState();
     renderPanel();
   });
