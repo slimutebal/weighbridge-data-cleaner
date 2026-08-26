@@ -89,6 +89,18 @@
 
   --app-bg-gradient: var(--color-bg);
 
+  /* Bottom dock surface (UI-5C §2) — deliberately its own token, distinct
+     from --glass-bg-strong/--color-surface (which the header and content
+     cards already use), so the fixed navigation+actions dock reads as a
+     visually separate persistent layer rather than "another card". A
+     slightly tinted/raised gray, one step past --color-surface-muted,
+     paired with the app's existing --color-border-strong for a subtle but
+     visible edge and a restrained upward (negative-Y) shadow suited to a
+     bottom-anchored surface. */
+  --dock-surface: #e5e9ef;
+  --dock-border: var(--color-border-strong);
+  --dock-shadow: 0 -6px 16px var(--color-shadow);
+
   /* Day/Night bucket accents (v1.0.1-predeploy) — subtle warm vs. cool
      distinction layered on top of the shared card surface (.shift-bucket
      in the Upload buckets block below), not a replacement for it. */
@@ -220,6 +232,14 @@
 
   --app-bg-gradient: var(--color-bg);
 
+  /* See --dock-surface note in :root above. Dark mode target: a step
+     lighter than --color-surface (already lighter than --color-bg) so the
+     dock reads as elevated, with --color-border-strong giving it a
+     stronger edge than the default --color-border used elsewhere. */
+  --dock-surface: #242b34;
+  --dock-border: var(--color-border-strong);
+  --dock-shadow: 0 -6px 18px var(--color-shadow-strong);
+
   --shift-day-accent: #fbbf24;
   --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
   --shift-night-accent: #818cf8;
@@ -283,6 +303,10 @@
     --surface-card-strong: var(--color-surface);
 
     --app-bg-gradient: var(--color-bg);
+
+    --dock-surface: #242b34;
+    --dock-border: var(--color-border-strong);
+    --dock-shadow: 0 -6px 18px var(--color-shadow-strong);
 
     --shift-day-accent: #fbbf24;
     --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
@@ -692,12 +716,15 @@ input:focus-visible,
   align-items: center;
   justify-content: center;
   gap: 4px 10px;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  border: 1px solid var(--glass-border);
+  /* Its own opaque, tinted surface (UI-5C §2) — deliberately not
+     --glass-bg-strong (shared with the header/content cards), so this
+     persistent nav+actions layer reads as visually distinct from the page
+     it floats above. Already fully opaque, so no backdrop-filter/blur
+     fallback is needed here. */
+  background: var(--dock-surface);
+  border: 1px solid var(--dock-border);
   border-radius: var(--radius-shell);
-  box-shadow: var(--shadow-shell), var(--glass-highlight);
+  box-shadow: var(--dock-shadow);
 }
 
 #bottom-action-bar {
@@ -1356,40 +1383,53 @@ input:focus-visible,
    (UI-5B §11) — standard ARIA tabs pattern, one section rendered at a time.
    ========================================================================== */
 
+/* Compact segmented control (UI-5C §3) — its own subtle surface/boundary
+   so Ringkasan/Validasi & Masalah/Data Bersih read as a clickable control
+   group rather than plain underlined text. ARIA tab semantics/keyboard
+   behavior and section-selection JS are unchanged (js/ui/profile-page.js
+   renderSectionTabs) — this is a restyle of the same tablist/tab markup. */
 .group-section-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
   margin: 0 0 14px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 3px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
 }
 
 /* Scoped as ".group-section-tabs .group-section-tab-btn" for the same
    specificity reason as ".group-selector .group-selector-item" above. */
 .group-section-tabs .group-section-tab-btn {
-  padding: 8px 4px;
-  margin-bottom: -1px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
+  padding: 7px 14px;
+  margin-bottom: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-inner);
   background: none;
   box-shadow: none;
   color: var(--color-text-muted);
   cursor: pointer;
   font-size: var(--fs-body);
   font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .group-section-tabs .group-section-tab-btn:hover:not(:disabled) {
-    background: none;
+  .group-section-tabs .group-section-tab-btn:hover:not(.group-section-tab-btn-active) {
+    background: var(--color-surface);
     color: var(--color-text);
   }
 }
 
 .group-section-tabs .group-section-tab-btn-active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: var(--color-primary-bg-tint);
+  color: var(--color-primary-text-strong);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-control);
 }
 
 .group-section-panel {
@@ -1465,7 +1505,12 @@ input:focus-visible,
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  /* Separates group context/readiness (this line) from the section
+     navigation below it (UI-5C §4) — two different things: identity/status
+     vs. clickable controls. */
+  border-bottom: 1px solid var(--color-border);
   font-size: var(--fs-helper);
   font-weight: 600;
   color: var(--color-text-muted);
@@ -2315,7 +2360,6 @@ textarea.weight-exception-field-input {
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   #app-header,
-  #bottom-dock,
   .view-all-modal,
   .wrong-bucket-modal,
   .settings-modal,
