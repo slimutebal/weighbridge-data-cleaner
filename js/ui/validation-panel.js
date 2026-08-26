@@ -55,9 +55,10 @@ function createHeadlineTile(label, value, extraClass) {
 // consuming only values already computed elsewhere (validation object from
 // validation-engine.js, readiness object from computeGroupReadiness) —
 // never a second row-count, tonnage sum, difference, or readiness decision.
-// Sits above the existing detailed .validation-metrics grid, which remains
-// unchanged in meaning and is still the authoritative detailed report.
-function renderHeadlineMetrics(container, validation, decimalSeparator, readiness) {
+// Exported (UI-5B) so profile-page.js can place these tiles in the Summary
+// section while the detailed metrics list below lives in Validation &
+// Issues — same values either way, never a second computation.
+export function renderHeadlineMetrics(container, validation, decimalSeparator, readiness) {
   const grid = document.createElement("div");
   grid.className = "headline-metrics";
 
@@ -121,11 +122,11 @@ function createMetricRow(label, value) {
   return row;
 }
 
-export function renderValidation(container, validation, decimalSeparator = ".", profile, readiness) {
-  if (readiness) {
-    renderHeadlineMetrics(container, validation, decimalSeparator, readiness);
-  }
-
+// The detailed metric-rows list (everything below the headline tiles) —
+// exported separately (UI-5B) so it can be placed in the Validation &
+// Issues section while renderHeadlineMetrics above lives in Summary. Same
+// validation object, same values, no recalculation either way.
+export function renderDetailedMetrics(container, validation, decimalSeparator = ".", profile) {
   const wrap = document.createElement("div");
   wrap.className = "validation-metrics";
 

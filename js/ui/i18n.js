@@ -16,10 +16,6 @@ const translations = {
     "header.clearReset": "Clear / Reset",
     "header.allCleared": "All uploaded files and results cleared.",
 
-    // Main Page navigation (UI-5A)
-    "nav.results": "Results",
-    "nav.resultsUnavailable": "No cleaning results yet.",
-
     // Main Page 1 — Input & Overview (UI-5A)
     "page1.title": "Input & Overview",
     "page1.subtitle": "Upload weighbridge source files and review cleaning readiness.",
@@ -96,10 +92,9 @@ const translations = {
 
     // Results shell
     "results.heading": "Cleaning Results",
-    "results.overview": "Overview",
-    "results.tablistLabel": "Cleaning result profile tabs",
-    "results.startCleaning": "Start Cleaning",
-    "results.refreshCleaning": "Refresh Cleaning",
+    // Legacy Overview compatibility surface (UI-5B §19) — TEMPORARY, remove
+    // once UI-5C relocates Unmatched DT correction into Cleaning Groups.
+    "results.legacyOverviewButton": "Legacy DT Correction (Overview)",
     "results.copyAll": "Copy All Groups",
     "results.copyProfile": "Copy This Profile",
     "results.copied": "Copied!",
@@ -294,6 +289,14 @@ const translations = {
     "profile.timestampNoteCount": "{{count}} timestamp note(s)",
     "profile.bucketLabel": "Bucket: {{bucket}}",
     "profile.rowsCount": "{{count}} rows",
+    "profile.issuesCount": "{{count}} issue(s)",
+    "profile.tonnageValue": "{{value}} t",
+    "profile.differenceValue": "{{value}} t difference",
+    "profile.groupSelectorLabel": "Cleaning groups",
+    "profile.sectionTablistLabel": "Cleaning group sections",
+    "profile.section.summary": "Summary",
+    "profile.section.validation": "Validation & Issues",
+    "profile.section.cleanData": "Clean Data",
     "blocking.missingSource": "Missing Source",
     "blocking.missingGrade": "Missing Grade",
     "blocking.duplicateNota": "Duplicate NO.NOTA",
@@ -313,10 +316,6 @@ const translations = {
     "header.decimalFormat": "Format Desimal Excel",
     "header.clearReset": "Hapus / Atur Ulang",
     "header.allCleared": "Semua file yang diunggah dan hasil telah dihapus.",
-
-    // Main Page navigation (UI-5A)
-    "nav.results": "Hasil",
-    "nav.resultsUnavailable": "Belum ada hasil pembersihan.",
 
     // Main Page 1 — Input & Overview (UI-5A)
     "page1.title": "Input & Ringkasan",
@@ -394,10 +393,9 @@ const translations = {
 
     // Results shell
     "results.heading": "Hasil Pembersihan",
-    "results.overview": "Ringkasan",
-    "results.tablistLabel": "Tab profil hasil pembersihan",
-    "results.startCleaning": "Mulai Pembersihan",
-    "results.refreshCleaning": "Perbarui Pembersihan",
+    // Legacy Overview compatibility surface (UI-5B §19) — SEMENTARA, hapus
+    // setelah UI-5C memindahkan koreksi DT Tidak Cocok ke Cleaning Group.
+    "results.legacyOverviewButton": "Koreksi DT (Ringkasan Lama)",
     "results.copyAll": "Salin Semua Grup",
     "results.copyProfile": "Salin Profil Ini",
     "results.copied": "Tersalin!",
@@ -592,6 +590,14 @@ const translations = {
     "profile.timestampNoteCount": "{{count}} catatan stempel waktu",
     "profile.bucketLabel": "Bucket: {{bucket}}",
     "profile.rowsCount": "{{count}} baris",
+    "profile.issuesCount": "{{count}} masalah",
+    "profile.tonnageValue": "{{value}} t",
+    "profile.differenceValue": "{{value}} t selisih",
+    "profile.groupSelectorLabel": "Grup pembersihan",
+    "profile.sectionTablistLabel": "Bagian grup pembersihan",
+    "profile.section.summary": "Ringkasan",
+    "profile.section.validation": "Validasi & Masalah",
+    "profile.section.cleanData": "Data Bersih",
     "blocking.missingSource": "Source Tidak Ada",
     "blocking.missingGrade": "Grade Tidak Ada",
     "blocking.duplicateNota": "NO.NOTA Duplikat",

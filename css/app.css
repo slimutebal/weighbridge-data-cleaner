@@ -328,7 +328,7 @@ button:focus-visible,
 select:focus-visible,
 input:focus-visible,
 .drop-zone:focus-visible,
-.result-tab-btn:focus-visible {
+.app-nav-btn:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
@@ -416,30 +416,35 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Main Page navigation (UI-5A)
-   A compact, always-visible segmented control between Main Page 1 (Input &
-   Overview) and Main Page 2 (Results) — application navigation, not a
-   website navbar. Deliberately NOT sticky (unlike .result-tabs below,
-   which sticks to a hardcoded offset from the header) to avoid any stacked
-   sticky-offset interaction with the Results workspace's own sticky
-   Overview/HYNC/SLNC/ESG tab bar; it simply scrolls away with the page,
-   which is fine for a two-item top-level nav.
+   Merged application navigation (UI-5B §1)
+   [ Input & Overview ] [ HYNC ] [ SLNC ] [ ESG ]
+   Replaces what were two separate controls — the old Main Page nav
+   (Input & Overview / Results) and Results' own internal profile tablist
+   (formerly .result-tabs). Still exactly two conceptual Main Pages (§6):
+   Input & Overview opens Main Page 1; each profile button opens Main Page 2
+   directly at that profile. Only profiles present in the current cleaning
+   result render a button at all (§5, js/ui/app-nav.js's setProfiles()).
+   Lives inside the fixed bottom dock (#bottom-dock, see "Bottom dock"
+   below) rather than as its own sticky surface — this block only styles
+   the pill row itself; the dock supplies the floating glass surface,
+   positioning, and pointer-events re-enabling.
    ========================================================================== */
 
-.main-page-nav {
+.app-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   width: fit-content;
-  max-width: 1200px;
-  margin: 16px auto 8px;
-  padding: 6px;
-  background: var(--surface-card);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-card);
+  max-width: 100%;
 }
 
-.main-page-nav-btn {
+.app-nav-profiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.app-nav-btn {
   padding: 8px 20px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
@@ -452,23 +457,38 @@ input:focus-visible,
   transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* Profile buttons (HYNC/SLNC/ESG) stack a label + compact status badge,
+   mirroring the former .result-tab-btn layout they replace. */
+.app-nav-profile-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 16px;
+}
+
+.app-nav-profile-label {
+  font-weight: inherit;
+}
+
+.app-nav-profile-badge {
+  font-size: 0.72rem;
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .main-page-nav-btn:hover:not(:disabled):not(.main-page-nav-btn-active) {
+  .app-nav-btn:hover:not(.app-nav-btn-active) {
     background: var(--color-surface-muted);
     color: var(--color-text);
   }
 }
 
-.main-page-nav-btn-active {
+.app-nav-btn-active {
   background: var(--color-primary-bg-tint);
   color: var(--color-primary-text-strong);
   font-weight: 700;
   box-shadow: var(--shadow-control);
-}
-
-.main-page-nav-btn:disabled {
-  color: var(--color-border-strong);
-  cursor: not-allowed;
 }
 
 /* ==========================================================================
@@ -494,11 +514,12 @@ input:focus-visible,
    Shared structural base (sizing/radius/transition), applied by container
    selector as before, plus three explicit color tiers applied via class
    hooks added in the JS UI modules: .btn-primary (the one workflow action
-   per region — Start/Refresh Cleaning), .btn-secondary (View All, Close,
-   Update, Sync, Copy actions, utility actions), and #reset-btn itself as
-   the quiet-danger tier (Clear / Reset — already uniquely identified, no
-   class needed). Splitting structure from color lets most buttons share
-   one tonal look instead of every button defaulting to primary blue.
+   per region — e.g. Open Group, a dialog's confirming action),
+   .btn-secondary (View All, Close, Update, Sync, Copy actions, utility
+   actions), and #reset-btn itself as the quiet-danger tier (Clear / Reset
+   — already uniquely identified, no class needed). Splitting structure
+   from color lets most buttons share one tonal look instead of every
+   button defaulting to primary blue.
    ========================================================================== */
 
 #reset-btn,
@@ -633,19 +654,20 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Bottom action bar
-   ========================================================================== */
-
-/* Floating action dock (v1.1.0-phaseA, replacing the v0.2.0-prepilot
-   edge-to-edge bar): the outer container spans the viewport but is inert
-   (pointer-events: none) and transparent — it exists only to center and
-   inset its child. #bottom-action-bar is the actual glass surface, sized
-   to fit its buttons (not stretched full-width) so it reads as a
-   detached floating dock on desktop. pointer-events is re-enabled on the
-   dock itself so its buttons stay clickable. On narrow/mobile widths
-   (see media query below) the dock switches to an edge-anchored,
-   full-width bar instead — a floating pill would cramp three buttons at
-   that width. */
+   Bottom dock (UI-5B §1)
+   The single fixed bottom surface for the whole app: the merged
+   [ Input & Overview ] [ HYNC ] [ SLNC ] [ ESG ] navigation (.app-nav,
+   mounted by js/ui/app-nav.js) stacked above the Copy actions
+   (#bottom-action-bar, mounted by js/ui/action-bar.js) — both mounted as
+   siblings into #bottom-dock by main.js. #bottom-action-bar-container is
+   the outer, viewport-spanning layer: inert (pointer-events: none) and
+   transparent, existing only to center and inset #bottom-dock.
+   #bottom-dock is the actual glass surface, sized to fit its content (not
+   stretched full-width) so it reads as a detached floating dock on
+   desktop; pointer-events is re-enabled on it so its pills/buttons stay
+   clickable. On narrow/mobile widths (see media query below) the dock
+   switches to an edge-anchored, full-width bar instead — a floating pill
+   would cramp its content at that width. */
 #bottom-action-bar-container {
   position: fixed;
   left: 0;
@@ -658,22 +680,36 @@ input:focus-visible,
   pointer-events: none;
 }
 
-#bottom-action-bar {
+#bottom-dock {
   pointer-events: auto;
   width: fit-content;
   max-width: calc(100% - 8px);
   margin: 0 auto;
-  padding: 12px 20px;
+  padding: 10px 14px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   background: var(--glass-bg-strong);
   backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
   -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-shell);
   box-shadow: var(--shadow-shell), var(--glass-highlight);
+}
+
+#bottom-action-bar {
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 6px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  /* Thin separator from the nav pills stacked above it in #bottom-dock —
+     the two rows serve different concerns (navigation vs. Copy actions)
+     even though they now share one glass surface. */
+  border-top: 1px solid var(--glass-border);
 }
 
 #bottom-action-bar button {
@@ -1090,15 +1126,15 @@ input:focus-visible,
   }
 }
 
-/* General fallback for any wide content inside a result panel (other
-   profile pages' breakdown/preview tables still rely on their own
-   .summary-table-wrap for scrolling). The Overview groups-table itself
-   (below) is deliberately compact and fixed-layout precisely so it never
-   needs this ancestor overflow to kick in (Phase C2 incremental — see
-   "Compact Overview summary" further down). */
-.result-tab-panel {
-  overflow-x: auto;
-}
+/* No overflow-x here (UI-5B navigation correction): every real table inside
+   a result panel already scrolls via its own .summary-table-wrap /
+   .table-scroll-wrap, so this ancestor never actually needed to catch
+   overflow itself. That matters beyond tidiness — overflow-x: auto on an
+   ancestor computes its overflow-y to auto too (a CSS Overflow Module
+   quirk), which turns it into a scroll container and silently breaks
+   position: sticky for any descendant (it would stick within this box
+   instead of the page). .group-section-sticky-bar below is exactly such a
+   descendant. */
 
 /* Kept on opaque --color-surface (not glass) even though it sits inside
    a glass .result-tab-panel — table readability must win over the glass
@@ -1349,71 +1385,11 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Profile groups (single-open accordion) and chips
+   Shared status-detail text (UI-5B)
+   Used by Page 1's Cleaning Overview group rows (cleaning-overview-page.js)
+   AND the Results Selected Group Header below (profile-page.js) — one
+   presentation helper (group-status-presentation.js), one CSS rule.
    ========================================================================== */
-
-/* .group-card replaces the previous native <details class="group-details">
-   wrapper — group open/close is now controlled state owned by
-   result-page.js (single-open accordion across a profile's groups), not
-   independent per-element <details> state, so a plain <div> + <button>
-   header is used instead. */
-/* Content-flow card (v1.1.0-phaseA), nested one level deeper than
-   .result-section — no backdrop-filter (see .shift-bucket comment
-   above); a step down the radius hierarchy (--radius-inner vs.
-   --radius-card) visually marks it as nested rather than a sibling
-   top-level surface. */
-.group-card {
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-inner);
-  margin-bottom: 12px;
-  padding: 10px 14px;
-  background: var(--surface-card);
-}
-
-/* Scoped as ".group-card .group-header-btn" (two classes) rather than the
-   bare class — the shared button rule in the Buttons block above matches
-   via ".result-section button" (class+type), which outranks a single
-   class selector and would otherwise force this header into the blue
-   primary-button look. */
-.group-card .group-header-btn {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font-weight: bold;
-  padding: 6px 0;
-  color: var(--color-text);
-  background: none;
-  border: none;
-  box-shadow: none;
-}
-
-.group-card .group-header-btn:hover:not(:disabled) {
-  background: none;
-  border: none;
-}
-
-/* Single-group profiles render a static (non-interactive) header — there
-   is nothing to toggle, so no button semantics/cursor/hover are applied. */
-.group-header-static {
-  cursor: default;
-}
-
-.group-toggle-icon {
-  flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-}
-
-.group-header-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
 
 .group-header-substatus {
   font-size: 0.82rem;
@@ -1421,75 +1397,171 @@ input:focus-visible,
   color: var(--color-text-muted);
 }
 
-.group-summary-line {
-  display: inline-flex;
+/* ==========================================================================
+   Cleaning Group Selector (UI-5B §8)
+   Rendered only when a profile has 2+ groups — compact selectable cards,
+   never a substitute for the Selected Group Header below. Horizontal
+   wrapping row of independently focusable buttons (not a roving-tabindex
+   tablist — see profile-page.js's renderGroupSelector comment).
+   ========================================================================== */
+
+.group-selector {
+  display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  vertical-align: middle;
+  gap: 8px;
+  margin: 0 0 12px;
 }
 
-.group-chip {
-  display: inline-block;
-  white-space: nowrap;
-  background: var(--color-chip-neutral-bg);
+/* Scoped as ".group-selector .group-selector-item" (two classes) rather
+   than the bare class — the shared button rule in the Buttons block above
+   matches via ".result-section button" (class+type), which outranks a
+   single class selector and would otherwise force this item's
+   padding/border-radius back to the generic button defaults. */
+.group-selector .group-selector-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 140px;
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-inner);
+  background: var(--surface-card);
   color: var(--color-text);
-  border-radius: var(--radius-pill);
-  padding: 2px 10px;
-  font-size: var(--fs-helper);
-  font-weight: normal;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
 }
 
-.group-chip-profile {
+@media (hover: hover) and (pointer: fine) {
+  .group-selector .group-selector-item:hover:not(.group-selector-item-active) {
+    background: var(--color-surface-muted);
+  }
+}
+
+.group-selector .group-selector-item-active {
+  border-color: var(--color-primary);
   background: var(--color-primary-bg-tint);
-  color: var(--color-primary-text-strong);
-  font-weight: bold;
+  box-shadow: var(--shadow-control);
 }
 
-.group-chip-date {
-  background: var(--color-chip-neutral-bg);
-  color: var(--color-text);
+.group-selector-date {
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--color-text);
 }
 
-.group-chip-shift {
-  background: var(--color-warning-bg);
-  color: var(--color-warning);
-  font-weight: bold;
+.group-selector-shift {
+  font-size: var(--fs-helper);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
 }
 
-.group-chip-warning {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-  font-weight: bold;
+.group-selector-rows {
+  font-size: var(--fs-helper);
+  color: var(--color-text-muted);
 }
 
-.group-chip-info {
-  background: var(--color-info-bg);
-  color: var(--color-info);
-  font-weight: bold;
+.group-selector-issues {
+  font-size: var(--fs-helper);
+  color: var(--color-text-muted);
 }
 
-/* Readiness chip on collapsed/expanded group headers (section 7/8) — reuses
-   the same three-color language as .cleaning-status-* without inheriting
-   its layout properties (which are sized for a standalone status line, not
-   an inline chip). */
-.group-chip-readiness-ready {
-  background: var(--color-success-bg);
-  color: var(--color-success);
-  font-weight: bold;
+/* ==========================================================================
+   Selected Group Header (UI-5B §10)
+   Rendered for the active Cleaning Group regardless of which of the three
+   sections below is open (§21) — profile/date/shift, readiness,
+   blocking/information detail, and headline rows/tonnage/difference. Lives
+   in normal document flow, deliberately never sticky (navigation-correction
+   §9, so this large block never eats permanent viewport space) — the
+   compact .group-section-context bar below (part of
+   .group-section-sticky-bar) is what keeps identity/readiness visible once
+   this header has scrolled out of view (§10).
+   ========================================================================== */
+
+.selected-group-header {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.group-chip-readiness-info {
-  background: var(--color-info-bg);
-  color: var(--color-info);
-  font-weight: bold;
+.selected-group-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
-.group-chip-readiness-blocked {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-  font-weight: bold;
+.selected-group-header-title {
+  font-size: var(--fs-section-title);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.selected-group-header-detail {
+  margin: 0 0 8px;
+  font-size: var(--fs-body);
+  color: var(--color-text-muted);
+}
+
+.selected-group-header-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+.selected-group-header-metric {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* ==========================================================================
+   Cleaning Group sections: Summary / Validation & Issues / Clean Data
+   (UI-5B §11) — standard ARIA tabs pattern, one section rendered at a time.
+   ========================================================================== */
+
+.group-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Scoped as ".group-section-tabs .group-section-tab-btn" for the same
+   specificity reason as ".group-selector .group-selector-item" above. */
+.group-section-tabs .group-section-tab-btn {
+  padding: 8px 4px;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .group-section-tabs .group-section-tab-btn:hover:not(:disabled) {
+    background: none;
+    color: var(--color-text);
+  }
+}
+
+.group-section-tabs .group-section-tab-btn-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.group-section-panel {
+  min-height: 1px;
 }
 
 /* ==========================================================================
@@ -1527,96 +1599,96 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Sticky profile tabs
+   Sticky group-section bar (UI-5B §4)
+   Replaces the former "Sticky profile tabs" (.result-tabs) block — page
+   navigation now lives in the fixed bottom dock (#bottom-dock further up
+   this file), not as a sticky layer under the header. This bar is the
+   ONE sticky layer inside Results: the Summary / Validation & Issues /
+   Clean Data section tabs, paired with a compact "Profile · Date ·
+   Declared Shift · readiness" context line, so identity/readiness stay
+   visible even once the large Selected Group Header (js/ui/profile-page.js
+   buildSelectedGroupHeader, deliberately non-sticky per §9) has scrolled
+   out of view. Sticks directly below the app header; the `top` offset
+   only needs to clear the header itself — APP HEADER -> GROUP-SECTION BAR
+   -> content. Opaque on --color-surface (matching its .result-section/
+   .result-tab-panel ancestor) rather than glass, since real page content
+   scrolls directly underneath it once stuck.
    ========================================================================== */
 
-/* Floating segmented profile nav (v1.1.0-phaseA, replacing the
-   v0.2.0-prepilot folder-tab strip): a rounded pill-shaped floating shell
-   whose individual buttons are transparent until active, at which point
-   the active button becomes a raised, solid inner segment — instead of
-   tabs that visually (but not structurally) "connect" to the panel below
-   them. Still sticks directly below the floating app header so
-   Overview/HYNC/SLNC/ESG stay reachable while scrolling long result
-   content; the `top` offset adds a floating gap below the header instead
-   of sitting flush against it. z-index stays below the header (100) but
-   above normal result content. */
-.result-tabs {
+.group-section-sticky-bar {
   position: sticky;
   top: calc(var(--sticky-header-height) + 24px);
   z-index: 90;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  max-width: 1200px;
-  margin: 0 auto 16px;
-  padding: 6px;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-shell), var(--glass-highlight);
+  background: var(--color-surface);
+  /* Bleeds to the parent .result-section card's own edges (its padding is
+     18px 20px) so the opaque background fully covers scrolled content
+     underneath once stuck, rather than leaving the card's side padding
+     visible as a gap. */
+  margin: 0 -20px;
+  padding: 10px 20px 0;
 }
 
-.result-tab-btn {
+.group-section-context {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 8px 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: var(--fs-helper);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.group-section-context-title {
+  color: var(--color-text);
+}
+
+/* ==========================================================================
+   Legacy Overview compatibility surface (UI-5B §19) — TEMPORARY, remove
+   with result-page.js's LEGACY_OVERVIEW_TAB block once UI-5C relocates
+   Unmatched DT correction into Cleaning Groups. Deliberately quiet/small —
+   never a peer of the HYNC/SLNC/ESG pill tabs above.
+   ========================================================================== */
+
+.legacy-overview-row {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 1200px;
+  margin: 0 auto 10px;
+}
+
+.legacy-overview-btn {
+  padding: 5px 12px;
   border: 1px solid transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: var(--fs-body);
+  font-family: inherit;
+  font-size: var(--fs-helper);
   font-weight: 600;
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.result-tab-label {
-  font-weight: inherit;
-}
-
-/* Per-profile status badge (section 6) — text-based (not color-only), so
-   the highest-severity status is legible without relying on the tab's
-   active/inactive color state. */
-.result-tab-badge {
-  font-size: 0.72rem;
-  font-weight: normal;
-  color: var(--color-text-muted);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .result-tab-btn:hover {
+  .legacy-overview-btn:hover {
     background: var(--color-surface-muted);
     color: var(--color-text);
   }
 }
 
-.result-tab-btn-active {
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-weight: 700;
+.legacy-overview-btn-active {
+  background: var(--color-surface-muted);
   border-color: var(--glass-border);
-  box-shadow: var(--shadow-control);
-}
-
-.result-tab-btn-active .result-tab-label {
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 /* ==========================================================================
-   Group details body: validation metrics, summary tables, previews
+   Cleaning Group section content: validation metrics, summary tables,
+   previews (headings rendered directly into a .group-section-panel — see
+   profile-page.js's renderSummarySection/renderValidationIssuesSection)
    ========================================================================== */
 
-.group-details-body {
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border);
-  margin-top: 8px;
-}
-
-.group-details-body h4 {
+.result-tab-panel h4 {
   margin: 16px 0 8px;
   font-size: var(--fs-card-title);
   font-weight: 650;
@@ -1823,36 +1895,11 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Cleaning Status, Timestamp Window Notes (info), and blocking-issue
-   accordions (Unmatched DT Rows / Other Blocking Issues)
+   Timestamp Window Notes (info) and blocking-issue accordions (Unmatched DT
+   Rows / Other Blocking Issues). Group-level status itself is now shown via
+   the Selected Group Header's .status-badge--prominent (UI-5B §10) instead
+   of a standalone full-width status line.
    ========================================================================== */
-
-.cleaning-status {
-  display: inline-block;
-  margin: 4px 0 12px;
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  font-size: var(--fs-body);
-  font-weight: bold;
-}
-
-.cleaning-status-ready {
-  background: var(--color-success-bg);
-  border: 1px solid var(--color-success-border);
-  color: var(--color-success);
-}
-
-.cleaning-status-info {
-  background: var(--color-info-bg);
-  border: 1px solid var(--color-info-border);
-  color: var(--color-info);
-}
-
-.cleaning-status-blocked {
-  background: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-border);
-  color: var(--color-danger);
-}
 
 /* ==========================================================================
    Status badge primitive (UI-4 foundation)
@@ -2454,8 +2501,7 @@ textarea.weight-exception-field-input {
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   #app-header,
-  .result-tabs,
-  #bottom-action-bar,
+  #bottom-dock,
   .view-all-modal,
   .wrong-bucket-modal,
   .settings-modal,
@@ -2488,21 +2534,26 @@ textarea.weight-exception-field-input {
     padding: 12px 16px;
   }
 
-  .result-tabs {
+  .group-section-sticky-bar {
     top: calc(var(--sticky-header-height) + 16px);
-    border-radius: var(--radius-card);
   }
 
   #bottom-action-bar-container {
     padding: 0;
   }
 
-  #bottom-action-bar {
+  #bottom-dock {
     width: 100%;
     max-width: none;
     margin: 0;
     border-radius: var(--radius-card) var(--radius-card) 0 0;
     border-width: 1px 0 0 0;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .app-nav,
+  #bottom-action-bar {
+    width: 100%;
+    justify-content: center;
   }
 }

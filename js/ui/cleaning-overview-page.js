@@ -9,33 +9,12 @@ import { formatDecimal } from "../core/output-formatter.js";
 import { READINESS, computeGroupReadiness } from "../core/readiness.js";
 import { getGroupKey } from "../core/group-key.js";
 import { getEffectiveValidation, summarizeGroupReadiness } from "./group-readiness.js";
-import { buildHeaderDetailText } from "./profile-page.js";
+import { buildHeaderDetailText, createStatusBadge } from "./group-status-presentation.js";
 import { t, subscribeLanguage } from "./i18n.js";
 import { attachScrollEdgeIndicators } from "./scroll-edge-indicators.js";
 import { TABLE_HEADER_NUMERIC_CLASS, TABLE_CELL_NUMERIC_CLASS } from "./table-utils.js";
 
 const PROFILE_ORDER = ["HYNC", "SLNC", "ESG"];
-
-const READINESS_SHORT_KEY = {
-  [READINESS.READY]: "readiness.short.ready",
-  [READINESS.READY_WITH_INFO]: "readiness.short.readyInfo",
-  [READINESS.ACTION_REQUIRED]: "readiness.short.actionRequired",
-  [READINESS.FAILED]: "readiness.short.failed",
-};
-
-const STATUS_BADGE_CLASS = {
-  [READINESS.READY]: "status-badge--ready",
-  [READINESS.READY_WITH_INFO]: "status-badge--info",
-  [READINESS.ACTION_REQUIRED]: "status-badge--action-required",
-  [READINESS.FAILED]: "status-badge--failed",
-};
-
-function createStatusBadge(status, sizeClass) {
-  const badge = document.createElement("span");
-  badge.className = `status-badge ${sizeClass} ${STATUS_BADGE_CLASS[status]}`;
-  badge.textContent = t(READINESS_SHORT_KEY[status]);
-  return badge;
-}
 
 function isBlockingStatus(status) {
   return status === READINESS.ACTION_REQUIRED || status === READINESS.FAILED;

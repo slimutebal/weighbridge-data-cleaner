@@ -2,7 +2,7 @@ import { mountImportPage } from "./ui/import-page.js";
 import { mountResultPage } from "./ui/result-page.js";
 import { mountListDtPage } from "./ui/list-dt-page.js";
 import { mountDecimalFormatSelector } from "./ui/decimal-format-selector.js";
-import { mountMainPageNav, MAIN_PAGE } from "./ui/main-page-nav.js";
+import { mountAppNav, MAIN_PAGE } from "./ui/app-nav.js";
 import { mountCleaningOverviewPage } from "./ui/cleaning-overview-page.js";
 import { runCleaning } from "./core/cleaning-orchestrator.js";
 import { loadAppConfig } from "./core/app-settings.js";
@@ -31,36 +31,51 @@ const decimalFormatContainer = document.getElementById("decimal-format-page");
 const listDtContainer = document.getElementById("list-dt-page");
 const importContainer = document.getElementById("import-page");
 const resultContainer = document.getElementById("result-page");
-const actionBarContainer = document.getElementById("bottom-action-bar-container");
+const bottomBarOuterContainer = document.getElementById("bottom-action-bar-container");
+const bottomDockContainer = document.getElementById("bottom-dock");
 const resetBtn = document.getElementById("reset-btn");
-const mainPageNavContainer = document.getElementById("main-page-nav");
 const pageInputOverview = document.getElementById("page-input-overview");
 const pageResults = document.getElementById("page-results");
 const cleaningOverviewContainer = document.getElementById("cleaning-overview-page");
 const page1TitleEl = document.getElementById("page1-title");
 const page1SubtitleEl = document.getElementById("page1-subtitle");
 
-const resultPage = mountResultPage(resultContainer, {
-  decimalSeparator,
-  listDtEndpoint: appConfig.listDtEndpoint,
-  onRecleanRequested: () => handleFilesChange(lastBucketedFiles),
-  actionBarContainer,
-});
-
-// Main Page 1 <-> Main Page 2 navigation (UI-5A). Presentation state only —
-// switching pages never clears files/results/List DT/approval state, never
-// starts a new cleaning run, and only toggles which page container is
-// visible plus tells result-page.js whether Results is the active main
-// page (used solely to keep "Copy This Profile" from reading as an active
-// Page 1 action, see result-page.js's setMainPageActive).
+// Main Page 1 <-> Main Page 2 navigation (UI-5A, merged nav UI-5B
+// correction). Presentation state only — switching pages never clears
+// files/results/List DT/approval state, never starts a new cleaning run.
+// Toggles which page container is visible, tells result-page.js whether
+// Results is the active main page (used solely to keep "Copy This Profile"
+// from reading as an active Page 1 action, see result-page.js's
+// setMainPageActive), and keeps the merged app nav's own highlighting in
+// sync — the one place all three ever change together, so every navigation
+// entry point (a direct nav-button click, or Page 1's "Open Group") stays
+// consistent by construction.
 function switchToPage(page) {
   pageInputOverview.classList.toggle("is-hidden", page !== MAIN_PAGE.INPUT_OVERVIEW);
   pageResults.classList.toggle("is-hidden", page !== MAIN_PAGE.RESULTS);
   resultPage.setMainPageActive(page === MAIN_PAGE.RESULTS);
+  appNav.setActivePage(page);
 }
 
-const mainPageNav = mountMainPageNav(mainPageNavContainer, {
-  onNavigate: (page) => switchToPage(page),
+// Mounted before resultPage below: resultPage's own initial reset() runs
+// synchronously during mountResultPage() and immediately reports its (empty)
+// profile/active-tab state through onProfilesChanged/onActiveTabChanged,
+// which need `appNav` to already exist.
+const appNav = mountAppNav(bottomDockContainer, {
+  onNavigateInputOverview: () => switchToPage(MAIN_PAGE.INPUT_OVERVIEW),
+  onNavigateProfile: (profileId) => {
+    switchToPage(MAIN_PAGE.RESULTS);
+    resultPage.openProfileTab(profileId);
+  },
+});
+
+const resultPage = mountResultPage(resultContainer, {
+  decimalSeparator,
+  listDtEndpoint: appConfig.listDtEndpoint,
+  onRecleanRequested: () => handleFilesChange(lastBucketedFiles),
+  actionBarContainer: bottomDockContainer,
+  onProfilesChanged: (profiles) => appNav.setProfiles(profiles),
+  onActiveTabChanged: (profileId) => appNav.setActiveProfile(profileId),
 });
 
 // Page 1's Cleaning Overview (UI-5A) — a decision/navigation surface fed
@@ -70,7 +85,6 @@ const mainPageNav = mountMainPageNav(mainPageNavContainer, {
 const cleaningOverviewPage = mountCleaningOverviewPage(cleaningOverviewContainer, {
   decimalSeparator,
   onOpenGroup: (profileId, groupKey) => {
-    mainPageNav.setActivePage(MAIN_PAGE.RESULTS);
     switchToPage(MAIN_PAGE.RESULTS);
     resultPage.openGroup(profileId, groupKey);
   },
@@ -110,13 +124,11 @@ async function handleFilesChange(bucketedFiles) {
   const runId = ++cleaningRunId;
 
   lastBucketedFiles = bucketedFiles;
-  resultPage.setHasFiles(bucketedFiles.length > 0);
 
   if (!bucketedFiles.length) {
     const emptyResult = { groups: [], warnings: [], fileErrors: [], listDtInfo: null };
     resultPage.showGroups(emptyResult);
     cleaningOverviewPage.showResult(emptyResult);
-    mainPageNav.setResultsEnabled(false);
     return;
   }
 
@@ -127,7 +139,6 @@ async function handleFilesChange(bucketedFiles) {
     if (runId !== cleaningRunId) return;
     resultPage.showGroups(result);
     cleaningOverviewPage.showResult(result);
-    mainPageNav.setResultsEnabled((result.groups || []).length > 0);
   } catch (error) {
     if (runId !== cleaningRunId) return;
     console.error("Cleaning failed:", error);
@@ -139,7 +150,6 @@ async function handleFilesChange(bucketedFiles) {
     };
     resultPage.showGroups(errorResult);
     cleaningOverviewPage.showResult(errorResult);
-    mainPageNav.setResultsEnabled(false);
   }
 }
 
@@ -164,7 +174,6 @@ resetBtn.addEventListener("click", () => {
   importPage.reset();
   resultPage.reset();
   cleaningOverviewPage.reset();
-  mainPageNav.setResultsEnabled(false);
   lastBucketedFiles = [];
   announce(t("header.allCleared"));
 });
@@ -173,8 +182,9 @@ resetBtn.addEventListener("click", () => {
 // rendered height (v0.2.0-prepilot revision 7), rather than hardcoding a
 // guessed pixel value in CSS — the header's height can change from
 // control wrapping at narrow widths, browser zoom, or future header
-// changes. The sticky result tab bar (css/app.css) reads this variable
-// for its own `top` offset so it always sits flush below the header.
+// changes. The Results workspace's sticky group-section bar
+// (css/app.css .group-section-sticky-bar) reads this variable for its own
+// `top` offset so it always sits flush below the header.
 const appHeader = document.getElementById("app-header");
 
 function updateStickyHeaderHeight() {
@@ -191,25 +201,27 @@ if (typeof ResizeObserver !== "undefined") {
 }
 updateStickyHeaderHeight();
 
-// Keeps --bottom-action-bar-height in sync with the bottom action dock's
-// actual rendered height (Phase B), mirroring the header measurement
-// above — button wrapping, safe-area insets, zoom, and narrowed windows
-// can all change that height, so #app's bottom clearance (css/app.css)
-// must track it rather than keep a hardcoded guessed value that risks the
-// dock covering the last bit of content. actionBarContainer is the outer
-// fixed wrapper (#bottom-action-bar-container, static in index.html,
-// never re-rendered) — observing it, rather than the inner dock that
-// action-bar.js builds, means this observer never needs to be
+// Keeps --bottom-action-bar-height in sync with the bottom dock's actual
+// rendered height (Phase B; UI-5B §1 folded the merged app nav into this
+// same dock, so its height now covers nav pills + Copy actions together),
+// mirroring the header measurement above — button/pill wrapping, safe-area
+// insets, zoom, and narrowed windows can all change that height, so #app's
+// bottom clearance (css/app.css) must track it rather than keep a
+// hardcoded guessed value that risks the dock covering the last bit of
+// content. bottomBarOuterContainer is the outer fixed wrapper
+// (#bottom-action-bar-container, static in index.html, never re-rendered)
+// — observing it, rather than the inner #bottom-dock that app-nav.js/
+// action-bar.js build into, means this observer never needs to be
 // re-attached across re-renders.
 function updateBottomActionBarHeight() {
   document.documentElement.style.setProperty(
     "--bottom-action-bar-height",
-    `${actionBarContainer.offsetHeight}px`
+    `${bottomBarOuterContainer.offsetHeight}px`
   );
 }
 
 if (typeof ResizeObserver !== "undefined") {
-  new ResizeObserver(updateBottomActionBarHeight).observe(actionBarContainer);
+  new ResizeObserver(updateBottomActionBarHeight).observe(bottomBarOuterContainer);
 } else {
   window.addEventListener("resize", updateBottomActionBarHeight);
 }

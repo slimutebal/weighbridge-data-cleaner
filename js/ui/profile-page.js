@@ -4,9 +4,9 @@ import {
   formatOutputCell,
   extractNumericGrade,
 } from "../core/output-formatter.js";
-import { renderValidation } from "./validation-panel.js";
-import { computeGroupReadiness, READINESS } from "../core/readiness.js";
-import { getEffectiveValidation, summarizeGroupReadiness } from "./group-readiness.js";
+import { renderHeadlineMetrics, renderDetailedMetrics } from "./validation-panel.js";
+import { computeGroupReadiness } from "../core/readiness.js";
+import { getEffectiveValidation } from "./group-readiness.js";
 import { WEIGHT_ISSUE_CODES, parseSourceRowId } from "../core/weight-integrity.js";
 import { getApproval, revokeException } from "../core/weight-exception-store.js";
 import { openWeightExceptionDialog } from "./weight-exception-dialog.js";
@@ -18,6 +18,25 @@ import { openViewAllRowsModal } from "./view-all-modal.js";
 import { t } from "./i18n.js";
 import { attachScrollEdgeIndicators } from "./scroll-edge-indicators.js";
 import { NUMERIC_OUTPUT_COLUMNS, TABLE_HEADER_NUMERIC_CLASS, TABLE_CELL_NUMERIC_CLASS } from "./table-utils.js";
+import { createStatusBadge, bucketLabel, buildHeaderDetailText } from "./group-status-presentation.js";
+
+// The three primary Cleaning Group sections (UI-5B §11) — group-level
+// presentation tabs, never a business state. Exported so result-page.js
+// (which owns the active-section state per profile) can reference the same
+// enum instead of duplicating string literals.
+export const GROUP_SECTION = {
+  SUMMARY: "summary",
+  VALIDATION: "validation",
+  CLEAN_DATA: "cleanData",
+};
+
+const SECTION_ORDER = [GROUP_SECTION.SUMMARY, GROUP_SECTION.VALIDATION, GROUP_SECTION.CLEAN_DATA];
+
+const SECTION_LABEL_KEY = {
+  [GROUP_SECTION.SUMMARY]: "profile.section.summary",
+  [GROUP_SECTION.VALIDATION]: "profile.section.validation",
+  [GROUP_SECTION.CLEAN_DATA]: "profile.section.cleanData",
+};
 
 const PREVIEW_ROW_LIMIT = 25;
 
@@ -38,23 +57,6 @@ function resetScrollCleanups() {
 function attachTableScrollIndicators(wrap) {
   activeScrollCleanups.push(attachScrollEdgeIndicators(wrap));
 }
-
-// Maps the core readiness enum (js/core/readiness.js, untouched) to
-// translation keys — display-only remapping, see result-page.js's matching
-// READINESS_SHORT_KEY comment.
-const READINESS_LABEL_KEY = {
-  [READINESS.READY]: "readiness.ready",
-  [READINESS.READY_WITH_INFO]: "readiness.readyInfo",
-  [READINESS.ACTION_REQUIRED]: "readiness.actionRequired",
-  [READINESS.FAILED]: "readiness.failed",
-};
-
-const READINESS_SHORT_KEY = {
-  [READINESS.READY]: "readiness.short.ready",
-  [READINESS.READY_WITH_INFO]: "readiness.short.readyInfo",
-  [READINESS.ACTION_REQUIRED]: "readiness.short.actionRequired",
-  [READINESS.FAILED]: "readiness.short.failed",
-};
 
 // "Other Blocking Issues" categories are keyed by computeOtherBlockingIssues'
 // stable `key` field (js/core/readiness.js) — used here instead of that
@@ -888,13 +890,6 @@ function renderPreview(container, group, groupKey, decimalSeparator) {
   attachTableScrollIndicators(wrap);
 }
 
-function createChip(text, extraClass) {
-  const chip = document.createElement("span");
-  chip.className = extraClass ? `group-chip ${extraClass}` : "group-chip";
-  chip.textContent = text;
-  return chip;
-}
-
 function formatGradeKey(decimalSeparator) {
   return (key) => {
     const numericGrade = extractNumericGrade(key);
@@ -902,138 +897,216 @@ function formatGradeKey(decimalSeparator) {
   };
 }
 
-const STATUS_CLASS = {
-  [READINESS.READY]: "cleaning-status-ready",
-  [READINESS.READY_WITH_INFO]: "cleaning-status-info",
-  [READINESS.ACTION_REQUIRED]: "cleaning-status-blocked",
-  [READINESS.FAILED]: "cleaning-status-blocked",
-};
-
-const READINESS_CHIP_CLASS = {
-  [READINESS.READY]: "group-chip-readiness-ready",
-  [READINESS.READY_WITH_INFO]: "group-chip-readiness-info",
-  [READINESS.ACTION_REQUIRED]: "group-chip-readiness-blocked",
-  [READINESS.FAILED]: "group-chip-readiness-blocked",
-};
-
-function renderCleaningStatus(container, readiness) {
-  const statusEl = document.createElement("div");
-  statusEl.className = `cleaning-status ${STATUS_CLASS[readiness.status]}`;
-  statusEl.textContent = t(READINESS_LABEL_KEY[readiness.status]);
-  container.appendChild(statusEl);
+function sanitizeForId(key) {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "-");
 }
 
-// Recommended order (section 8): unmatched DT, missing required fields,
-// duplicate NO.NOTA, lost rows, then everything else. Presentation-only
-// ordering of already-computed validation counts — no new validation logic.
-function buildBlockingSummaryText(validation) {
-  const items = [];
-  if (validation.weightIntegrityIssueCount > 0) {
-    items.push(t("blockingSummary.weightIntegrity", { count: validation.weightIntegrityIssueCount }));
-  }
-  const unresolvedLowNetCount = validation.unresolvedLowNetCount ?? validation.lowNetWeightCount ?? 0;
-  if (unresolvedLowNetCount > 0) {
-    items.push(t("blockingSummary.lowNetWeight", { count: unresolvedLowNetCount }));
-  }
-  if (validation.unmatchedDtCount > 0) {
-    items.push(t("blockingSummary.unmatchedDt", { count: validation.unmatchedDtCount }));
-  }
-  if (validation.missingSourceCount > 0) {
-    items.push(t("blockingSummary.missingSource", { count: validation.missingSourceCount }));
-  }
-  if (validation.missingGradeCount > 0) {
-    items.push(t("blockingSummary.missingGrade", { count: validation.missingGradeCount }));
-  }
-  if (validation.duplicateNotaCount > 0) {
-    items.push(t("blockingSummary.duplicateNota", { count: validation.duplicateNotaCount }));
-  }
-  if (validation.lostRowCount > 0) {
-    items.push(t("blockingSummary.lostRows", { count: validation.lostRowCount }));
-  }
-  if (validation.pileIdSourceConflictCount > 0) {
-    items.push(
-      t("blockingSummary.pileIdSourceConflict", { count: validation.pileIdSourceConflictCount })
-    );
-  }
+// Cleaning Group Selector (UI-5B §8) — rendered only when a profile has 2+
+// groups; a single-group profile shows its one group directly with no
+// selector, avoiding wasted screen space (§8/§20). Each item is a plain,
+// independently focusable button (not a roving-tabindex tablist — group
+// *selection* is not the same interaction as the Summary/Validation/Clean
+// Data section tabs below, which do use the ARIA tabs pattern per §11).
+// Every count/status shown here is read from the same readiness/validation
+// authority as everywhere else — no independent computation.
+function renderGroupSelector(groups, activeGroupKey, onSelectGroup) {
+  const nav = document.createElement("div");
+  nav.className = "group-selector";
+  // role="group" (not "list"/"listitem") — its children are interactive
+  // <button> elements, and a list/listitem pairing would override their
+  // implicit button semantics, making them read as inert list entries
+  // instead of the independently focusable buttons described above.
+  nav.setAttribute("role", "group");
+  nav.setAttribute("aria-label", t("profile.groupSelectorLabel"));
 
-  const shown = items.slice(0, 3);
-  const remaining = items.length - shown.length;
-  return remaining > 0
-    ? `${shown.join(" | ")} | ${t("blockingSummary.more", { count: remaining })}`
-    : shown.join(" | ");
+  groups.forEach((group) => {
+    const groupKey = getGroupKey(group);
+    const isActive = groupKey === activeGroupKey;
+    const effectiveValidation = getEffectiveValidation(group);
+    const readiness = computeGroupReadiness(effectiveValidation);
+
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = isActive ? "group-selector-item group-selector-item-active" : "group-selector-item";
+    item.setAttribute("aria-current", String(isActive));
+    item.addEventListener("click", () => onSelectGroup(groupKey));
+
+    const dateEl = document.createElement("span");
+    dateEl.className = "group-selector-date";
+    dateEl.textContent = group.date;
+    item.appendChild(dateEl);
+
+    const shiftEl = document.createElement("span");
+    shiftEl.className = "group-selector-shift";
+    shiftEl.textContent = bucketLabel(group.bucket);
+    item.appendChild(shiftEl);
+
+    const rowsEl = document.createElement("span");
+    rowsEl.className = "group-selector-rows";
+    rowsEl.textContent = t("profile.rowsCount", { count: group.rows.length });
+    item.appendChild(rowsEl);
+
+    item.appendChild(createStatusBadge(readiness.status));
+
+    if (readiness.blockingCount > 0) {
+      const issuesEl = document.createElement("span");
+      issuesEl.className = "group-selector-issues";
+      issuesEl.textContent = t("profile.issuesCount", { count: readiness.blockingCount });
+      item.appendChild(issuesEl);
+    } else if (effectiveValidation.shiftWarningCount > 0) {
+      const issuesEl = document.createElement("span");
+      issuesEl.className = "group-selector-issues";
+      issuesEl.textContent = t("profile.timestampNoteCount", { count: effectiveValidation.shiftWarningCount });
+      item.appendChild(issuesEl);
+    }
+
+    nav.appendChild(item);
+  });
+
+  return nav;
 }
 
-export function buildHeaderDetailText(validation, readiness) {
-  if (readiness.status === READINESS.READY_WITH_INFO) {
-    return t("profile.timestampNoteCount", { count: validation.shiftWarningCount });
-  }
-  if (readiness.status === READINESS.ACTION_REQUIRED) {
-    return buildBlockingSummaryText(validation);
-  }
-  return "";
-}
+// Selected Group Header (UI-5B §10) — always visible for the active group
+// regardless of which of the three sections below is open (§21: blocking
+// readiness/status must never be hidden by section navigation). Profile,
+// Date, Declared Shift, readiness, blocking/information summary, and
+// headline row/tonnage/difference metrics — every value read from the same
+// effective validation/readiness objects used everywhere else.
+function buildSelectedGroupHeader(group, readiness, effectiveValidation, decimalSeparator) {
+  const wrap = document.createElement("div");
+  wrap.className = "selected-group-header";
 
-// Collapsed group headers must carry enough information to review the group
-// without opening it (section 7) — profile/date/bucket/rows/source, plus
-// the same centralized readiness object used for the expanded Cleaning
-// Status (section 8: never recomputed independently).
-function buildGroupHeaderContent(group, readiness, effectiveValidation) {
-  const wrap = document.createElement("span");
-  wrap.className = "group-header-content";
+  const top = document.createElement("div");
+  top.className = "selected-group-header-top";
 
-  const summaryLine = document.createElement("span");
-  summaryLine.className = "group-summary-line";
-  summaryLine.appendChild(createChip(group.profile, "group-chip-profile"));
-  summaryLine.appendChild(createChip(group.date, "group-chip-date"));
-  summaryLine.appendChild(createChip(t("profile.bucketLabel", { bucket: group.bucket }), "group-chip-shift"));
-  summaryLine.appendChild(createChip(t("profile.rowsCount", { count: group.rows.length })));
-  summaryLine.appendChild(createChip(group.sourceFiles.join(", ")));
-  summaryLine.appendChild(
-    createChip(t(READINESS_SHORT_KEY[readiness.status]), READINESS_CHIP_CLASS[readiness.status])
-  );
-  wrap.appendChild(summaryLine);
+  const title = document.createElement("span");
+  title.className = "selected-group-header-title";
+  title.textContent = `${group.profile} · ${group.date} · ${bucketLabel(group.bucket)}`;
+  top.appendChild(title);
+
+  // The larger .status-badge--prominent form (UI-4 foundation primitive) —
+  // reuses the same shared readiness color mapping as every other status
+  // element in the app (group-status-presentation.js), just sized for this
+  // header instead of the compact chip/tab-badge size.
+  top.appendChild(createStatusBadge(readiness.status, "status-badge--prominent"));
+
+  wrap.appendChild(top);
 
   const detailText = buildHeaderDetailText(effectiveValidation, readiness);
   if (detailText) {
-    const sub = document.createElement("span");
-    sub.className = "group-header-substatus";
-    sub.textContent = detailText;
-    wrap.appendChild(sub);
+    const detail = document.createElement("p");
+    detail.className = "selected-group-header-detail";
+    detail.textContent = detailText;
+    wrap.appendChild(detail);
   }
+
+  const metrics = document.createElement("div");
+  metrics.className = "selected-group-header-metrics";
+
+  const rowsMetric = document.createElement("span");
+  rowsMetric.className = "selected-group-header-metric";
+  rowsMetric.textContent = t("profile.rowsCount", { count: group.rows.length });
+  metrics.appendChild(rowsMetric);
+
+  const tonnageMetric = document.createElement("span");
+  tonnageMetric.className = "selected-group-header-metric";
+  tonnageMetric.textContent = t("profile.tonnageValue", {
+    value: formatDecimal(effectiveValidation.cleanTonnage, decimalSeparator),
+  });
+  metrics.appendChild(tonnageMetric);
+
+  const differenceMetric = document.createElement("span");
+  differenceMetric.className = "selected-group-header-metric";
+  differenceMetric.textContent = t("profile.differenceValue", {
+    value: formatDecimal(effectiveValidation.tonnageDifference, decimalSeparator),
+  });
+  metrics.appendChild(differenceMetric);
+
+  wrap.appendChild(metrics);
 
   return wrap;
 }
 
-// Renders sections 2-10 of the agreed internal layout. Called only for the
-// single active group — collapsed groups never get this body constructed
-// at all, which is what guarantees no orphaned/stale detail can appear
-// (section 3, 13): there is no hidden-but-present DOM to go stale.
-function renderGroupBody(
-  body,
-  group,
-  groupKey,
-  readiness,
-  decimalSeparator,
-  effectiveValidation,
-  onWeightExceptionChanged,
-  onLowNetExceptionChanged
-) {
-  // 2. Cleaning Status
-  renderCleaningStatus(body, readiness);
+// Compact group context (UI-5B navigation correction §10) — Profile · Date
+// · Declared Shift, plus the compact readiness badge — shown alongside the
+// sticky section tabs so identity/readiness stay visible even once the
+// large Selected Group Header above (which never sticks, §9) has scrolled
+// out of view. Same profile/date/shift/status values as
+// buildSelectedGroupHeader, just the compact badge size.
+function buildGroupSectionContext(group, readiness) {
+  const wrap = document.createElement("div");
+  wrap.className = "group-section-context";
 
-  // 3. Validation Report
-  const validationHeading = document.createElement("h4");
-  validationHeading.textContent = t("validation.title");
-  body.appendChild(validationHeading);
-  renderValidation(body, effectiveValidation, decimalSeparator, group.profile, readiness);
+  const title = document.createElement("span");
+  title.className = "group-section-context-title";
+  title.textContent = `${group.profile} · ${group.date} · ${bucketLabel(group.bucket)}`;
+  wrap.appendChild(title);
 
-  // 4. Main Summary
+  wrap.appendChild(createStatusBadge(readiness.status));
+
+  return wrap;
+}
+
+// The three primary Cleaning Group sections (§11) — standard ARIA tabs
+// pattern (role=tablist/tab, aria-selected, aria-controls, roving
+// tabindex). Rendered into the sticky companion bar built by
+// renderSelectedGroup below (UI-5B navigation correction §8), not directly
+// into the group container. Switching sections is presentation-only: it
+// never changes group selection, re-cleans, or resets approvals (§11).
+function renderSectionTabs(container, groupKey, activeSection, onSelectSection) {
+  const nav = document.createElement("div");
+  nav.className = "group-section-tabs";
+  nav.setAttribute("role", "tablist");
+  nav.setAttribute("aria-label", t("profile.sectionTablistLabel"));
+
+  const safeKey = sanitizeForId(groupKey);
+  const panelId = `group-section-panel-${safeKey}`;
+
+  SECTION_ORDER.forEach((section) => {
+    const isActive = section === activeSection;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = `group-section-tab-${safeKey}-${section}`;
+    btn.className = isActive ? "group-section-tab-btn group-section-tab-btn-active" : "group-section-tab-btn";
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", String(isActive));
+    btn.setAttribute("aria-controls", panelId);
+    btn.tabIndex = isActive ? 0 : -1;
+    btn.textContent = t(SECTION_LABEL_KEY[section]);
+    btn.addEventListener("click", () => onSelectSection(section));
+    nav.appendChild(btn);
+  });
+
+  nav.addEventListener("keydown", (event) => {
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+    if (!event.target.closest(".group-section-tab-btn")) return;
+    event.preventDefault();
+
+    const currentIndex = SECTION_ORDER.indexOf(activeSection);
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % SECTION_ORDER.length;
+    else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + SECTION_ORDER.length) % SECTION_ORDER.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = SECTION_ORDER.length - 1;
+
+    onSelectSection(SECTION_ORDER[nextIndex]);
+  });
+
+  container.appendChild(nav);
+  return panelId;
+}
+
+// Summary section (§12): headline metrics, existing Main/Operational
+// Summary, and the collapsible Additional Breakdown — no calculation
+// changes, no detailed validation panels duplicated here.
+function renderSummarySection(container, group, effectiveValidation, readiness, decimalSeparator) {
+  renderHeadlineMetrics(container, effectiveValidation, decimalSeparator, readiness);
+
   const operationalHeading = document.createElement("h4");
   operationalHeading.textContent = t("profile.mainSummary");
-  body.appendChild(operationalHeading);
-  renderOperationalSummary(body, group.summary.operational, decimalSeparator);
+  container.appendChild(operationalHeading);
+  renderOperationalSummary(container, group.summary.operational, decimalSeparator);
 
-  // 5. Additional Breakdown — collapsed by default
   const detailDetails = document.createElement("details");
   detailDetails.className = "additional-breakdown-details";
   const detailSummary = document.createElement("summary");
@@ -1049,149 +1122,132 @@ function renderGroupBody(
     decimalSeparator,
     formatGradeKey(decimalSeparator)
   );
-  body.appendChild(detailDetails);
-
-  // 6. Timestamp Window Notes — conditional, collapsed by default
-  renderShiftWarningRows(body, group);
-
-  // 7. Unmatched DT Rows — conditional, expanded by default
-  renderUnmatchedDt(body, group);
-
-  // 7b. Weight Integrity Issues (v1.1.0 D010, resolution workflow v1.2.0
-  // D011) — conditional, placed after Unmatched DT Rows and before Other
-  // Blocking Issues (§10 of the original spec / §3 of the v1.2.0 spec).
-  renderWeightIntegrityIssues(body, group, decimalSeparator, groupKey, effectiveValidation, onWeightExceptionChanged);
-
-  // 7c. Low Net Weight Confirmation (v1.3.0) — conditional, placed after
-  // Weight Integrity Issues and before Other Blocking Issues (phase
-  // spec §9).
-  renderLowNetWeightIssues(body, group, decimalSeparator, groupKey, effectiveValidation, onLowNetExceptionChanged);
-
-  // 8. Other Blocking Issues — conditional, expanded by default
-  renderOtherBlockingIssues(body, readiness);
-
-  // 9-10. Clean Data Preview + View All Rows control
-  renderPreview(body, group, groupKey, decimalSeparator);
-
-  // Copying happens from the sticky bottom action bar's "Copy This Profile"
-  // / "Copy All Groups" buttons, gated by per-group readiness computed in
-  // result-page.js — no per-group copy button here, avoiding a duplicate/
-  // confusing control with a different, narrower scope.
+  container.appendChild(detailDetails);
 }
 
-function sanitizeForId(key) {
-  return key.replace(/[^a-zA-Z0-9_-]/g, "-");
+// Validation & Issues section (§13): UI-5B only establishes this section and
+// organizes existing content into it — no calculation, classification, or
+// exception-workflow redesign (that is UI-5C). Every existing panel is
+// preserved exactly, only relocated.
+function renderValidationIssuesSection(
+  container,
+  group,
+  groupKey,
+  effectiveValidation,
+  readiness,
+  decimalSeparator,
+  onWeightExceptionChanged,
+  onLowNetExceptionChanged
+) {
+  const validationHeading = document.createElement("h4");
+  validationHeading.textContent = t("validation.title");
+  container.appendChild(validationHeading);
+  renderDetailedMetrics(container, effectiveValidation, decimalSeparator, group.profile);
+
+  renderShiftWarningRows(container, group);
+  renderUnmatchedDt(container, group);
+  renderWeightIntegrityIssues(
+    container,
+    group,
+    decimalSeparator,
+    groupKey,
+    effectiveValidation,
+    onWeightExceptionChanged
+  );
+  renderLowNetWeightIssues(
+    container,
+    group,
+    decimalSeparator,
+    groupKey,
+    effectiveValidation,
+    onLowNetExceptionChanged
+  );
+  renderOtherBlockingIssues(container, readiness);
 }
 
-// isToggleable = false is used only for the single-group-per-profile case
-// (section 4): that group is always open and has nothing to collapse into,
-// so its header is a static (non-interactive) label rather than a button
-// that would do nothing when clicked.
-function renderGroupCard(
+// Clean Data section (§14): the exact existing preview + View All Rows
+// control, moved into its own dedicated section — no second transformed
+// dataset.
+function renderCleanDataSection(container, group, groupKey, decimalSeparator) {
+  renderPreview(container, group, groupKey, decimalSeparator);
+}
+
+// Renders the selected Cleaning Group's active section only — the other two
+// sections' DOM is never built while inactive, matching the existing
+// "no hidden-but-present DOM to go stale" guarantee used elsewhere in this
+// file. Copying happens from the sticky bottom action bar's "Copy This
+// Profile" / "Copy All Groups" buttons, gated by per-group readiness
+// computed in result-page.js — no per-group copy button here.
+function renderSelectedGroup(
+  container,
   group,
   decimalSeparator,
-  { isOpen, isToggleable, onToggle, onWeightExceptionChanged, onLowNetExceptionChanged }
+  { activeSection, onSelectSection, onWeightExceptionChanged, onLowNetExceptionChanged }
 ) {
   const groupKey = getGroupKey(group);
   // Approval-adjusted validation (v1.2.0) — the single object used for
-  // every readiness/count/label decision below, so the Cleaning Status,
-  // Validation Report, collapsed-header substatus, and the Weight
-  // Integrity Issues panel itself can never disagree about which
+  // every readiness/count/label decision below, so the header, Summary,
+  // and Validation & Issues sections can never disagree about which
   // mismatches are still unresolved (see js/ui/group-readiness.js).
   const effectiveValidation = getEffectiveValidation(group);
   const readiness = computeGroupReadiness(effectiveValidation);
-  const bodyId = `group-body-${sanitizeForId(groupKey)}`;
 
-  const card = document.createElement("div");
-  card.className = "group-card";
+  // The large header never sticks (UI-5B navigation correction §9) — it is
+  // appended in normal flow, same as before this correction.
+  container.appendChild(buildSelectedGroupHeader(group, readiness, effectiveValidation, decimalSeparator));
 
-  let headerEl;
-  if (isToggleable) {
-    headerEl = document.createElement("button");
-    headerEl.type = "button";
-    headerEl.className = "group-header-btn";
-    headerEl.setAttribute("aria-expanded", String(isOpen));
-    headerEl.setAttribute("aria-controls", bodyId);
-    headerEl.addEventListener("click", () => onToggle(groupKey));
+  const resolvedSection = SECTION_ORDER.includes(activeSection) ? activeSection : GROUP_SECTION.SUMMARY;
 
-    const icon = document.createElement("span");
-    icon.className = "group-toggle-icon";
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = isOpen ? "▼" : "▶";
-    headerEl.appendChild(icon);
-  } else {
-    headerEl = document.createElement("div");
-    headerEl.className = "group-header-btn group-header-static";
-  }
+  // Sticky companion bar (§8/§10): compact group context + the section
+  // tabs, positioned below the app nav's own measured height like every
+  // other sticky layer (see css/app.css .group-section-sticky-bar).
+  const stickyBar = document.createElement("div");
+  stickyBar.className = "group-section-sticky-bar";
+  stickyBar.appendChild(buildGroupSectionContext(group, readiness));
+  const panelId = renderSectionTabs(stickyBar, groupKey, resolvedSection, onSelectSection);
+  container.appendChild(stickyBar);
 
-  headerEl.appendChild(buildGroupHeaderContent(group, readiness, effectiveValidation));
-  card.appendChild(headerEl);
+  const panel = document.createElement("div");
+  panel.className = "group-section-panel";
+  panel.id = panelId;
+  panel.setAttribute("role", "tabpanel");
+  panel.setAttribute("aria-labelledby", `group-section-tab-${sanitizeForId(groupKey)}-${resolvedSection}`);
 
-  if (isOpen) {
-    const body = document.createElement("div");
-    body.className = "group-details-body";
-    body.id = bodyId;
-    renderGroupBody(
-      body,
+  if (resolvedSection === GROUP_SECTION.VALIDATION) {
+    renderValidationIssuesSection(
+      panel,
       group,
       groupKey,
+      effectiveValidation,
       readiness,
       decimalSeparator,
-      effectiveValidation,
       onWeightExceptionChanged,
       onLowNetExceptionChanged
     );
-    card.appendChild(body);
+  } else if (resolvedSection === GROUP_SECTION.CLEAN_DATA) {
+    renderCleanDataSection(panel, group, groupKey, decimalSeparator);
+  } else {
+    renderSummarySection(panel, group, effectiveValidation, readiness, decimalSeparator);
   }
 
-  return card;
+  container.appendChild(panel);
 }
 
-// Compact operational summary shown above the group list only when a
-// profile has 2+ groups (section 5) — never a substitute for the full
-// per-group Validation Report, and hidden entirely for single-group
-// profiles to avoid redundant clutter (section 4/16, Scenario G).
-function renderProfileSummary(groups) {
-  const summary = summarizeGroupReadiness(groups);
-  const wrap = document.createElement("div");
-  wrap.className = "profile-summary";
-
-  const heading = document.createElement("h3");
-  heading.textContent = t("profile.summaryHeading", { profile: groups[0].profile });
-  wrap.appendChild(heading);
-
-  const line1 = document.createElement("p");
-  line1.className = "profile-summary-line";
-  line1.textContent = t("profile.summaryGroupsRows", {
-    groups: summary.totalGroups,
-    rows: summary.totalRows,
-  });
-  wrap.appendChild(line1);
-
-  const line2 = document.createElement("p");
-  line2.className = "profile-summary-line";
-  line2.textContent = t("profile.summaryStatusLine", {
-    ready: summary.readyCount,
-    readyInfo: summary.readyWithInfoCount,
-    actionRequired: summary.actionRequiredCount,
-    failed: summary.failedCount,
-  });
-  wrap.appendChild(line2);
-
-  return wrap;
-}
-
-// activeGroupKey / onToggleGroup implement single-open accordion state
-// (section 9) owned by the caller (result-page.js), which is also
-// responsible for resetting this state on profile change, Refresh
-// Cleaning, and Clear/Reset (section 14).
+// activeGroupKey / onSelectGroup and activeSection / onSelectSection
+// implement the Cleaning Group Selector (§8) and the three-section
+// sub-navigation (§11), both owned by the caller (result-page.js), which is
+// also responsible for resetting/defaulting this state on profile change,
+// Refresh Cleaning, and Clear/Reset (section 14 of the original UI-5A
+// spec, carried forward unchanged).
 export function renderProfilePage(
   container,
   groups,
   decimalSeparator = ".",
   {
     activeGroupKey = null,
-    onToggleGroup = () => {},
+    activeSection = GROUP_SECTION.SUMMARY,
+    onSelectGroup = () => {},
+    onSelectSection = () => {},
     onWeightExceptionChanged = () => {},
     // Defaults to the same callback as weight exceptions (both just need
     // "re-render the panel + refresh action bar readiness") — a caller
@@ -1208,31 +1264,17 @@ export function renderProfilePage(
     return;
   }
 
-  if (groups.length === 1) {
-    container.appendChild(
-      renderGroupCard(groups[0], decimalSeparator, {
-        isOpen: true,
-        isToggleable: false,
-        onToggle: onToggleGroup,
-        onWeightExceptionChanged,
-        onLowNetExceptionChanged,
-      })
-    );
-    return;
+  const selectedGroup = groups.find((group) => getGroupKey(group) === activeGroupKey) || groups[0];
+  const selectedGroupKey = getGroupKey(selectedGroup);
+
+  if (groups.length > 1) {
+    container.appendChild(renderGroupSelector(groups, selectedGroupKey, onSelectGroup));
   }
 
-  container.appendChild(renderProfileSummary(groups));
-
-  groups.forEach((group) => {
-    const isOpen = getGroupKey(group) === activeGroupKey;
-    container.appendChild(
-      renderGroupCard(group, decimalSeparator, {
-        isOpen,
-        isToggleable: true,
-        onToggle: onToggleGroup,
-        onWeightExceptionChanged,
-        onLowNetExceptionChanged,
-      })
-    );
+  renderSelectedGroup(container, selectedGroup, decimalSeparator, {
+    activeSection,
+    onSelectSection,
+    onWeightExceptionChanged,
+    onLowNetExceptionChanged,
   });
 }
