@@ -31,6 +31,14 @@ export function mountResultPage(
 ) {
   let currentDecimalSeparator = decimalSeparator;
   let hasFilesSelected = false;
+  // Whether Main Page 2 (Results) is the currently visible main page
+  // (UI-5A) — defaults false since Input & Overview is the initial page.
+  // Used only to gate "Copy This Profile" (§24 of the UI-5A brief: it must
+  // never read as an active Page 1 action even though this module's own
+  // internal activeTab may still remember a HYNC/SLNC/ESG tab from a
+  // previous Results visit). Purely a presentation gate — never affects
+  // readiness/copy-eligibility computation itself.
+  let isMainPageResultsActive = false;
 
   const heading = document.createElement("h2");
   heading.textContent = t("results.heading");
@@ -111,7 +119,7 @@ export function mountResultPage(
     actionBar.update({
       hasFiles: hasFilesSelected,
       hasResults: currentResult.groups.length > 0,
-      isProfileTab: activeTab !== "overview",
+      isProfileTab: activeTab !== "overview" && isMainPageResultsActive,
       allBlocked,
       profileBlocked,
     });
@@ -160,6 +168,27 @@ export function mountResultPage(
     renderPanel();
     updateActionBar();
     const newBtn = tabsNav.querySelector(`#${tabElementId(tabId)}`);
+    if (newBtn) newBtn.focus();
+  }
+
+  // Contextual navigation entry point from Page 1's Cleaning Overview
+  // (UI-5A) — opens a specific profile tab and, when the group still
+  // exists, expands that exact Cleaning Group. Never recomputes readiness
+  // or grouping; if groupKey no longer matches a group under this profile
+  // (e.g. a re-clean changed group identity since Page 1 was rendered),
+  // renderPanel()'s own existing stale-key guard falls back to "all
+  // collapsed" for that profile, and if profileId itself is no longer
+  // present, renderTabs()'s existing fallback lands on Overview — both
+  // pre-existing safety nets, not new logic.
+  function openProfileGroup(profileId, groupKey) {
+    if (!profileId) return;
+    closeViewAllRowsModal();
+    activeGroupKey = groupKey || null;
+    activeTab = profileId;
+    renderTabs();
+    renderPanel();
+    updateActionBar();
+    const newBtn = tabsNav.querySelector(`#${tabElementId(activeTab)}`);
     if (newBtn) newBtn.focus();
   }
 
@@ -330,6 +359,15 @@ export function mountResultPage(
     updateActionBar();
   }
 
+  // Called by main.js whenever Main Page navigation toggles (UI-5A) —
+  // presentation state only, never touches currentResult/activeTab/
+  // activeGroupKey, so switching back to Results still shows exactly what
+  // was last open there.
+  function setMainPageActive(isResultsActive) {
+    isMainPageResultsActive = Boolean(isResultsActive);
+    updateActionBar();
+  }
+
   // Re-renders every persistent piece of this page's own text (heading,
   // tablist aria-label, tabs, panel) from the existing in-memory
   // currentResult on a language change — never re-fetches or re-cleans, and
@@ -343,5 +381,12 @@ export function mountResultPage(
 
   reset();
 
-  return { reset, showGroups, setDecimalSeparator, setHasFiles };
+  return {
+    reset,
+    showGroups,
+    setDecimalSeparator,
+    setHasFiles,
+    openGroup: openProfileGroup,
+    setMainPageActive,
+  };
 }

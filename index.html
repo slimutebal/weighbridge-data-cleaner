@@ -23,10 +23,22 @@
     </div>
   </header>
 
+  <nav id="main-page-nav" aria-label="Main pages"></nav>
+
   <main id="app">
-    <section id="list-dt-page" class="result-section" aria-label="List DT"></section>
-    <section id="import-page" aria-label="Import"></section>
-    <section id="result-page" aria-label="Cleaning Results"></section>
+    <section id="page-input-overview" class="main-page">
+      <div id="page1-header">
+        <h2 id="page1-title" class="page1-title"></h2>
+        <p id="page1-subtitle" class="placeholder-text"></p>
+      </div>
+      <section id="list-dt-page" class="result-section" aria-label="List DT"></section>
+      <section id="import-page" aria-label="Import"></section>
+      <section id="cleaning-overview-page" class="result-section" aria-label="Cleaning Overview"></section>
+    </section>
+
+    <section id="page-results" class="main-page is-hidden">
+      <section id="result-page" aria-label="Cleaning Results"></section>
+    </section>
   </main>
 
   <div id="bottom-action-bar-container"></div>

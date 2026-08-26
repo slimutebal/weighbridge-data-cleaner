@@ -104,6 +104,12 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --fs-app-title: 1.1rem;
   --fs-page-title: 1.05rem;
+  /* Main Page 1's own title (UI-5A) — the frozen 24-28px page-title scale
+     (spec §20/§27) applied to the new Input & Overview page header only;
+     --fs-page-title above stays untouched so legacy Results ("Cleaning
+     Results" heading, deferred to UI-5B) never changes size in this
+     phase. */
+  --fs-page1-title: 1.6rem;
   --fs-section-title: 1rem;
   --fs-card-title: 0.95rem;
   --fs-body: 0.9rem;
@@ -407,6 +413,80 @@ input:focus-visible,
      safe-area-inset-bottom padding on narrow widths, so it is not added
      again here. The extra 20px is a visual breathing gap above the dock. */
   padding: 20px 0 calc(var(--bottom-action-bar-height) + 20px);
+}
+
+/* ==========================================================================
+   Main Page navigation (UI-5A)
+   A compact, always-visible segmented control between Main Page 1 (Input &
+   Overview) and Main Page 2 (Results) — application navigation, not a
+   website navbar. Deliberately NOT sticky (unlike .result-tabs below,
+   which sticks to a hardcoded offset from the header) to avoid any stacked
+   sticky-offset interaction with the Results workspace's own sticky
+   Overview/HYNC/SLNC/ESG tab bar; it simply scrolls away with the page,
+   which is fine for a two-item top-level nav.
+   ========================================================================== */
+
+.main-page-nav {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  max-width: 1200px;
+  margin: 16px auto 8px;
+  padding: 6px;
+  background: var(--surface-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-card);
+}
+
+.main-page-nav-btn {
+  padding: 8px 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .main-page-nav-btn:hover:not(:disabled):not(.main-page-nav-btn-active) {
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+  }
+}
+
+.main-page-nav-btn-active {
+  background: var(--color-primary-bg-tint);
+  color: var(--color-primary-text-strong);
+  font-weight: 700;
+  box-shadow: var(--shadow-control);
+}
+
+.main-page-nav-btn:disabled {
+  color: var(--color-border-strong);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Main Page 1 header (UI-5A)
+   Applies the frozen 24-28px page-title scale (spec §20/§27) to this new
+   page only — see --fs-page1-title above.
+   ========================================================================== */
+
+#page1-header {
+  margin: 4px 0 16px;
+}
+
+.page1-title {
+  margin: 0 0 4px;
+  font-size: var(--fs-page1-title);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
 }
 
 /* ==========================================================================
@@ -720,6 +800,15 @@ input:focus-visible,
   white-space: nowrap;
 }
 
+/* Main Page visibility toggle (UI-5A) — a plain display:none utility, not
+   .visually-hidden above (which deliberately keeps content in the
+   accessibility tree for live-region announcements). Switching Main Pages
+   must fully remove the inactive page from the accessibility tree/tab
+   order, not just hide it visually. */
+.is-hidden {
+  display: none;
+}
+
 .file-list-container {
   margin-top: 12px;
 }
@@ -828,7 +917,8 @@ input:focus-visible,
    app's own <h1> title. Targeted by the existing stable section IDs, no
    JS/markup change needed. */
 #result-page > h2,
-#list-dt-page > h2 {
+#list-dt-page > h2,
+#cleaning-overview-page > h2 {
   margin: 4px 0 16px;
   font-size: var(--fs-page-title);
   font-weight: 650;
@@ -1425,6 +1515,15 @@ input:focus-visible,
   margin: 2px 0;
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+/* Page 1 Cleaning Overview's per-profile "Highest status:" line (UI-5A) —
+   lays the label and the reused .status-badge out inline with a small gap,
+   inside the existing .profile-summary-line rule above. */
+.overview1-highest-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ==========================================================================

@@ -16,6 +16,21 @@ const translations = {
     "header.clearReset": "Clear / Reset",
     "header.allCleared": "All uploaded files and results cleared.",
 
+    // Main Page navigation (UI-5A)
+    "nav.results": "Results",
+    "nav.resultsUnavailable": "No cleaning results yet.",
+
+    // Main Page 1 — Input & Overview (UI-5A)
+    "page1.title": "Input & Overview",
+    "page1.subtitle": "Upload weighbridge source files and review cleaning readiness.",
+    "overview1.heading": "Cleaning Overview",
+    "overview1.processing": "Processing files...",
+    "overview1.emptyState": "No cleaning results yet. Upload weighbridge source files to begin.",
+    "overview1.highestStatusLabel": "Highest status:",
+    "overview1.actionColumn": "Action",
+    "overview1.viewResults": "View Results",
+    "overview1.reviewIssues": "Review Issues",
+
     // Settings
     "settings.title": "Settings",
     "settings.language": "Language",
@@ -298,6 +313,21 @@ const translations = {
     "header.decimalFormat": "Format Desimal Excel",
     "header.clearReset": "Hapus / Atur Ulang",
     "header.allCleared": "Semua file yang diunggah dan hasil telah dihapus.",
+
+    // Main Page navigation (UI-5A)
+    "nav.results": "Hasil",
+    "nav.resultsUnavailable": "Belum ada hasil pembersihan.",
+
+    // Main Page 1 — Input & Overview (UI-5A)
+    "page1.title": "Input & Ringkasan",
+    "page1.subtitle": "Unggah file sumber weighbridge dan tinjau kesiapan pembersihan.",
+    "overview1.heading": "Ringkasan Pembersihan",
+    "overview1.processing": "Memproses file...",
+    "overview1.emptyState": "Belum ada hasil pembersihan. Unggah file sumber weighbridge untuk memulai.",
+    "overview1.highestStatusLabel": "Status tertinggi:",
+    "overview1.actionColumn": "Aksi",
+    "overview1.viewResults": "Lihat Hasil",
+    "overview1.reviewIssues": "Tinjau Masalah",
 
     // Settings
     "settings.title": "Pengaturan",

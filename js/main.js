@@ -2,6 +2,8 @@ import { mountImportPage } from "./ui/import-page.js";
 import { mountResultPage } from "./ui/result-page.js";
 import { mountListDtPage } from "./ui/list-dt-page.js";
 import { mountDecimalFormatSelector } from "./ui/decimal-format-selector.js";
+import { mountMainPageNav, MAIN_PAGE } from "./ui/main-page-nav.js";
+import { mountCleaningOverviewPage } from "./ui/cleaning-overview-page.js";
 import { runCleaning } from "./core/cleaning-orchestrator.js";
 import { loadAppConfig } from "./core/app-settings.js";
 import { resolveDecimalSeparator } from "./core/output-formatter.js";
@@ -31,6 +33,12 @@ const importContainer = document.getElementById("import-page");
 const resultContainer = document.getElementById("result-page");
 const actionBarContainer = document.getElementById("bottom-action-bar-container");
 const resetBtn = document.getElementById("reset-btn");
+const mainPageNavContainer = document.getElementById("main-page-nav");
+const pageInputOverview = document.getElementById("page-input-overview");
+const pageResults = document.getElementById("page-results");
+const cleaningOverviewContainer = document.getElementById("cleaning-overview-page");
+const page1TitleEl = document.getElementById("page1-title");
+const page1SubtitleEl = document.getElementById("page1-subtitle");
 
 const resultPage = mountResultPage(resultContainer, {
   decimalSeparator,
@@ -39,12 +47,51 @@ const resultPage = mountResultPage(resultContainer, {
   actionBarContainer,
 });
 
+// Main Page 1 <-> Main Page 2 navigation (UI-5A). Presentation state only —
+// switching pages never clears files/results/List DT/approval state, never
+// starts a new cleaning run, and only toggles which page container is
+// visible plus tells result-page.js whether Results is the active main
+// page (used solely to keep "Copy This Profile" from reading as an active
+// Page 1 action, see result-page.js's setMainPageActive).
+function switchToPage(page) {
+  pageInputOverview.classList.toggle("is-hidden", page !== MAIN_PAGE.INPUT_OVERVIEW);
+  pageResults.classList.toggle("is-hidden", page !== MAIN_PAGE.RESULTS);
+  resultPage.setMainPageActive(page === MAIN_PAGE.RESULTS);
+}
+
+const mainPageNav = mountMainPageNav(mainPageNavContainer, {
+  onNavigate: (page) => switchToPage(page),
+});
+
+// Page 1's Cleaning Overview (UI-5A) — a decision/navigation surface fed
+// from the exact same cleaning result as the legacy Results Overview tab
+// (currentResult in result-page.js); it never recomputes readiness or
+// grouping itself.
+const cleaningOverviewPage = mountCleaningOverviewPage(cleaningOverviewContainer, {
+  decimalSeparator,
+  onOpenGroup: (profileId, groupKey) => {
+    mainPageNav.setActivePage(MAIN_PAGE.RESULTS);
+    switchToPage(MAIN_PAGE.RESULTS);
+    resultPage.openGroup(profileId, groupKey);
+  },
+});
+
 mountDecimalFormatSelector(decimalFormatContainer, {
   initialValue: decimalSeparator,
   onChange: (value) => {
     storeDecimalSeparator(value);
     resultPage.setDecimalSeparator(value);
+    cleaningOverviewPage.setDecimalSeparator(value);
   },
+});
+
+switchToPage(MAIN_PAGE.INPUT_OVERVIEW);
+
+page1TitleEl.textContent = t("page1.title");
+page1SubtitleEl.textContent = t("page1.subtitle");
+subscribeLanguage(() => {
+  page1TitleEl.textContent = t("page1.title");
+  page1SubtitleEl.textContent = t("page1.subtitle");
 });
 
 let lastBucketedFiles = [];
@@ -66,23 +113,33 @@ async function handleFilesChange(bucketedFiles) {
   resultPage.setHasFiles(bucketedFiles.length > 0);
 
   if (!bucketedFiles.length) {
-    resultPage.showGroups({ groups: [], warnings: [], fileErrors: [], listDtInfo: null });
+    const emptyResult = { groups: [], warnings: [], fileErrors: [], listDtInfo: null };
+    resultPage.showGroups(emptyResult);
+    cleaningOverviewPage.showResult(emptyResult);
+    mainPageNav.setResultsEnabled(false);
     return;
   }
+
+  cleaningOverviewPage.setProcessing(true);
 
   try {
     const result = await runCleaning(bucketedFiles);
     if (runId !== cleaningRunId) return;
     resultPage.showGroups(result);
+    cleaningOverviewPage.showResult(result);
+    mainPageNav.setResultsEnabled((result.groups || []).length > 0);
   } catch (error) {
     if (runId !== cleaningRunId) return;
     console.error("Cleaning failed:", error);
-    resultPage.showGroups({
+    const errorResult = {
       groups: [],
       warnings: [],
       fileErrors: [{ fileName: "(all files)", message: error.message }],
       listDtInfo: null,
-    });
+    };
+    resultPage.showGroups(errorResult);
+    cleaningOverviewPage.showResult(errorResult);
+    mainPageNav.setResultsEnabled(false);
   }
 }
 
@@ -106,6 +163,8 @@ subscribeLanguage(() => {
 resetBtn.addEventListener("click", () => {
   importPage.reset();
   resultPage.reset();
+  cleaningOverviewPage.reset();
+  mainPageNav.setResultsEnabled(false);
   lastBucketedFiles = [];
   announce(t("header.allCleared"));
 });

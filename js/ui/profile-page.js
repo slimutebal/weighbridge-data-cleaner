@@ -963,7 +963,7 @@ function buildBlockingSummaryText(validation) {
     : shown.join(" | ");
 }
 
-function buildHeaderDetailText(validation, readiness) {
+export function buildHeaderDetailText(validation, readiness) {
   if (readiness.status === READINESS.READY_WITH_INFO) {
     return t("profile.timestampNoteCount", { count: validation.shiftWarningCount });
   }
