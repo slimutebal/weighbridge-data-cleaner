@@ -67,34 +67,27 @@
      distinct, stronger signal than the resting stripe. */
   --table-zebra-bg: rgba(31, 41, 51, 0.035);
 
-  /* Glassmorphism surfaces (v1.0.1-predeploy; floating-shell revision
-     v1.1.0-phaseA). --glass-bg-strong is reserved for genuinely floating
-     shell surfaces that overlap content: header, profile-tab nav, bottom
-     action dock, and modals — the only elements that keep backdrop-filter.
-     --surface-card is for normal document-flow content cards (result
-     sections, group cards, shift buckets): a high-alpha tinted surface
-     with NO blur of its own, so glass is never nested inside glass. Large
-     data tables intentionally stay fully opaque on --color-surface — see
-     .summary-table-wrap / .groups-table — so numbers stay readable
-     regardless of what's blurred elsewhere. */
-  --glass-bg: rgba(255, 255, 255, 0.68);
-  --glass-bg-strong: rgba(255, 255, 255, 0.82);
-  --glass-bg-strong-fallback: rgba(255, 255, 255, 0.97);
-  --glass-border: rgba(148, 163, 184, 0.38);
-  --glass-shadow: 0 8px 32px rgba(31, 41, 51, 0.14);
-  --glass-blur: 16px;
-  --glass-saturate: saturate(1.5);
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  /* Industrial Operations Console token correction (UI-4). These
+     "glass-*"/"surface-card"/"app-bg-gradient" custom properties are the
+     SAME ones already consumed by header/tabs/dock/dialogs/cards
+     (js/main.js and every glass-* rule below are unchanged) — only the
+     values were flattened here: opaque white work surfaces, no blur, no
+     decorative gradient bloom, per docs/UI_VISUAL_DESIGN_SPEC.md §1/§20.
+     Large data tables were already fully opaque on --color-surface and
+     are unaffected. */
+  --glass-bg: var(--color-surface);
+  --glass-bg-strong: var(--color-surface);
+  --glass-bg-strong-fallback: var(--color-surface);
+  --glass-border: var(--color-border);
+  --glass-shadow: 0 2px 8px var(--color-shadow);
+  --glass-blur: 0px;
+  --glass-saturate: saturate(1);
+  --glass-highlight: 0 0 rgba(0, 0, 0, 0);
 
-  --surface-card: rgba(255, 255, 255, 0.9);
-  --surface-card-strong: rgba(255, 255, 255, 0.97);
+  --surface-card: var(--color-surface);
+  --surface-card-strong: var(--color-surface);
 
-  --app-bg-gradient:
-    radial-gradient(circle at 15% 8%, rgba(59, 130, 246, 0.16), transparent 46%),
-    radial-gradient(circle at 88% 6%, rgba(56, 189, 248, 0.13), transparent 42%),
-    radial-gradient(circle at 80% 86%, rgba(217, 119, 6, 0.08), transparent 48%),
-    radial-gradient(circle at 6% 92%, rgba(79, 70, 229, 0.1), transparent 48%),
-    linear-gradient(165deg, #eef1f7 0%, #e6eaf2 55%, #dfe4ee 100%);
+  --app-bg-gradient: var(--color-bg);
 
   /* Day/Night bucket accents (v1.0.1-predeploy) — subtle warm vs. cool
      distinction layered on top of the shared card surface (.shift-bucket
@@ -117,27 +110,51 @@
   --fs-helper: 0.85rem;
   --fs-table: 0.85rem;
   --fs-label: 0.75rem;
+  /* Large metric values (UI-4 foundation) — spec table
+     docs/UI_VISUAL_DESIGN_SPEC.md §20 recommends ~22-28px for headline
+     figures (e.g. the Overview/Results headline metric tiles). */
+  --fs-metric-value: 1.5rem;
 
-  /* Radius hierarchy (v1.1.0-phaseA) — shell/modals get the largest
-     radius, content cards a step down, inner surfaces/inputs/tables a
-     further step down, controls slightly tighter, chips/segmented nav a
-     full pill. Dense tables intentionally stay on --radius-inner or
-     less, never the shell radius. */
-  --radius-shell: 22px;
-  --radius-card: 16px;
-  --radius-inner: 11px;
-  --radius-control: 10px;
+  /* Spacing scale (UI-4 foundation) — docs/UI_VISUAL_DESIGN_SPEC.md §5/§20:
+     4 / 8 / 12 / 16 / 24 / 32px. Provided for new/updated foundation CSS;
+     existing hardcoded gap/padding/margin values are left as-is unless
+     directly touched by this phase's changes. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radius hierarchy (UI-4 token correction) — retuned to the frozen
+     Industrial Operations Console values (spec §20: controls 5-6px,
+     surfaces/cards ~8px, dialogs ~10px, pills fully rounded), replacing
+     the earlier oversized "consumer-SaaS" scale. Same hierarchy shape as
+     before (shell > card > inner >= control), same token names/consumers
+     — only the pixel values changed. */
+  --radius-shell: 10px;
+  --radius-card: 8px;
+  --radius-inner: 6px;
+  --radius-control: 6px;
   --radius-pill: 999px;
 
-  /* Shadow hierarchy (v1.1.0-phaseA) — two-layer (wide ambient + tight
-     key) built from the existing theme-tuned --color-shadow /
-     --color-shadow-strong / --glass-shadow tokens so light/dark don't
-     need separate raw shadow-color duplication. */
-  --shadow-shell: var(--glass-shadow), 0 2px 8px var(--color-shadow);
-  --shadow-card: 0 10px 24px -8px var(--color-shadow-strong), 0 1px 3px var(--color-shadow);
+  /* Shadow hierarchy (UI-4 token correction) — flattened to single-layer,
+     low-opacity shadows per spec §20 ("use sparingly... minimal shadows"),
+     replacing the earlier two-layer ambient+key glow. Still built from the
+     existing theme-tuned --color-shadow / --glass-shadow tokens so
+     light/dark need no separate raw shadow-color duplication. */
+  --shadow-shell: var(--glass-shadow);
+  --shadow-card: 0 1px 2px var(--color-shadow);
   --shadow-control: 0 1px 2px var(--color-shadow);
-  --shadow-control-hover: 0 6px 16px -4px var(--color-shadow-strong), 0 2px 4px var(--color-shadow);
+  --shadow-control-hover: 0 2px 6px var(--color-shadow);
   --shadow-control-pressed: 0 1px 1px var(--color-shadow) inset;
+
+  /* Spec-named aliases (UI_VISUAL_DESIGN_SPEC.md §5 SHADOWS bucket) — same
+     values as above, documented under the spec's own vocabulary for
+     future foundation consumers. */
+  --shadow-minimal: var(--shadow-control);
+  --shadow-elevated: var(--shadow-card);
+  --shadow-dialog: var(--shadow-shell);
 }
 
 :root[data-theme="dark"] {
@@ -184,23 +201,18 @@
   --color-chip-neutral-bg: #2d333c;
   --table-zebra-bg: rgba(255, 255, 255, 0.04);
 
-  --glass-bg: rgba(15, 23, 42, 0.72);
-  --glass-bg-strong: rgba(15, 23, 42, 0.86);
-  --glass-bg-strong-fallback: rgba(15, 23, 42, 0.97);
-  --glass-border: rgba(255, 255, 255, 0.13);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --glass-blur: 18px;
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --glass-bg: var(--color-surface);
+  --glass-bg-strong: var(--color-surface);
+  --glass-bg-strong-fallback: var(--color-surface);
+  --glass-border: var(--color-border);
+  --glass-shadow: 0 2px 8px var(--color-shadow);
+  --glass-blur: 0px;
+  --glass-highlight: 0 0 rgba(0, 0, 0, 0);
 
-  --surface-card: rgba(26, 31, 38, 0.92);
-  --surface-card-strong: rgba(20, 24, 30, 0.97);
+  --surface-card: var(--color-surface);
+  --surface-card-strong: var(--color-surface);
 
-  --app-bg-gradient:
-    radial-gradient(circle at 15% 8%, rgba(59, 130, 246, 0.22), transparent 46%),
-    radial-gradient(circle at 88% 6%, rgba(99, 102, 241, 0.2), transparent 44%),
-    radial-gradient(circle at 82% 88%, rgba(251, 191, 36, 0.07), transparent 50%),
-    radial-gradient(circle at 6% 92%, rgba(129, 140, 248, 0.16), transparent 48%),
-    linear-gradient(165deg, #0a0e15 0%, #0d121a 55%, #10151f 100%);
+  --app-bg-gradient: var(--color-bg);
 
   --shift-day-accent: #fbbf24;
   --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
@@ -253,23 +265,18 @@
     --color-chip-neutral-bg: #2d333c;
     --table-zebra-bg: rgba(255, 255, 255, 0.04);
 
-    --glass-bg: rgba(15, 23, 42, 0.72);
-    --glass-bg-strong: rgba(15, 23, 42, 0.86);
-    --glass-bg-strong-fallback: rgba(15, 23, 42, 0.97);
-    --glass-border: rgba(255, 255, 255, 0.13);
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    --glass-blur: 18px;
-    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --glass-bg: var(--color-surface);
+    --glass-bg-strong: var(--color-surface);
+    --glass-bg-strong-fallback: var(--color-surface);
+    --glass-border: var(--color-border);
+    --glass-shadow: 0 2px 8px var(--color-shadow);
+    --glass-blur: 0px;
+    --glass-highlight: 0 0 rgba(0, 0, 0, 0);
 
-    --surface-card: rgba(26, 31, 38, 0.92);
-    --surface-card-strong: rgba(20, 24, 30, 0.97);
+    --surface-card: var(--color-surface);
+    --surface-card-strong: var(--color-surface);
 
-    --app-bg-gradient:
-      radial-gradient(circle at 15% 8%, rgba(59, 130, 246, 0.22), transparent 46%),
-      radial-gradient(circle at 88% 6%, rgba(99, 102, 241, 0.2), transparent 44%),
-      radial-gradient(circle at 82% 88%, rgba(251, 191, 36, 0.07), transparent 50%),
-      radial-gradient(circle at 6% 92%, rgba(129, 140, 248, 0.16), transparent 48%),
-      linear-gradient(165deg, #0a0e15 0%, #0d121a 55%, #10151f 100%);
+    --app-bg-gradient: var(--color-bg);
 
     --shift-day-accent: #fbbf24;
     --shift-day-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0) 55%);
@@ -424,7 +431,9 @@ input:focus-visible,
 .preview-actions button,
 .view-all-modal button,
 .settings-modal button,
-.weight-exception-modal button {
+.weight-exception-modal button,
+.btn-danger,
+.btn-ghost {
   padding: 9px 18px;
   border-radius: var(--radius-control);
   font-size: var(--fs-body);
@@ -449,6 +458,27 @@ input:focus-visible,
   box-shadow: var(--shadow-control);
 }
 
+/* Danger variant (UI-4 foundation) — same look #reset-btn already had via
+   its id selector; formalized as a reusable class so any destructive/
+   reset-confirmation action (spec §9) can opt in without duplicating the
+   id-scoped rule. #reset-btn's own rule below is unchanged. */
+.btn-danger {
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  box-shadow: var(--shadow-control);
+}
+
+/* Ghost/Icon variant (UI-4 foundation) — quiet by default, for small
+   utility actions (spec §9) that shouldn't compete visually with
+   primary/secondary actions in the same region. */
+.btn-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  box-shadow: none;
+}
+
 /* Hover-lift only where hover is a meaningful signal (pointer: fine) — a
    touch device that only ever sees :active would otherwise get a
    "stuck hover" look after tapping. */
@@ -467,10 +497,16 @@ input:focus-visible,
     transform: translateY(-1px);
   }
 
-  #reset-btn:hover:not(:disabled) {
+  #reset-btn:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled) {
     background: var(--color-danger-border);
     box-shadow: var(--shadow-control-hover);
     transform: translateY(-1px);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-surface-muted);
+    color: var(--color-text);
   }
 }
 
@@ -478,9 +514,14 @@ input:focus-visible,
    apply :active on tap). */
 .btn-primary:active:not(:disabled),
 .btn-secondary:active:not(:disabled),
-#reset-btn:active:not(:disabled) {
+#reset-btn:active:not(:disabled),
+.btn-danger:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: var(--shadow-control-pressed);
+}
+
+.btn-ghost:active:not(:disabled) {
+  background: var(--color-surface-muted);
 }
 
 /* Quiet danger: destructive action (Clear / Reset). */
@@ -500,7 +541,9 @@ input:focus-visible,
 .preview-actions button:disabled,
 .view-all-modal button:disabled,
 .settings-modal button:disabled,
-.weight-exception-modal button:disabled {
+.weight-exception-modal button:disabled,
+.btn-danger:disabled,
+.btn-ghost:disabled {
   border-color: var(--color-border);
   background: var(--color-surface-muted);
   color: var(--color-border-strong);
@@ -1525,7 +1568,7 @@ input:focus-visible,
 
 .headline-tile-value {
   margin-top: 4px;
-  font-size: 1.05rem;
+  font-size: var(--fs-metric-value);
   font-weight: 700;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
@@ -1633,7 +1676,9 @@ input:focus-visible,
 .summary-table th,
 .summary-table td {
   text-align: left;
-  padding: 6px 8px;
+  /* Row height ~32-36px (UI-4 foundation, spec §22/§10), tokenized via the
+     spacing scale rather than a hardcoded pixel pair. */
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
@@ -1707,6 +1752,60 @@ input:focus-visible,
 .cleaning-status-blocked {
   background: var(--color-danger-bg);
   border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+/* ==========================================================================
+   Status badge primitive (UI-4 foundation)
+   Generalized readiness/status presentation (spec §8, §21) for the four
+   real readiness-authority states (js/core/readiness.js: READY,
+   READY_WITH_INFO, ACTION_REQUIRED, FAILED — FAILED shares
+   ACTION_REQUIRED's red/blocking tone, matching the existing
+   .cleaning-status-*/.group-chip-readiness-* pattern below). Two size
+   variants: compact pill form and a larger prominent form. Additive only
+   — .cleaning-status-*/.group-chip-readiness-*/.copy-status-* above are
+   unchanged and still in use; this is the reusable primitive available for
+   UI-5 screens to adopt. Never color-only: callers render the status text
+   (and, where appropriate, an icon) inside — color is never the sole
+   signal, same as every existing status element in this file.
+   ========================================================================== */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: bold;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+}
+
+.status-badge--compact {
+  padding: 3px 10px;
+  font-size: var(--fs-helper);
+}
+
+.status-badge--prominent {
+  padding: 6px 14px;
+  font-size: var(--fs-body);
+}
+
+.status-badge--ready {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.status-badge--info {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info);
+}
+
+.status-badge--action-required,
+.status-badge--failed {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
   color: var(--color-danger);
 }
 
