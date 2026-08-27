@@ -21,7 +21,8 @@ let scrollCleanup = null;
 function ensureDialog() {
   if (dialogEl) return dialogEl;
   dialogEl = document.createElement("dialog");
-  dialogEl.className = "view-all-modal";
+  dialogEl.className = "secondary-dialog view-all-modal";
+  dialogEl.setAttribute("aria-labelledby", "view-all-modal-title");
   document.body.appendChild(dialogEl);
   // Native <dialog> handles Escape-to-close and focus trapping; this only
   // adds returning focus to whichever "View All" button opened it, so
@@ -89,6 +90,7 @@ export function openViewAllRowsModal(groupInfo, decimalSeparator, triggerButton)
 
   const titleWrap = document.createElement("div");
   const title = document.createElement("h3");
+  title.id = "view-all-modal-title";
   title.textContent = t("results.cleanDataPreview");
   titleWrap.appendChild(title);
   const subtitle = document.createElement("p");

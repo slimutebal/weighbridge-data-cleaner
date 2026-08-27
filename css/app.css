@@ -1034,6 +1034,19 @@ input:focus-visible,
   min-width: 0;
 }
 
+/* Title + status-hierarchy badges (UI-5D §7-8) — READY / UPDATING /
+   UPDATE FAILED reuses the existing .status-badge primitive (already
+   established for readiness elsewhere, see group-status-presentation.js)
+   instead of inventing a new pill style; SYNC PENDING renders as a second,
+   independent badge next to it (only visible while pendingCount > 0) since
+   an update can be READY/FAILED while a sync is still separately pending. */
+.list-dt-bar-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
 .list-dt-bar-title {
   font-size: var(--fs-card-title);
   font-weight: 650;
@@ -1077,18 +1090,20 @@ input:focus-visible,
 }
 
 /* ==========================================================================
-   Settings dialog (Phase C1)
-   Same glass modal treatment as .wrong-bucket-modal / .view-all-modal, sized
-   for its own compact content rather than the wide View All layout — not
-   full-screen on desktop, still comfortably usable at narrow widths.
+   Secondary-surface dialog shell (UI-5D §13/§24)
+   Shared glass-shell treatment for every native <dialog> secondary surface
+   (Settings, Wrong Bucket, View All Rows, Weight/Low Net confirmation) —
+   each dialog's own class (.settings-modal, .wrong-bucket-modal,
+   .view-all-modal, .weight-exception-modal) is applied alongside this one
+   and keeps only its size/padding/layout overrides, so the four previously
+   separate, near-identical shell blocks (border/radius/background/blur/
+   color/shadow, plus an identical ::backdrop) are declared once.
    ========================================================================== */
 
-.settings-modal {
+.secondary-dialog {
   width: calc(100% - 48px);
-  max-width: 420px;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-shell);
-  padding: 20px 24px;
   background: var(--glass-bg-strong);
   backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
   -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
@@ -1096,14 +1111,25 @@ input:focus-visible,
   box-shadow: var(--shadow-shell), var(--glass-highlight);
 }
 
-.settings-modal:not([open]) {
-  display: none;
-}
-
-.settings-modal::backdrop {
+.secondary-dialog::backdrop {
   background: var(--color-overlay);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+}
+
+/* ==========================================================================
+   Settings dialog (Phase C1)
+   Sized for its own compact content rather than the wide View All layout —
+   not full-screen on desktop, still comfortably usable at narrow widths.
+   ========================================================================== */
+
+.settings-modal {
+  max-width: 420px;
+  padding: 20px 24px;
+}
+
+.settings-modal:not([open]) {
+  display: none;
 }
 
 .settings-header {
@@ -1807,6 +1833,17 @@ input:focus-visible,
   color: var(--color-info);
 }
 
+/* Amber/caution tier (UI-5D) — for a non-blocking but attention-worthy
+   condition (List DT update failed but cached/bundled data remains usable;
+   DT sync still pending). Deliberately not red: red is reserved for an
+   actual unresolved blocker (ACTION_REQUIRED/FAILED), and a failed remote
+   List DT update never blocks cleaning. */
+.status-badge--warning {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning);
+}
+
 .status-badge--action-required,
 .status-badge--failed {
   background: var(--color-danger-bg);
@@ -1882,18 +1919,10 @@ input:focus-visible,
    ========================================================================== */
 
 .view-all-modal {
-  width: calc(100% - 48px);
   max-width: 1400px;
   height: calc(100% - 48px);
   max-height: 900px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-shell);
   padding: 16px 20px;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  color: var(--color-text);
-  box-shadow: var(--shadow-shell), var(--glass-highlight);
   display: flex;
   flex-direction: column;
 }
@@ -1908,12 +1937,6 @@ input:focus-visible,
    rule's higher specificity (0-2-0) restores the closed state. */
 .view-all-modal:not([open]) {
   display: none;
-}
-
-.view-all-modal::backdrop {
-  background: var(--color-overlay);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
 }
 
 .view-all-header {
@@ -2124,21 +2147,7 @@ input:focus-visible,
 /* Wrong shift bucket rejection modal (v0.2.0-prepilot revision 5). */
 .wrong-bucket-modal {
   max-width: 480px;
-  width: calc(100% - 48px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-shell);
   padding: 20px 24px;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  color: var(--color-text);
-  box-shadow: var(--shadow-shell), var(--glass-highlight);
-}
-
-.wrong-bucket-modal::backdrop {
-  background: var(--color-overlay);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
 }
 
 .wrong-bucket-modal h3 {
@@ -2184,23 +2193,9 @@ input:focus-visible,
 
 .weight-exception-modal {
   max-width: 520px;
-  width: calc(100% - 48px);
   max-height: calc(100% - 48px);
   overflow-y: auto;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-shell);
   padding: 20px 24px;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) var(--glass-saturate);
-  color: var(--color-text);
-  box-shadow: var(--shadow-shell), var(--glass-highlight);
-}
-
-.weight-exception-modal::backdrop {
-  background: var(--color-overlay);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
 }
 
 .weight-exception-header h3 {
@@ -2208,6 +2203,19 @@ input:focus-visible,
   font-size: var(--fs-page-title);
   font-weight: 700;
   color: var(--color-text);
+}
+
+/* Eyebrow section labels (UI-5D §16) — group the dialog into its four
+   required parts (source evidence, decision, confirmation fields, final
+   action) without changing any of the existing fields/controls beneath
+   them. Uses the previously-unused --fs-label token. */
+.weight-exception-section-label {
+  margin: 0 0 6px;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .weight-exception-detail {
@@ -2360,10 +2368,7 @@ textarea.weight-exception-field-input {
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   #app-header,
-  .view-all-modal,
-  .wrong-bucket-modal,
-  .settings-modal,
-  .weight-exception-modal {
+  .secondary-dialog {
     background: var(--glass-bg-strong-fallback);
   }
 }

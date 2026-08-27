@@ -12,7 +12,8 @@ let lastTrigger = null;
 function ensureDialog() {
   if (dialogEl) return dialogEl;
   dialogEl = document.createElement("dialog");
-  dialogEl.className = "weight-exception-modal";
+  dialogEl.className = "secondary-dialog weight-exception-modal";
+  dialogEl.setAttribute("aria-labelledby", "weight-exception-dialog-title");
   document.body.appendChild(dialogEl);
   dialogEl.addEventListener("close", () => {
     if (lastTrigger) lastTrigger.focus();
@@ -78,9 +79,15 @@ export function openWeightExceptionDialog({ row, group, groupId, decimalSeparato
   const header = document.createElement("div");
   header.className = "weight-exception-header";
   const title = document.createElement("h3");
+  title.id = "weight-exception-dialog-title";
   title.textContent = t("weightException.dialogTitle");
   header.appendChild(title);
   dialog.appendChild(header);
+
+  const evidenceLabel = document.createElement("p");
+  evidenceLabel.className = "weight-exception-section-label";
+  evidenceLabel.textContent = t("weightException.evidenceHeading");
+  dialog.appendChild(evidenceLabel);
 
   const detail = document.createElement("div");
   detail.className = "weight-exception-detail";
@@ -116,6 +123,11 @@ export function openWeightExceptionDialog({ row, group, groupId, decimalSeparato
     formatWeight(wi.differenceMinorUnits, wi.decimalPlaces, wi.sourceUnit, decimalSeparator, true)
   );
   dialog.appendChild(detail);
+
+  const decisionLabel = document.createElement("p");
+  decisionLabel.className = "weight-exception-section-label";
+  decisionLabel.textContent = t("weightException.decisionHeading");
+  dialog.appendChild(decisionLabel);
 
   const optionsWrap = document.createElement("div");
   optionsWrap.className = "weight-exception-options";

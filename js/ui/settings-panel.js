@@ -13,7 +13,7 @@ function ensureDialog() {
   if (dialogEl) return dialogEl;
 
   dialogEl = document.createElement("dialog");
-  dialogEl.className = "settings-modal";
+  dialogEl.className = "secondary-dialog settings-modal";
   dialogEl.setAttribute("aria-labelledby", "settings-dialog-title");
   document.body.appendChild(dialogEl);
 

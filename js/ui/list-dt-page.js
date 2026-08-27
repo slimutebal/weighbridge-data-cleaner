@@ -32,6 +32,12 @@ export function mountListDtPage(container, { onUpdated } = {}) {
   let lastListDt = null;
   let feedbackText = "";
   let feedbackIsError = false;
+  // Update-state hierarchy (spec §7-8), tracked separately from the pending
+  // sync count below since the two are independent: a List DT update can be
+  // READY or UPDATE FAILED while a sync is (or isn't) separately pending.
+  // "idle" reads as READY — this never reflects a real failure until an
+  // actual Update List DT attempt fails.
+  let updateState = "idle"; // "idle" | "updating" | "failed"
 
   const bar = document.createElement("div");
   bar.className = "list-dt-bar";
@@ -39,13 +45,29 @@ export function mountListDtPage(container, { onUpdated } = {}) {
   const infoCol = document.createElement("div");
   infoCol.className = "list-dt-bar-info";
 
+  const titleRow = document.createElement("div");
+  titleRow.className = "list-dt-bar-title-row";
+
   const titleEl = document.createElement("span");
   titleEl.className = "list-dt-bar-title";
+
+  // Reuses the existing .status-badge primitive (already the app's one
+  // readiness/status pill pattern) rather than inventing a second status
+  // visual language for List DT.
+  const updateBadgeEl = document.createElement("span");
+  updateBadgeEl.className = "status-badge status-badge--compact";
+
+  const syncBadgeEl = document.createElement("span");
+  syncBadgeEl.className = "status-badge status-badge--compact status-badge--warning";
+
+  titleRow.appendChild(titleEl);
+  titleRow.appendChild(updateBadgeEl);
+  titleRow.appendChild(syncBadgeEl);
 
   const statusEl = document.createElement("span");
   statusEl.className = "list-dt-bar-status";
 
-  infoCol.appendChild(titleEl);
+  infoCol.appendChild(titleRow);
   infoCol.appendChild(statusEl);
 
   const actionsCol = document.createElement("div");
@@ -64,6 +86,12 @@ export function mountListDtPage(container, { onUpdated } = {}) {
 
   const feedbackEl = document.createElement("span");
   feedbackEl.className = "list-dt-bar-feedback";
+  // Visible operational feedback also announced live (spec §8) — separate
+  // from, and in addition to, the short confirmation already sent through
+  // the app's shared hidden live region (announce(), below) for update/sync
+  // outcomes.
+  feedbackEl.setAttribute("role", "status");
+  feedbackEl.setAttribute("aria-live", "polite");
 
   const mainRow = document.createElement("div");
   mainRow.className = "list-dt-bar-main";
@@ -80,8 +108,27 @@ export function mountListDtPage(container, { onUpdated } = {}) {
 
   container.appendChild(bar);
 
+  function updateBadgeClass(state) {
+    if (state === "updating") return "status-badge--info";
+    if (state === "failed") return "status-badge--warning";
+    return "status-badge--ready";
+  }
+
+  function updateBadgeLabel(state) {
+    if (state === "updating") return t("listdt.status.updating");
+    if (state === "failed") return t("listdt.status.updateFailed");
+    return t("listdt.status.ready");
+  }
+
   function renderTexts() {
     titleEl.textContent = t("listdt.title");
+
+    updateBadgeEl.className = `status-badge status-badge--compact ${updateBadgeClass(updateState)}`;
+    updateBadgeEl.textContent = updateBadgeLabel(updateState);
+
+    const pendingCount = getPendingSyncEntries().length;
+    syncBadgeEl.hidden = pendingCount === 0;
+    syncBadgeEl.textContent = t("listdt.status.syncPending", { count: pendingCount });
 
     if (lastListDt) {
       statusEl.textContent = [
@@ -94,7 +141,6 @@ export function mountListDtPage(container, { onUpdated } = {}) {
 
     updateBtn.textContent = t("listdt.update");
 
-    const pendingCount = getPendingSyncEntries().length;
     syncPendingBtn.textContent = `${t("listdt.syncPending")} (${pendingCount})`;
     syncPendingBtn.disabled = pendingCount === 0;
 
@@ -102,6 +148,8 @@ export function mountListDtPage(container, { onUpdated } = {}) {
     feedbackEl.className = feedbackIsError
       ? "list-dt-bar-feedback placeholder-text sync-message-warn"
       : "list-dt-bar-feedback placeholder-text";
+    feedbackEl.setAttribute("role", "status");
+    feedbackEl.setAttribute("aria-live", "polite");
   }
 
   async function refreshStatus() {
@@ -111,6 +159,7 @@ export function mountListDtPage(container, { onUpdated } = {}) {
 
   updateBtn.addEventListener("click", async () => {
     updateBtn.disabled = true;
+    updateState = "updating";
     feedbackText = t("listdt.updating");
     feedbackIsError = false;
     renderTexts();
@@ -119,12 +168,19 @@ export function mountListDtPage(container, { onUpdated } = {}) {
     const result = await refreshFromEndpointInBackground(appConfig.listDtEndpoint);
 
     if (result.ok) {
+      updateState = "idle";
       feedbackText = t("listdt.updateSuccess", { count: result.recordCount });
       feedbackIsError = false;
       announce(t("listdt.updateSuccessAnnounce"));
       await refreshStatus();
       if (onUpdated) await onUpdated();
     } else {
+      // A failed remote update never blocks cleaning — the app keeps using
+      // whatever cached/bundled List DT it already had (unchanged behavior,
+      // §7-8); the UPDATE FAILED badge plus this reason text is presentation
+      // only, communicating that fallback data remains in use, not that
+      // cleaning is unavailable.
+      updateState = "failed";
       feedbackText = t("listdt.updateFailed", { reason: result.reason });
       feedbackIsError = true;
       announce(t("listdt.updateFailedAnnounce"));

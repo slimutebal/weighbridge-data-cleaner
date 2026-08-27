@@ -61,6 +61,10 @@ const translations = {
     "listdt.source.cache": "cache",
     "listdt.source.bundled": "bundled",
     "listdt.na": "—",
+    "listdt.status.ready": "Ready",
+    "listdt.status.updating": "Updating",
+    "listdt.status.updateFailed": "Update Failed",
+    "listdt.status.syncPending": "Sync Pending ({{count}})",
 
     // Import / upload
     "import.dayShift": "Day Shift Input",
@@ -228,6 +232,8 @@ const translations = {
     "weightException.confirmRow": "Confirm With Weighbridge Team",
     "weightException.revoke": "Revoke Confirmation",
     "weightException.dialogTitle": "Confirm With Weighbridge Team",
+    "weightException.evidenceHeading": "Source Evidence",
+    "weightException.decisionHeading": "Decision",
     "weightException.sourceRow": "Source Row",
     "weightException.datetime": "Datetime",
     "weightException.gross": "Gross",
@@ -352,6 +358,10 @@ const translations = {
     "listdt.source.cache": "cache",
     "listdt.source.bundled": "bawaan",
     "listdt.na": "—",
+    "listdt.status.ready": "Siap",
+    "listdt.status.updating": "Memperbarui",
+    "listdt.status.updateFailed": "Pembaruan Gagal",
+    "listdt.status.syncPending": "Menunggu Sinkronisasi ({{count}})",
 
     // Import / upload
     "import.dayShift": "Input Shift Siang",
@@ -519,6 +529,8 @@ const translations = {
     "weightException.confirmRow": "Konfirmasi Tim Timbangan",
     "weightException.revoke": "Batalkan Konfirmasi",
     "weightException.dialogTitle": "Konfirmasi Tim Timbangan",
+    "weightException.evidenceHeading": "Bukti Sumber",
+    "weightException.decisionHeading": "Keputusan",
     "weightException.sourceRow": "Baris Sumber",
     "weightException.datetime": "Tanggal/Waktu",
     "weightException.gross": "Berat Kotor",
