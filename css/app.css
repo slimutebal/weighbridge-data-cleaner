@@ -1886,6 +1886,22 @@ input:focus-visible,
   background: var(--color-danger-bg);
 }
 
+/* UI-6B dock-overlap fix: this panel auto-expands on first render, and its
+   first row(s) can land directly under the fixed bottom dock before the
+   operator scrolls (profile-page.js's renderSelectedGroup calls
+   scrollIntoView({block:"nearest"}) on the panel's first data row once
+   rendered). scroll-margin is what makes that call — and any native
+   scroll-into-view, e.g. Tab focus reaching the summary or a row — stop
+   with real clearance above the dock instead of flush underneath it,
+   using the same measured dock-height token #app's own bottom padding
+   already relies on. Scoped to the summary + first row only (not the
+   whole, often very tall, <details>) so a many-row table's own natural
+   bottom edge never pulls this alignment down and defeats it. */
+.blocking-issues-details > summary,
+.blocking-issues-body tbody tr:first-child {
+  scroll-margin-bottom: calc(var(--bottom-action-bar-height) + 20px);
+}
+
 .blocking-issues-details summary {
   cursor: pointer;
   color: var(--color-danger);

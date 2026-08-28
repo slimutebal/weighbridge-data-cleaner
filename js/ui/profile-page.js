@@ -1197,6 +1197,31 @@ function renderSelectedGroup(
   }
 
   container.appendChild(panel);
+
+  // UI-6B dock-overlap fix: an auto-expanded blocking panel (Unmatched DT,
+  // Weight Integrity, Net Below Threshold, or Other Blocking Issues — all
+  // share .blocking-issues-details) can render with its first row already
+  // under the fixed bottom dock's covered band before the operator ever
+  // scrolls. The target is that first row (or the summary heading, for a
+  // panel whose body has no table) rather than the whole, often very tall,
+  // <details> — scrolling the full element lets its far-off bottom edge
+  // win the browser's "nearest edge" choice, which pulls the view *past*
+  // the very rows this is meant to reveal. "nearest" is a no-op once the
+  // target is already visible, so this never fights normal scrolling or a
+  // re-render after a DT correction Save; the target's own
+  // scroll-margin-bottom (css/app.css) gives that scroll real clearance
+  // above the dock rather than stopping flush underneath it.
+  if (resolvedSection === GROUP_SECTION.VALIDATION) {
+    const firstBlockingPanel = panel.querySelector(".blocking-issues-details");
+    if (firstBlockingPanel) {
+      const scrollTarget =
+        firstBlockingPanel.querySelector(".blocking-issues-body tbody tr:first-child") ||
+        firstBlockingPanel.querySelector("summary");
+      if (scrollTarget) {
+        scrollTarget.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }
 }
 
 // activeGroupKey / onSelectGroup and activeSection / onSelectSection

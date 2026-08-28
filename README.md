@@ -622,9 +622,11 @@ The app is offline-first and never requires network access to clean files:
   extended (see `docs/CLEANING_LOGIC_SPEC.md` §17, R-1).
 - No XLSX export, no PWA/offline install prompt, no desktop packaging —
   output is TSV-to-clipboard only, by design for this MVP.
-- No automated test suite; correctness has been validated against the three
-  reference sample files in `samples/` (see `docs/LEGACY_PARITY_PROFILE.md`
-  for the target row counts and tonnage).
+- Automated coverage lives in `tests/` (lost-row reconciliation, weight
+  integrity, weight exception resolution, low net weight, DT correction —
+  61 cases total) and is re-run against the three real reference sample
+  files in `samples/` for exact row-count/tonnage parity (see
+  `docs/LEGACY_PARITY_PROFILE.md` for the target values).
 - If a single uploaded file's report-date column (日期 / TANGGAL) itself
   holds more than one distinct value across its rows — a genuinely unusual
   file, not the normal case of row timestamps crossing midnight, which no

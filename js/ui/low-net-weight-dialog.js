@@ -218,6 +218,12 @@ export function openLowNetWeightDialog({ row, group, groupId, decimalSeparator }
   confirmedByInput.addEventListener("input", updatePrimaryButton);
   referenceInput.addEventListener("input", updatePrimaryButton);
 
+  // UI-6B fix: without this, the primary button opens with no label at all
+  // (only ever set inside updatePrimaryButton(), which nothing called until
+  // a radio's first change event) — disabled is correct before a decision
+  // is made, but an unlabeled button is both a visual and a11y defect.
+  updatePrimaryButton();
+
   primaryBtn.addEventListener("click", () => {
     if (optionARadio.checked) {
       // Option A: no exception is created — the low-net finding remains

@@ -176,3 +176,77 @@ profiles), reusing the row's already-parsed weight-integrity
       Recorded Net is what's copied, and no threshold/status/confirmation
       field (thresholdTonnes, confirmedBy, confirmationReference, notes,
       confirmedAt, issue code) ever appears in the TSV.
+
+## Live List DT validation safety procedure (UI-6B)
+
+The `listDtEndpoint` in `config/app-config.json` is a Google Apps Script
+in front of the **production/master** List DT Google Sheet — the same
+contractor master data real cleaning runs match DT numbers against. It is
+not a staging or test endpoint. UI-6A's own validation left three
+synthetic mappings (`SCM-CLN 401/402/403`, fake contractor names) on this
+live sheet, where they stayed until found and removed at the start of
+UI-6B — a real incident, not a hypothetical one.
+
+Rules for every future round of DT-correction / List DT validation or
+demo work, manual or agent-assisted:
+
+- [ ] Before any DT-correction testing, read the live endpoint (a plain
+      GET is safe) and confirm no leftover synthetic/demo mapping is
+      present. Do this again immediately after, not just before.
+- [ ] Never `POST` a fake, fabricated, or "realistic-looking" DT/contractor
+      pair to the live endpoint — not even temporarily, not even ones that
+      look obviously fake to a human reviewer (the sheet doesn't know
+      that).
+- [ ] While exercising DT-correction UI flows for testing, either block
+      network requests to `script.google.com` / `*.googleusercontent.com`
+      at the browser/proxy level, or simply never click **Update List
+      DT** / **Sync Pending DT** / **Save Mapping & Re-clean**'s sync step
+      — local-only correction (`upsertLocalDtMappings`) is enough to
+      exercise the UI and never leaves the browser.
+- [ ] If a real, non-synthetic correction genuinely needs to go live
+      (an actual new contractor/DT pairing), that's fine — it's what the
+      feature is for — but it's a deliberate, authorized, one-off action,
+      not something to do incidentally while validating something else.
+- [ ] After any permitted write to the live endpoint for any reason,
+      re-read it (GET) and confirm the sheet now contains exactly what
+      was intended — nothing extra, nothing malformed.
+
+## UI-6B — Final polish, cleanup, and release readiness
+
+- [x] Dock/blocking-panel overlap (UI-6A cosmetic finding) fixed: the
+      fixed bottom dock could cover the first interactive row(s) of an
+      auto-expanded blocking panel (Unmatched DT / Weight Integrity / Net
+      Below Threshold / Other Blocking Issues — all `.blocking-issues-details`)
+      on first paint at laptop resolutions, before the operator scrolled.
+      Root cause: the dock is `position: fixed` at the viewport bottom and
+      always visually covers whatever page content naturally falls in its
+      band; nothing previously nudged a freshly auto-expanded panel clear
+      of that band on first render. Fix: `.blocking-issues-details >
+      summary` and `.blocking-issues-body tbody tr:first-child` carry
+      `scroll-margin-bottom: calc(var(--bottom-action-bar-height) + 20px)`
+      (`css/app.css`), and `renderSelectedGroup` (`js/ui/profile-page.js`)
+      calls `scrollIntoView({block: "nearest"})` on the panel's first data
+      row (or its summary, if the panel has no table) once rendered — a
+      no-op when already visible, so it never fights normal scrolling or a
+      re-render after a DT-correction Save. Verified with a real
+      unmatched-DT-heavy HYNC run at 1366x768 Light/Dark, 1600x900 Light,
+      and 1920x1080 Light: first row clear of the dock on first paint in
+      every configuration, end-of-page and Save Mapping reachability
+      unaffected.
+- [x] Two pre-existing confirmation dialogs (`js/ui/weight-exception-dialog.js`,
+      `js/ui/low-net-weight-dialog.js`) opened with their primary action
+      button fully unlabeled (disabled, but with no text at all) until the
+      operator picked a decision radio, because nothing called
+      `updatePrimaryButton()` on initial render. Fixed by calling it once
+      immediately after the button/handlers are wired, so the disabled
+      button always shows its pending action label.
+- [x] Automated baseline: 61/61 tests PASS (7 lost-row reconciliation, 19
+      weight integrity, 10 weight exception resolution, 18 low net weight,
+      7 DT correction).
+- [x] Real-source parity (exact, re-verified after the UI-6B fixes above):
+      HYNC 337 rows / 14,421.19 t; SLNC 109 rows / 4,776.33 t; ESG 224
+      rows / 10,547.46 t.
+- [x] Declared Bucket remains the final Shift authority (D009); contextual
+      DT correction (per Cleaning Group, inside Validation & Issues)
+      remains the only operational unmatched-DT workflow — neither changed
+      in UI-6B.
