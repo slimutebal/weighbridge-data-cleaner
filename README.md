@@ -6,15 +6,30 @@ See `docs/INFRASTRUCTURE_BLUEPRINT.md` for the confirmed infrastructure referenc
 `docs/CLEANING_LOGIC_SPEC.md` for the exact cleaning rules per profile, and
 `docs/LEGACY_PARITY_PROFILE.md` for the legacy baseline this app targets.
 
-**Status: v0.2 Operational Pilot — PASS.** v1.0 preparation is now in its
-final release checklist stage — v1.0 has **not** been tagged yet. Use
-remains controlled; additional real-file evidence can continue to be
-appended to `docs/PILOT_VALIDATION_LOG.md`.
+**Status:** the v0.2 Operational Pilot passed
+(`docs/PILOT_VALIDATION_LOG.md`). Latest tagged release: **`v1.0.3`**.
+Current application version at HEAD (`config/app-config.json`):
+**`1.3.0`** — not yet tagged. Use remains controlled; additional
+real-file evidence can continue to be appended to
+`docs/PILOT_VALIDATION_LOG.md`. See `docs/VERSIONING_POLICY.md` for the
+full version/tag reconciliation.
+
+A new documentation-only workstream, **V2 — Offline & PWA Readiness**, is
+now planned on top of this baseline. "V2" is a workstream label only — it
+does **not** mean the application version is `2.0.0`, or that any
+`v2.0.0` git tag exists; see `docs/VERSIONING_POLICY.md`. The
+workstream's phases, protected behavior,
+and validation gates are defined in `docs/OFFLINE_V2_ROADMAP.md`. As of
+this writing, no offline List DT bundling and no PWA
+(manifest/service-worker) work has been implemented — the "Current MVP
+limitations" and "Offline behavior" sections below still describe the
+app's actual current behavior.
 
 For day-to-day controlled operational use, see
-[docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md). For the remaining
-pre-v1.0.0 sign-off steps, see
-[docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+[docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md). For the release
+checklist that preceded the `v1.0.0`–`v1.0.3` tags, see
+[docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) (historical; see
+its status note).
 
 Before v1.0, the app goes through an operational pilot that validates real
 operational files (not just the fixed reference samples) against the
@@ -574,7 +589,15 @@ JavaScript resize listener, decides which one is visible.
 
 ## Offline behavior
 
-The app is offline-first and never requires network access to clean files:
+Cleaning does not require **external** internet/WAN access — Contractor
+matching and file reading both work with the external network
+unavailable. Today, the app still requires the **local HTTP origin it is
+served from** (e.g. the current Live Server setup) to remain reachable;
+there is no Service Worker yet, so the application shell itself cannot
+boot or reload with no network access at all, including to that local
+origin. Full application-shell offline boot/reload (independent of the
+local origin) is planned for the OFFLINE-2 phase of
+`docs/OFFLINE_V2_ROADMAP.md` and is **not** implemented today.
 
 - Contractor matching uses, in priority order: the `localStorage` cache from
   a previous successful **Update List DT**, then the bundled
@@ -583,7 +606,8 @@ The app is offline-first and never requires network access to clean files:
   app shows a failure message and keeps using whatever cached or bundled
   List DT it already has — cleaning is never blocked by a failed update.
 - SheetJS (the Excel-reading library) is vendored locally in `lib/sheetjs/`,
-  not loaded from a CDN, so file reading works fully offline too.
+  not loaded from a CDN, so file reading works without external network
+  access too.
 
 ## What the warnings mean
 

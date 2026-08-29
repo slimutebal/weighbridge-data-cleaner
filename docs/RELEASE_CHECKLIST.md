@@ -1,5 +1,16 @@
 # Release Checklist — v1.0.0
 
+> **Status note (added during V2-0 documentation correction):** git tags
+> `v1.0.0` through `v1.0.3` already exist in this repository and are
+> ancestors of the current baseline (`5c6482b`) — v1.0 **has** been
+> tagged. This checklist's body below (including its unchecked boxes and
+> "in progress" wording in §2) predates that tagging and was not updated
+> afterward; it is retained here as a historical record rather than
+> rewritten. The current authoritative version/tag status is
+> `docs/VERSIONING_POLICY.md` §0. This note does not check any box below
+> or assert that the historical checklist was actually completed as
+> written — only the Git tag evidence is confirmed.
+
 Final release checklist for v1.0 preparation. This is the last step before
 tagging v1.0.0; it does not itself release, tag, or push anything. Complete
 this checklist (and record the decision in §10) before requesting a tag.
