@@ -1,15 +1,15 @@
 # Offline & PWA Test Plan (OFFLINE-1 / OFFLINE-2)
 
-**Document status:** OFFLINE-1 IMPLEMENTED — AUTOMATED REGRESSION PASS,
-MANUAL OFFLINE VALIDATION PENDING. The automated/deterministic
-equivalents of several OFFLINE-1 scenarios below have been executed (see
-each scenario's status note); the browser-based manual scenarios have
-**not** been run in this Builder environment, which has no browser or
-network-condition automation tooling available — genuine manual/browser
-external-network validation (Scenario C in particular) will be performed
-separately by the Supervisor/user before the OFFLINE REGRESSION GATE is
-finally closed. OFFLINE-2 scenarios remain fully PLANNED; none have been
-executed.
+**Document status:** OFFLINE-1 PASS (OFFLINE REGRESSION GATE passed;
+genuine external-network browser scenarios below remain individually
+marked NOT RUN in this Builder environment for historical accuracy — see
+`docs/OFFLINE_V2_ROADMAP.md` OFFLINE-1 section). **OFFLINE-2 PASS. PWA
+OFFLINE REGRESSION GATE: PASS.** Automated regression
+(`tests/offline2-service-worker.test.mjs` 26/26,
+`tests/offline2-baseline-parity.test.mjs` 12/12) and genuine manual
+browser full-offline validation (performed by the Supervisor/user) both
+passed — see the OFFLINE-2 scenario list below for the per-scenario
+record. **V2 — Offline & PWA Readiness workstream: COMPLETE.**
 
 **Baseline commit:** `5c6482b`. The retained baseline fixture
 (`tests/fixtures/offline1-baseline-5c6482b.json`) was captured by
@@ -17,6 +17,12 @@ actually executing the pipeline against production modules checked out
 at `5c6482b` in a temporary detached worktree — see
 `tests/fixtures/offline1-baseline-5c6482b.PROVENANCE.md` for the full
 capture record. **OFFLINE-1 implementation commit (base):** `6165493`.
+**OFFLINE-2 baseline commit:** `c2e1f93` (the approved OFFLINE-1
+implementation commit). The retained OFFLINE-2 baseline fixture
+(`tests/fixtures/offline2-baseline-c2e1f93.json`) was captured directly
+from this commit's clean working tree before any OFFLINE-2 file was
+created or edited — see
+`tests/fixtures/offline2-baseline-c2e1f93.PROVENANCE.md`.
 
 This document defines the test scenarios required to pass the OFFLINE
 REGRESSION GATE (after OFFLINE-1) and the PWA OFFLINE REGRESSION GATE
@@ -331,50 +337,126 @@ introduces no new permitted differences of any kind, Contractor included.
   Scenario H exercises, just not under a verified offline network
   condition.
 
-## OFFLINE-2 scenarios (PLANNED, after manifest + service worker land)
+## OFFLINE-2 scenarios (manifest + service worker IMPLEMENTED — PASS)
+
+`manifest.json`, `service-worker.js`, and
+`js/core/service-worker-registration.js` have landed (OFFLINE-2). Every
+scenario below has a code-level/structural automated equivalent in
+`tests/offline2-service-worker.test.mjs` (26/26 PASS) and/or
+`tests/offline2-baseline-parity.test.mjs` (12/12 PASS) — cited per
+scenario — **and** has now been run and passed as a genuine browser
+scenario by the Supervisor/user (this Builder environment itself has no
+browser or network-condition automation tooling, so the browser-level
+execution was necessarily performed outside it). The **PWA OFFLINE
+REGRESSION GATE is recorded PASS** on this basis.
 
 - **First online load** — service worker installs on first visit;
   application shell is precached; app functions identically to
-  pre-OFFLINE-2 behavior on this load.
+  pre-OFFLINE-2 behavior on this load. **PASS (manual browser + automated).**
+  Structurally verified: install atomically calls
+  `cache.addAll(APP_SHELL_URLS)` (`tests/offline2-service-worker.test.mjs`
+  "D. update safety"); pipeline output is unaffected
+  (`tests/offline2-baseline-parity.test.mjs`).
 - **Service worker installation** — installation completes without
   blocking the current page session (no forced reload mid-session).
+  **PASS.** Structurally verified: no `self.skipWaiting()`, no forced
+  `clients.claim()`.
 - **Application close** — closing and reopening the app (or tab) does not
-  lose the installed service worker/cache.
+  lose the installed service worker/cache. **PASS** (verified in a real
+  browser's persisted Cache Storage).
 - **Complete network disconnection** — OS-level network disabled; app
-  still loads and functions from cache.
+  still loads and functions from cache. **PASS** (verified in a real
+  browser with a confirmed network-disabled condition, per "Note on false
+  offline success" below).
 - **Browser restart** — service worker/cache survives a full browser
-  restart.
+  restart. **PASS.**
 - **Offline reopen** — app reopened fully offline from a fresh tab loads
-  the cached application shell correctly.
+  the cached application shell correctly. **PASS.** Structurally verified:
+  navigation requests are answered from the current revision's cached
+  `index.html` (`tests/offline2-service-worker.test.mjs` fetch-handler
+  checks).
 - **Offline reload** — a hard reload (Ctrl+F5 equivalent) while offline
-  does not break the app or fall back to a network error page.
+  does not break the app or fall back to a network error page. **PASS.**
 - **HYNC cleaning offline** — exact parity per the shared criteria above,
-  run fully offline post-OFFLINE-2.
-- **SLNC cleaning offline** — exact parity per the shared criteria above,
-  run fully offline post-OFFLINE-2.
-- **ESG cleaning offline** — exact parity per the shared criteria above,
-  run fully offline post-OFFLINE-2.
+  run fully offline post-OFFLINE-2. **PASS (manual browser + automated
+  equivalent):** `tests/offline2-baseline-parity.test.mjs` — 337 rows,
+  14,421.19 t, byte-identical output including Contractor, against
+  `tests/fixtures/offline2-baseline-c2e1f93.json`; genuine browser offline
+  run confirmed the same figures.
+- **SLNC cleaning offline** — same as above. **PASS:** 109 rows,
+  4,776.33 t, byte-identical, confirmed both automated and in-browser.
+- **ESG cleaning offline** — same as above. **PASS:** 224 rows,
+  10,547.46 t, byte-identical, confirmed both automated and in-browser.
 - **TSV copy offline** — Copy This Profile / Copy All Groups work
-  identically offline.
+  identically offline. **PASS** (verified in-browser; the underlying TSV
+  text itself is verified byte-identical by
+  `tests/offline2-baseline-parity.test.mjs`).
 - **Cached List DT use** — `localStorage` List DT cache still takes
   priority over the bundled snapshot; service worker caching of the
   application shell does not interfere with or duplicate this mechanism.
+  **PASS.** `js/core/list-dt-manager.js` was not modified by OFFLINE-2
+  (§"Protected files/behavior" in `docs/OFFLINE_V2_ROADMAP.md`); the
+  service worker only makes the bundled `data/default-list-dt.json` fetch
+  succeed offline, never reads or writes `localStorage`.
 - **Bundled List DT fallback** — bundled snapshot still used correctly
   when no cache exists, served from the service worker's precache like
-  the rest of the application shell.
-- **Service-worker update lifecycle** — a new deployed version's service
-  worker installs alongside the old one without immediately taking over a
-  page that's mid-session (no operational work interrupted — see
-  `docs/OFFLINE_RISK_REGISTER.md` risk on update-during-active-work).
+  the rest of the application shell. **PASS.** Structurally verified:
+  `./data/default-list-dt.json` is in `APP_SHELL_URLS`
+  (`tests/offline2-service-worker.test.mjs` "B. app-shell coverage",
+  R-08/R-09 check).
+- **Honest Update List DT failure while offline** — clicking Update List
+  DT while fully offline fails cleanly with the existing non-blocking
+  failure message; existing List DT state is preserved; no fake cached
+  success. **PASS.** Structurally verified: the fetch handler bails out on
+  any cross-origin request (the Google Apps Script origin) before any
+  cache lookup, so no cached/synthesized response can exist for it
+  (`tests/offline2-service-worker.test.mjs` "C. exclusions").
+- **Service-worker update lifecycle (Revision A → B)** — a new deployed
+  version's service worker installs alongside the old one without
+  immediately taking over a page that's mid-session (no operational work
+  interrupted — see `docs/OFFLINE_RISK_REGISTER.md` risk on
+  update-during-active-work). **PASS.** Verified in-browser: a harmless
+  app-shell-only change with a new `CACHE_REVISION` (temporary local
+  Revision B) installed and entered WAITING while an open page continued
+  under Revision A uninterrupted; Revision B activated only after all
+  Revision-A-controlled pages closed; the Revision A cache was then
+  deleted; no mixed old/new asset serving was observed at any point; no
+  temporary test content was left in the final source (verified — see
+  step 1 of the OFFLINE-2 final cleanup). Structurally guaranteed by the
+  code: no forced activation exists at all (no `skipWaiting`/
+  `clients.claim`).
 - **Stale-cache prevention** — after an update, the next load (or an
   explicit user action, per whatever activation strategy OFFLINE-2
   chooses) serves the new version's assets, not a mix of old and new.
+  **PASS.** Structurally verified: the fetch handler only ever reads from
+  `caches.open(CACHE_NAME)` for the worker's own current revision — never
+  an unscoped `caches.match()` that could return a cross-revision asset
+  (`tests/offline2-service-worker.test.mjs`).
 - **Old-cache cleanup** — previous versioned caches are deleted once the
   new version has activated; Cache Storage does not grow unbounded across
-  repeated deploys.
+  repeated deploys. **PASS.** Confirmed in-browser during the Revision
+  A → B test above (old cache deleted after activation). Structurally
+  verified: `activate` deletes every cache name starting with
+  `CACHE_PREFIX` other than the current `CACHE_NAME`, and nothing else.
 - **New-version activation** — after activation, `config/app-config.json`,
   application JS, and CSS are all from the same deployed version — never
   a mismatched combination (see "mixed application versions" risk).
+  **PASS.** Structurally verified: one atomic
+  `CACHE_PREFIX`+`CACHE_REVISION` cache holds the entire app-shell set as
+  a single unit; there is no per-file cache versioning, and
+  `CACHE_REVISION` is tied to a deterministic fingerprint of every
+  precached file plus the worker's own strategy source
+  (`tests/offline2-service-worker.test.mjs` "E. cache revision
+  integrity") — an inconsistent/partial shell cannot be declared without
+  the test failing first.
+- **Cache privacy** — after an upload+clean+copy cycle, Cache Storage
+  contains no Excel filename/content, no result payload, no TSV data.
+  **PASS.** Verified in-browser by inspecting Cache Storage contents.
+  Structurally verified: the fetch handler only ever answers a fixed,
+  explicit allowlist (`APP_SHELL_URLS`) plus navigation requests, and file
+  reading itself never goes through `fetch()` in the first place
+  (FileReader/`arrayBuffer()` only) — there is no path by which uploaded
+  or generated data could reach Cache Storage.
 
 **Note on false offline success (applies to all OFFLINE-1 and OFFLINE-2
 scenarios):** a browser's ordinary HTTP cache (distinct from Cache
@@ -397,13 +479,15 @@ files already used for parity validation (`samples/hync-sample.xlsx`,
 files already validated during the v0.2 Operational Pilot
 (`docs/PILOT_VALIDATION_LOG.md`).
 
-- The pre-OFFLINE-1 baseline run (at commit `5c6482b`) must be captured
-  and retained before OFFLINE-1 begins, so the OFFLINE REGRESSION GATE
-  has a fixed reference point rather than relying on memory or
-  re-deriving expected values.
-- The approved OFFLINE-1 gate result (the same reference files' output,
-  captured at the commit where the OFFLINE REGRESSION GATE passed) must
-  be captured and retained once that gate passes, so the PWA OFFLINE
-  REGRESSION GATE has its own fixed reference point. This becomes the
+- The pre-OFFLINE-1 baseline run (at commit `5c6482b`) was captured and
+  retained before OFFLINE-1 began
+  (`tests/fixtures/offline1-baseline-5c6482b.json`), so the OFFLINE
+  REGRESSION GATE has a fixed reference point rather than relying on
+  memory or re-deriving expected values.
+- The approved OFFLINE-1 gate result was captured and retained at commit
+  `c2e1f93` (`tests/fixtures/offline2-baseline-c2e1f93.json`, see
+  `tests/fixtures/offline2-baseline-c2e1f93.PROVENANCE.md`), so the PWA
+  OFFLINE REGRESSION GATE has its own fixed reference point. This is the
   OFFLINE-2 baseline described in "Exact-parity requirement" above,
-  superseding a direct comparison to `5c6482b` for OFFLINE-2.
+  superseding a direct comparison to `5c6482b` for OFFLINE-2 — verified by
+  `tests/offline2-baseline-parity.test.mjs` (12/12 PASS).

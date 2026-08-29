@@ -1,0 +1,19 @@
+{
+  "name": "Weighbridge Data Cleaner",
+  "short_name": "WB Cleaner",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "./assets/icons/weighbridge-cleaner-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./assets/icons/weighbridge-cleaner-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

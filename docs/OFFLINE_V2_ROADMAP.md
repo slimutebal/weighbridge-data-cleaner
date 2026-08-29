@@ -1,11 +1,24 @@
 # V2 Workstream Roadmap — Offline & PWA Readiness
 
-**Document status:** V2-0 PASS. V2-1 PASS. OFFLINE-1 IMPLEMENTED —
-AUTOMATED REGRESSION PASS, MANUAL OFFLINE VALIDATION PENDING (to be
-performed separately by the Supervisor/user; see
-`docs/OFFLINE_TEST_PLAN.md`). OFFLINE-2 NOT STARTED.
+**Document status:** V2-0 PASS. V2-1 PASS. OFFLINE-1 PASS. OFFLINE-2
+PASS. **PWA OFFLINE REGRESSION GATE: PASS.** **V2 — Offline & PWA
+Readiness: COMPLETE.** Genuine manual browser full-offline validation
+(installability, Service Worker registration/activation, app-shell cache
+completeness, complete network disconnection, browser restart, HYNC/SLNC/
+ESG offline parity, TSV copy, List DT cache priority/bundled fallback,
+honest Update List DT failure, the Revision A → B update-lifecycle
+waiting/activation sequence, and no forced takeover) has been performed
+and passed by the Supervisor/user — see `docs/OFFLINE_TEST_PLAN.md` for
+the full scenario-by-scenario record.
 **Baseline commit:** `5c6482b` (`fix(esg,ui): support fullwidth ore delimiters and reset navigation`).
 **OFFLINE-1 starting commit:** `6165493` (`feat(ui): display application version in header`) — identical to `5c6482b` on every cleaning/validation/List DT join code path (only docs, `README.md`, `index.html`, `css/app.css`, and the V2-1 header subtitle in `js/main.js` changed in between).
+**OFFLINE-2 starting commit:** `c2e1f93` (`feat(offline): bundle validated List DT fallback`) — the approved OFFLINE-1 implementation commit; see §9 for the baseline chain.
+
+Completion of this workstream does **not** assign a new application
+version, SemVer bump, or Git tag. `config/app-config.json`'s `"version"`
+remains `1.3.0`, correctly untagged, per `docs/VERSIONING_POLICY.md`. "V2"
+remains a workstream label only — see §"Naming clarification" below and
+`docs/VERSIONING_POLICY.md` §3.6.
 
 ## Naming clarification (read first)
 
@@ -125,22 +138,22 @@ V2-1 — App Version Display   [PASS]
 V2-1 GATE
    │
    ▼
-OFFLINE-1 — Real Bundled List DT   [IMPLEMENTED — AWAITING GATE]
+OFFLINE-1 — Real Bundled List DT   [PASS]
    │  (offline smoke test, zero-network validation)
    ▼
 OFFLINE REGRESSION GATE
    │  (HYNC / SLNC / ESG exact parity)
    ▼
-OFFLINE-2 — Manifest + Service Worker   [NOT STARTED]
+OFFLINE-2 — Manifest + Service Worker   [PASS]
    │  (atomic versioned cache)
    ▼
-PWA OFFLINE REGRESSION GATE
+PWA OFFLINE REGRESSION GATE   [PASS]
    │  (HYNC / SLNC / ESG exact parity)
    ▼
-V2 OFFLINE & PWA COMPLETE
+V2 OFFLINE & PWA COMPLETE   [REACHED]
    │
    ▼
-OPTIONAL, FUTURE-ONLY: Windows Portable Packaging
+OPTIONAL, FUTURE-ONLY: Windows Portable Packaging (not started, not authorized by this document)
 ```
 
 Each phase in this list is described in full below (§8–§10). No phase may
@@ -200,7 +213,16 @@ be started before its predecessor's gate has passed.
   assumption — it must re-confirm against `docs/VERSIONING_POLICY.md` §0
   first rather than use a cached value.
 
-### OFFLINE-1 — Real Bundled List DT [IMPLEMENTED — AWAITING OFFLINE REGRESSION GATE]
+### OFFLINE-1 — Real Bundled List DT [PASS]
+
+**Supervisor decision:** the OFFLINE REGRESSION GATE has passed. OFFLINE-2
+was authorized to begin from commit `c2e1f93`, and its baseline capture
+(`tests/fixtures/offline2-baseline-c2e1f93.json`) is the retained record
+of the approved OFFLINE-1 gate state (§9). The genuine external-network
+browser scenarios below (C, D, G, H) remain individually marked NOT RUN
+in this Builder environment for historical accuracy — the gate PASS
+reflects the Supervisor's authorization to proceed, not a claim that
+those specific browser scenarios were executed here.
 
 - **Entry criteria:** V2-1 GATE passed.
 - **Zero-network scope (phase boundary):** OFFLINE-1 targets *external*-
@@ -242,49 +264,110 @@ be started before its predecessor's gate has passed.
   against the retained baseline `tests/fixtures/offline1-baseline-5c6482b.json`
   — 13/13 assertions pass, zero unexplained differences on all three
   reference sample files. This automated result is captured and retained
-  as the OFFLINE-2 comparison baseline (§9); the OFFLINE REGRESSION GATE
-  itself (Supervisor sign-off) is still pending.
+  as the OFFLINE-2 comparison baseline (§9). **OFFLINE REGRESSION GATE:
+  PASS** (Supervisor authorization to begin OFFLINE-2 from commit
+  `c2e1f93`).
 
-### OFFLINE-2 — Manifest + Service Worker
+### OFFLINE-2 — Manifest + Service Worker [PASS]
 
 - **Entry criteria:** OFFLINE REGRESSION GATE passed.
+- **Starting commit:** `c2e1f93` (`feat(offline): bundle validated List DT
+  fallback`) — the approved OFFLINE-1 implementation commit.
 - **Zero-network scope (phase boundary):** OFFLINE-2 targets full
   application-shell offline boot/reload — the Service Worker provides
   HTML/JS/CSS/config/assets so the app loads and functions with no
   network fetch at all, including the local HTTP origin. This is what
   validates localhost/network fetch independence; OFFLINE-1's
   external-network-only scope (above) is superseded here, not repeated.
-- **Scope (PLANNED):**
-  - `manifest.json` (name, icons, start URL, display mode).
-  - `service-worker.js` implementing an atomic, versioned cache strategy
-    for the application shell (HTML/CSS/JS/vendored SheetJS/static JSON
-    config needed to boot).
-  - Service worker registration from the app's own bootstrap code.
-  - Required PWA metadata/icons.
-  - A controlled update lifecycle (new service worker installs, does not
-    activate until the old cache is safely superseded, no silent mixed
-    old/new asset state — see `docs/OFFLINE_RISK_REGISTER.md` risk on
-    mixed application versions).
-- **Explicit exclusions (STOP CONDITION if violated):**
-  - Google Apps Script requests (List DT update/sync endpoint) **must
-    not** be served from, or captured by, the application service-worker
-    cache. They must always go to the network, exactly as today.
-  - Uploaded source Excel files and cleaning results **must not** be
-    persisted in Cache Storage (or any other new persistent store
-    introduced by this phase) as part of this workstream. They remain
-    in-memory/session-scoped as today.
-- **Exit criteria (PWA OFFLINE REGRESSION GATE):** HYNC/SLNC/ESG exact
-  parity per `docs/OFFLINE_TEST_PLAN.md` against the approved OFFLINE-1
-  gate state (§9) — zero new Contractor or other output differences —
-  with protected non-Contractor behavior (§6) remaining traceable to
-  `5c6482b`, plus full installability and offline-reload validation.
+- **Scope (IMPLEMENTED):**
+  - `manifest.json` at the repository root (name, short_name, relative
+    `start_url`/`scope`, `display: "standalone"`, local 192x192 and
+    512x512 PNG icons — the 512x512 variant,
+    `assets/icons/weighbridge-cleaner-icon-512.png`, was derived from the
+    existing approved icon via a local bilinear-upscale script using only
+    Node's built-in `zlib`, preserving transparency and introducing no
+    new dependency or CDN reference).
+  - `service-worker.js` at the repository root, precaching a fixed,
+    explicit application-shell allowlist (`APP_SHELL_URLS`) — index.html,
+    manifest.json, css/app.css, vendored SheetJS, `config/app-config.json`,
+    `config/shift-rules.json`, `data/default-list-dt.json`, both icon
+    files, and every tracked `js/**/*.js` runtime module — into one
+    uniquely-named cache per `CACHE_PREFIX` + `CACHE_REVISION`.
+    `CACHE_REVISION` is a deterministic SHA-256-derived fingerprint of the
+    actual app-shell file contents plus the worker's own caching/
+    lifecycle strategy source (never the application SemVer) — see
+    `tests/helpers/cache-revision.mjs`, `tests/helpers/
+    print-cache-revision.mjs`, and `tests/offline2-service-worker.test.mjs`
+    ("E. cache revision integrity"), which fails automatically if any
+    precached file or the worker's strategy changes without regenerating
+    this value.
+  - `js/core/service-worker-registration.js` — a small, isolated bootstrap
+    module (the one authorized new file under `js/core`) that feature-
+    detects `navigator.serviceWorker` and registers `./service-worker.js`
+    non-blockingly (`.catch()`, never awaited by callers); `js/main.js`
+    imports and calls it once, after the rest of the app has already
+    mounted, with no cleaning-path dependency on its outcome.
+  - A controlled update lifecycle: no `self.skipWaiting()`, no forced
+    `clients.claim()`. A newly-installed worker precaches into its own new
+    cache and waits for the browser's default lifecycle to activate it
+    (only once no page is still controlled by the previous worker) —
+    never a mid-session forced takeover. Activation deletes only old
+    caches under this app's own `CACHE_PREFIX`.
+- **Explicit exclusions (STOP CONDITION if violated) — VERIFIED:**
+  - Google Apps Script requests (List DT update/sync endpoint) are never
+    served from, or captured by, the application service-worker cache —
+    the fetch handler bails out on any cross-origin request before any
+    cache lookup, and never on a non-GET request. Verified by
+    `tests/offline2-service-worker.test.mjs` ("C. exclusions").
+  - Uploaded source Excel files and cleaning results are never persisted
+    in Cache Storage. The fetch handler only ever answers a fixed,
+    explicit allowlist (`APP_SHELL_URLS`) plus navigation requests, and
+    never writes to the cache outside of `install()`'s one atomic
+    `cache.addAll()` call — there is no generic same-origin caching path
+    for uploaded/generated data to reach, and file reading itself never
+    goes through `fetch()` in the first place (FileReader/arrayBuffer
+    only, unchanged).
+- **Automated validation status:** `tests/offline2-service-worker.test.mjs`
+  (26/26) and `tests/offline2-baseline-parity.test.mjs` (12/12) pass — see
+  `docs/OFFLINE_TEST_PLAN.md`.
+- **Manual validation status (Supervisor/user, PASS):** genuine
+  browser-based full-offline validation was performed and passed,
+  including: first online install without forcing a page reload; Service
+  Worker registration/activation with the correct scope; app-shell Cache
+  Storage contents matching the approved allowlist exactly, with no
+  Google Apps Script entry and no uploaded Excel/results entry; complete
+  network disconnection (including localhost) followed by cold-open,
+  offline reload, tab close/reopen, and full browser restart, all serving
+  the cached shell correctly; HYNC/SLNC/ESG cleaning fully offline at
+  exact parity (§9) including Contractor and readiness; TSV copy (Copy
+  This Profile / Copy All Groups) fully offline; `localStorage` List DT
+  cache priority over the bundled snapshot preserved offline; bundled
+  List DT fallback resolving correctly with no cache; an honest, non-fake
+  **Update List DT** failure while offline with prior state preserved; and
+  the Revision A → B update-lifecycle sequence (a new worker installing
+  and entering WAITING while Revision A continued serving an open page
+  uninterrupted, activating only after that page closed, deleting the old
+  cache, with no mixed-version asset serving observed at any point and no
+  blocking console errors). See `docs/OFFLINE_TEST_PLAN.md` for the full
+  scenario-by-scenario record.
+- **Exit criteria (PWA OFFLINE REGRESSION GATE): PASS.** HYNC/SLNC/ESG
+  exact parity per `docs/OFFLINE_TEST_PLAN.md` against the approved
+  OFFLINE-1 gate state (§9) confirmed both by automated regression
+  (`tests/offline2-baseline-parity.test.mjs`, 12/12) and by the manual
+  browser validation above — zero new Contractor or other output
+  differences, with protected non-Contractor behavior (§6) remaining
+  traceable to `5c6482b`, plus full installability, offline-reload, and
+  update-lifecycle validation.
 
-### V2 OFFLINE & PWA COMPLETE
+### V2 OFFLINE & PWA COMPLETE [REACHED]
 
-Reached only when both the OFFLINE REGRESSION GATE and the PWA OFFLINE
-REGRESSION GATE have passed. This marks completion of the *workstream*,
-not automatically a new application version or git tag — a version/tag
-decision is separate and follows `docs/VERSIONING_POLICY.md`.
+Both the OFFLINE REGRESSION GATE and the PWA OFFLINE REGRESSION GATE have
+passed (Supervisor decision) — this milestone is reached. It marks
+completion of the *workstream* only, not automatically a new application
+version or Git tag. `config/app-config.json`'s `"version"` remains
+`1.3.0`, unchanged and correctly untagged; no tag was created by this
+decision. A version/tag decision, if any, is separate and follows
+`docs/VERSIONING_POLICY.md` §3.6.
 
 ## 9. OFFLINE-1 permitted difference and baseline chain
 
@@ -334,14 +417,17 @@ requirement") for the full rule.
 
 Four gates exist in this roadmap:
 
-1. **V2-0 GATE** — documentation consistency (this phase).
-2. **V2-1 GATE** — version display correctness.
+1. **V2-0 GATE** — documentation consistency (this phase). **PASS.**
+2. **V2-1 GATE** — version display correctness. **PASS.**
 3. **OFFLINE REGRESSION GATE** — HYNC/SLNC/ESG exact parity after
    OFFLINE-1 against baseline `5c6482b`, with the one permitted Contractor
-   difference (§9) (see `docs/OFFLINE_TEST_PLAN.md`).
+   difference (§9) (see `docs/OFFLINE_TEST_PLAN.md`). **PASS.**
 4. **PWA OFFLINE REGRESSION GATE** — HYNC/SLNC/ESG exact parity after
    OFFLINE-2 against the approved OFFLINE-1 gate state (§9), plus PWA
-   lifecycle correctness (see `docs/OFFLINE_TEST_PLAN.md`).
+   lifecycle correctness (see `docs/OFFLINE_TEST_PLAN.md`). **PASS** —
+   automated regression (`tests/offline2-baseline-parity.test.mjs` 12/12,
+   `tests/offline2-service-worker.test.mjs` 26/26) and genuine manual
+   browser PWA validation (Supervisor/user) both passed.
 
 A gate is a hard stop: the next phase does not begin until its
 predecessor's gate has a recorded PASS.
@@ -362,19 +448,33 @@ predecessor's gate has a recorded PASS.
   `docs/RELEASE_CHECKLIST.md` §8) remains the operational fallback
   throughout this workstream, unchanged.
 
-## 12. Definition of V2 completion
+## 12. Definition of V2 completion [REACHED]
 
 The V2 — Offline & PWA Readiness workstream is complete when:
 
 - OFFLINE-1 has shipped a real bundled List DT snapshot and passed the
-  OFFLINE REGRESSION GATE.
+  OFFLINE REGRESSION GATE. **Done.**
 - OFFLINE-2 has shipped manifest + service worker and passed the PWA
-  OFFLINE REGRESSION GATE.
-- HYNC/SLNC/ESG exact parity is confirmed at both gates.
+  OFFLINE REGRESSION GATE. **Done.**
+- HYNC/SLNC/ESG exact parity is confirmed at both gates. **Confirmed** —
+  automated (`tests/offline1-baseline-parity.test.mjs`,
+  `tests/offline2-baseline-parity.test.mjs`) and manual browser
+  validation (Supervisor/user).
 - No protected operational behavior (§6) changed as a side effect.
+  **Confirmed** — every protected path (`js/profiles/**`,
+  `js/core/cleaning-orchestrator.js`, `js/core/validation-engine.js`,
+  `js/core/readiness.js`, `js/core/output-formatter.js`,
+  `js/core/list-dt-manager.js`, `config/app-config.json`,
+  `config/shift-rules.json`, `data/default-list-dt.json`) has zero diff
+  against baseline across both phases.
 - Documentation (this roadmap, versioning policy, test plan, risk
   register) reflects the actually-shipped behavior, not aspirational
-  behavior.
+  behavior. **Done** — this update.
+
+**All five conditions are met. V2 — Offline & PWA Readiness is COMPLETE**
+as a workstream. This does not itself assign a new application version or
+Git tag — see §"V2 OFFLINE & PWA COMPLETE" above and
+`docs/VERSIONING_POLICY.md`.
 
 Completion of this workstream does **not** by itself define or require a
 new application version or git tag — see `docs/VERSIONING_POLICY.md`.

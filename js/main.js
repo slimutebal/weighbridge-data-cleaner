@@ -10,6 +10,7 @@ import { resolveDecimalSeparator } from "./core/output-formatter.js";
 import { loadStoredDecimalSeparator, storeDecimalSeparator } from "./core/decimal-preference.js";
 import { mountLiveRegion, announce } from "./ui/live-announcer.js";
 import { initializeLanguage, t, subscribeLanguage } from "./ui/i18n.js";
+import { registerServiceWorker } from "./core/service-worker-registration.js";
 
 // One persistent aria-live region for the whole app (Phase B) — mounted
 // once here, before any other UI, so every module below can safely import
@@ -241,5 +242,11 @@ if (typeof ResizeObserver !== "undefined") {
   window.addEventListener("resize", updateBottomActionBarHeight);
 }
 updateBottomActionBarHeight();
+
+// OFFLINE-2: registered after the rest of the app has already bootstrapped
+// and mounted above — registration is fire-and-forget/non-blocking and its
+// outcome never gates cleaning or any other business state (see
+// js/core/service-worker-registration.js).
+registerServiceWorker();
 
 console.log("Weighbridge Data Cleaner UI shell loaded.");

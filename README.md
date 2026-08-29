@@ -14,23 +14,24 @@ real-file evidence can continue to be appended to
 `docs/PILOT_VALIDATION_LOG.md`. See `docs/VERSIONING_POLICY.md` for the
 full version/tag reconciliation.
 
-A new workstream, **V2 — Offline & PWA Readiness**, is now underway on
-top of this baseline. "V2" is a workstream label only — it does **not**
-mean the application version is `2.0.0`, or that any `v2.0.0` git tag
-exists; see `docs/VERSIONING_POLICY.md`. The workstream's phases,
-protected behavior, and validation gates are defined in
-`docs/OFFLINE_V2_ROADMAP.md`. V2-1 (a small header subtitle displaying the
-current application version only, e.g. `v1.3.0` — never the workstream
-label) has been implemented and passed its Supervisor gate review.
-OFFLINE-1 (replacing the previously empty bundled List DT with a real
-contractor-mapping snapshot) has also been implemented — automated
-regression evidence passes, but genuine manual/browser external-network
-validation is still pending (to be performed separately by the
-Supervisor/user) before the OFFLINE REGRESSION GATE is finally closed;
-see `docs/OFFLINE_V2_ROADMAP.md` and `docs/OFFLINE_TEST_PLAN.md`. No PWA
-(manifest/service-worker) work has been implemented yet (OFFLINE-2, not
-started) — the app still requires its local HTTP origin to remain
-reachable; see "Offline behavior" below.
+The **V2 — Offline & PWA Readiness** workstream, built on top of this
+baseline, is now **complete**. "V2" is a workstream label only — it does
+**not** mean the application version is `2.0.0`, nor does completing it
+assign a `v2.0.0` git tag or any new application version; see
+`docs/VERSIONING_POLICY.md`. The workstream's phases, protected behavior,
+and validation gates are defined in `docs/OFFLINE_V2_ROADMAP.md`. V2-1 (a
+small header subtitle displaying the current application version only,
+e.g. `v1.3.0` — never the workstream label), OFFLINE-1 (replacing the
+previously empty bundled List DT with a real contractor-mapping
+snapshot), and OFFLINE-2 (a web app manifest and a service worker
+providing full application-shell offline boot/reload, independent of the
+local HTTP origin) have all passed their respective Supervisor gates,
+including genuine manual/browser full-offline validation (installability,
+cold-boot/reload with no network at all — including no local HTTP origin
+— and update-lifecycle non-interruption) for the PWA OFFLINE REGRESSION
+GATE; see `docs/OFFLINE_V2_ROADMAP.md` and `docs/OFFLINE_TEST_PLAN.md`
+for the full gate record. See "Offline behavior" below for what this
+means today.
 
 For day-to-day controlled operational use, see
 [docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md). For the release
@@ -598,13 +599,34 @@ JavaScript resize listener, decides which one is visible.
 
 Cleaning does not require **external** internet/WAN access — Contractor
 matching and file reading both work with the external network
-unavailable. Today, the app still requires the **local HTTP origin it is
-served from** (e.g. the current Live Server setup) to remain reachable;
-there is no Service Worker yet, so the application shell itself cannot
-boot or reload with no network access at all, including to that local
-origin. Full application-shell offline boot/reload (independent of the
-local origin) is planned for the OFFLINE-2 phase of
-`docs/OFFLINE_V2_ROADMAP.md` and is **not** implemented today.
+unavailable. As of OFFLINE-2, a Service Worker (`service-worker.js`,
+registered by `js/core/service-worker-registration.js`) precaches the
+complete application shell — `index.html`, `css/app.css`, every runtime
+JS module, vendored SheetJS, `config/app-config.json`,
+`config/shift-rules.json`, the bundled `data/default-list-dt.json`, the
+web app manifest, and both PWA icons — into one atomic, versioned cache
+after the first successful online load, so the application shell itself
+can boot and reload with **no network access at all, including to the
+local HTTP origin it was originally served from**. A web app manifest
+(`manifest.json`) also makes the app installable (Chrome/Edge "Install"/
+"Create shortcut..."). This has both automated regression coverage
+(`tests/offline2-service-worker.test.mjs`,
+`tests/offline2-baseline-parity.test.mjs`) and passed genuine
+manual/browser full-offline validation performed by the Supervisor/user
+(the PWA OFFLINE REGRESSION GATE; see `docs/OFFLINE_V2_ROADMAP.md`
+OFFLINE-2 and `docs/OFFLINE_TEST_PLAN.md` for the full scenario record).
+Service worker registration itself is entirely best-effort and
+non-blocking — its success or failure never gates cleaning startup, and
+a hard reload against the network always still produces a correct,
+current application even if the cache is stale or absent.
+
+The Google Apps Script List DT endpoint remains strictly network-only:
+the service worker never intercepts, caches, or synthesizes a response
+for it (or for any cross-origin/non-GET request), so **Update List DT**
+and **Sync Pending DT** behave exactly as before — they fail honestly
+when offline, never fake success from a stale cached response. Uploaded
+Excel files and generated cleaning results are never written to Cache
+Storage; they remain in-memory/session-scoped exactly as before OFFLINE-2.
 
 - Contractor matching uses, in priority order: the `localStorage` cache from
   a previous successful **Update List DT**, then the bundled
@@ -665,22 +687,26 @@ local origin) is planned for the OFFLINE-2 phase of
   confirmed in the three reference sample files; a source file using a
   meaningfully different format for 规格 / KODE ORE may need the parser
   extended (see `docs/CLEANING_LOGIC_SPEC.md` §17, R-1).
-- No XLSX export, no PWA/offline install prompt, no desktop packaging —
-  output is TSV-to-clipboard only, by design for this MVP.
+- No XLSX export, no desktop packaging — output is TSV-to-clipboard only,
+  by design for this MVP. A basic PWA install path (`manifest.json` +
+  Service Worker, OFFLINE-2) does now exist and has passed genuine
+  manual/browser full-offline validation — see "Offline behavior" above.
 - Automated coverage lives in `tests/` as individually runnable `*.test.mjs`
   scripts — lost-row reconciliation, weight integrity, weight exception
   resolution, low net weight, DT correction, ESG full-width ORE
-  delimiters, and (as of OFFLINE-1) bundled List DT integrity/cache-
-  priority/fallback and exact-parity baseline comparison against the real
-  reference sample files (91 cases total as of this writing; run each file
-  directly with Node, no test framework or `npm install` required — the
-  count will drift as test files are added, so treat it as a snapshot,
-  not a contract). As of OFFLINE-1, `tests/offline1-baseline-parity.test.mjs`
-  does run the full pipeline against the three real reference sample files
-  in `samples/` and assert exact row-count/tonnage parity against a
-  retained pre-OFFLINE-1 baseline (see `docs/OFFLINE_TEST_PLAN.md`); this
-  supplements, rather than replaces, the separate/manual validation
-  against `docs/LEGACY_PARITY_PROFILE.md`.
+  delimiters, bundled List DT integrity/cache-priority/fallback and
+  exact-parity baseline comparison (OFFLINE-1), and manifest/service-worker
+  structural policy plus a second exact-parity baseline comparison
+  (OFFLINE-2) (129 cases total as of this writing; run each file directly
+  with Node, no test framework or `npm install` required — the count will
+  drift as test files are added, so treat it as a snapshot, not a
+  contract). `tests/offline1-baseline-parity.test.mjs` and
+  `tests/offline2-baseline-parity.test.mjs` each run the full pipeline
+  against the three real reference sample files in `samples/` and assert
+  exact row-count/tonnage parity against their respective retained
+  baselines (see `docs/OFFLINE_TEST_PLAN.md`); this supplements, rather
+  than replaces, the separate/manual validation against
+  `docs/LEGACY_PARITY_PROFILE.md`.
 - If a single uploaded file's report-date column (日期 / TANGGAL) itself
   holds more than one distinct value across its rows — a genuinely unusual
   file, not the normal case of row timestamps crossing midnight, which no
