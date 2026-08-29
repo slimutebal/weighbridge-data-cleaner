@@ -1,8 +1,11 @@
 # V2 Workstream Roadmap — Offline & PWA Readiness
 
-**Document status:** V2-0 GATE PASS. V2-1 (App Version Display) implemented,
-awaiting Supervisor V2-1 GATE review.
+**Document status:** V2-0 PASS. V2-1 PASS. OFFLINE-1 IMPLEMENTED —
+AUTOMATED REGRESSION PASS, MANUAL OFFLINE VALIDATION PENDING (to be
+performed separately by the Supervisor/user; see
+`docs/OFFLINE_TEST_PLAN.md`). OFFLINE-2 NOT STARTED.
 **Baseline commit:** `5c6482b` (`fix(esg,ui): support fullwidth ore delimiters and reset navigation`).
+**OFFLINE-1 starting commit:** `6165493` (`feat(ui): display application version in header`) — identical to `5c6482b` on every cleaning/validation/List DT join code path (only docs, `README.md`, `index.html`, `css/app.css`, and the V2-1 header subtitle in `js/main.js` changed in between).
 
 ## Naming clarification (read first)
 
@@ -116,19 +119,19 @@ V2-0 — Documentation & Versioning Freeze   [PASS]
 V2-0 GATE
    │
    ▼
-V2-1 — App Version Display   [CURRENT — AWAITING GATE]
+V2-1 — App Version Display   [PASS]
    │
    ▼
 V2-1 GATE
    │
    ▼
-OFFLINE-1 — Real Bundled List DT
+OFFLINE-1 — Real Bundled List DT   [IMPLEMENTED — AWAITING GATE]
    │  (offline smoke test, zero-network validation)
    ▼
 OFFLINE REGRESSION GATE
    │  (HYNC / SLNC / ESG exact parity)
    ▼
-OFFLINE-2 — Manifest + Service Worker
+OFFLINE-2 — Manifest + Service Worker   [NOT STARTED]
    │  (atomic versioned cache)
    ▼
 PWA OFFLINE REGRESSION GATE
@@ -169,14 +172,14 @@ be started before its predecessor's gate has passed.
   Supervisor's §2.4 confirmation that `v1.0.3` is the latest tag and
   `1.3.0` is the current correctly-untagged application version.
 
-### V2-1 — App Version Display [CURRENT — AWAITING GATE]
+### V2-1 — App Version Display [PASS]
 
 - **Entry criteria:** V2-0 GATE passed; `docs/VERSIONING_POLICY.md`
   approved as the source-of-truth policy. The current version value
   (`1.3.0`, from `config/app-config.json`, per `VERSIONING_POLICY.md` §0)
   is already resolved as of the V2-0 correction pass, so this entry
   criterion is satisfied on that point.
-- **Work (IMPLEMENTED, awaiting V2-1 GATE review):** surface the
+- **Work (IMPLEMENTED, V2-1 GATE PASS):** surface the
   authoritative application version (per `docs/VERSIONING_POLICY.md`) in
   the UI header, directly beneath the app title — read from one source of
   truth (`config/app-config.json` via the `appConfig` already loaded by
@@ -189,14 +192,15 @@ be started before its predecessor's gate has passed.
   showing a fake or hardcoded value.
 - **Exit criteria:** the UI-displayed version matches the authoritative
   source with no drift, verified after a full rebuild/reload with no
-  cleaning-logic or output changes. Pending Supervisor V2-1 GATE review.
+  cleaning-logic or output changes. **V2-1 GATE PASS** (Supervisor
+  decision recorded at OFFLINE-1 authorization).
 - **STOP CONDITION:** if the authoritative version value has changed or
   become newly ambiguous by the time V2-1 actually starts (e.g. a tag or
   config bump happened in between), V2-1 cannot proceed on a stale
   assumption — it must re-confirm against `docs/VERSIONING_POLICY.md` §0
   first rather than use a cached value.
 
-### OFFLINE-1 — Real Bundled List DT
+### OFFLINE-1 — Real Bundled List DT [IMPLEMENTED — AWAITING OFFLINE REGRESSION GATE]
 
 - **Entry criteria:** V2-1 GATE passed.
 - **Zero-network scope (phase boundary):** OFFLINE-1 targets *external*-
@@ -210,27 +214,36 @@ be started before its predecessor's gate has passed.
   boot/reload capability is OFFLINE-2's target, once the Service Worker
   lands (see OFFLINE-2 below). See `docs/OFFLINE_TEST_PLAN.md` Scenario C
   for the validation method.
-- **Scope (PLANNED):**
-  - Replace the currently empty `data/default-list-dt.json` (`[]`) with a
-    valid, real contractor-mapping snapshot.
-  - Preserve existing `localStorage` cache-priority behavior (cache wins
-    over bundled, per `js/core/list-dt-manager.js`) unchanged.
-  - Preserve manual **Update List DT** (Google Sheet fetch) behavior
-    unchanged.
-  - Preserve pending-sync-queue behavior (`js/core/list-dt-manager.js`,
-    §"Local pending sync and Google Sheet sync" in README) unchanged.
-  - Perform an offline smoke test (app usable with network available but
-    List DT not re-fetched).
-  - Perform a zero-external-network validation: external internet/WAN and
-    the Google Apps Script endpoint verified unreachable, while the local
-    HTTP application origin (loopback/localhost) remains reachable and
-    continues serving static files/config — not just the Update List DT
-    button left unclicked.
+- **Scope (IMPLEMENTED):**
+  - Replaced the previously empty `data/default-list-dt.json` (`[]`) with
+    a real, validated, 724-record contractor-mapping snapshot (see
+    `docs/OFFLINE_RISK_REGISTER.md` "OFFLINE-1 bundled List DT snapshot
+    record" for acquisition/provenance evidence).
+  - `localStorage` cache-priority behavior is unchanged — verified by
+    `tests/offline1-list-dt.test.mjs` scenario B; `js/core/list-dt-
+    manager.js` was not modified.
+  - Manual **Update List DT** (Google Sheet fetch) behavior is unchanged
+    — `js/core/list-dt-manager.js` was not modified.
+  - Pending-sync-queue behavior (`js/core/list-dt-manager.js`, §"Local
+    pending sync and Google Sheet sync" in README) is unchanged — same
+    reason.
+  - Zero-external-network validation (external WAN/Google endpoint
+    unreachable, local HTTP origin still reachable): **not run** in this
+    Builder environment — no browser or network-condition automation
+    tooling is available here to genuinely sever external network access
+    while preserving localhost. The equivalent code-level guarantee (no
+    automatic remote List DT fetch on load) is verified deterministically
+    by `tests/offline1-list-dt.test.mjs` scenario E. See
+    `docs/OFFLINE_TEST_PLAN.md` for the full manual-scenario status.
 - **Exit criteria (OFFLINE REGRESSION GATE):** HYNC/SLNC/ESG exact parity
   per `docs/OFFLINE_TEST_PLAN.md` against baseline `5c6482b`, with the one
   permitted difference being improved contractor-match/unmatched counts
-  (§9 below). Once passed, this gate's result is captured and retained as
-  the OFFLINE-2 comparison baseline (§9).
+  (§9 below). Verified by `tests/offline1-baseline-parity.test.mjs`
+  against the retained baseline `tests/fixtures/offline1-baseline-5c6482b.json`
+  — 13/13 assertions pass, zero unexplained differences on all three
+  reference sample files. This automated result is captured and retained
+  as the OFFLINE-2 comparison baseline (§9); the OFFLINE REGRESSION GATE
+  itself (Supervisor sign-off) is still pending.
 
 ### OFFLINE-2 — Manifest + Service Worker
 
@@ -286,9 +299,19 @@ exception to TSV structure, column order, or formatting, which remain
 identical. This is the one and only difference *authorized* to appear
 anywhere in this workstream, and it is authorized only by OFFLINE-1 — no
 other phase introduces a new Contractor difference. No other field, no
-row-count, no tonnage, no grouping, no validation outcome, and no other
-TSV/formatting difference is permitted, in any phase, without being
-treated as a regression.
+row-count, no tonnage, no grouping, and no other TSV/formatting
+difference is permitted, in any phase, without being treated as a
+regression. "No other validation outcome" here means the raw validation
+counts computed by `js/core/validation-engine.js` (duplicate NO.NOTA,
+missing Source/Grade, weight integrity, low-net, PILE ID/Source conflict,
+lost rows, etc.) — a group's readiness/copy-gating status
+(`js/core/readiness.js`, unmodified) improving *as the direct,
+deterministic result of* the same permitted unmatched-DT-count drop is a
+narrow, explicitly authorized exception (Supervisor readiness decision;
+see `docs/OFFLINE_TEST_PLAN.md` "Readiness/copy-gating: a permitted
+direct effect of the Contractor difference"), not a second uncontrolled
+exception — a readiness change for any other reason is still a
+regression.
 
 **Baseline chain:** the OFFLINE REGRESSION GATE (after OFFLINE-1)
 compares directly against `5c6482b`, with this Contractor difference as

@@ -1,10 +1,22 @@
 # Offline & PWA Test Plan (OFFLINE-1 / OFFLINE-2)
 
-**Document status:** FROZEN at V2-0 (Documentation & Versioning Freeze) —
-PLANNED test plan for future phases. No scenario in this document has
-been executed as part of V2-0. V2-0 performs documentation work only.
+**Document status:** OFFLINE-1 IMPLEMENTED — AUTOMATED REGRESSION PASS,
+MANUAL OFFLINE VALIDATION PENDING. The automated/deterministic
+equivalents of several OFFLINE-1 scenarios below have been executed (see
+each scenario's status note); the browser-based manual scenarios have
+**not** been run in this Builder environment, which has no browser or
+network-condition automation tooling available — genuine manual/browser
+external-network validation (Scenario C in particular) will be performed
+separately by the Supervisor/user before the OFFLINE REGRESSION GATE is
+finally closed. OFFLINE-2 scenarios remain fully PLANNED; none have been
+executed.
 
-**Baseline commit:** `5c6482b`.
+**Baseline commit:** `5c6482b`. The retained baseline fixture
+(`tests/fixtures/offline1-baseline-5c6482b.json`) was captured by
+actually executing the pipeline against production modules checked out
+at `5c6482b` in a temporary detached worktree — see
+`tests/fixtures/offline1-baseline-5c6482b.PROVENANCE.md` for the full
+capture record. **OFFLINE-1 implementation commit (base):** `6165493`.
 
 This document defines the test scenarios required to pass the OFFLINE
 REGRESSION GATE (after OFFLINE-1) and the PWA OFFLINE REGRESSION GATE
@@ -66,7 +78,12 @@ scenario, with no exception:
 - Duplicate validation (NO.NOTA) results.
 - Weight integrity validation (D010) results.
 - Low-net validation (D012) results.
-- Readiness/copy-gating outcome per group.
+- `js/core/readiness.js` itself (the readiness algorithm/logic) — never
+  modified by this workstream. Readiness/copy-gating *outcome* per group
+  is not in this always-identical list — see "Readiness/copy-gating: a
+  permitted direct effect of the Contractor difference" below, which is
+  the sole, narrow exception, exactly mirroring why Contractor itself is
+  not in this list either.
 
 ### Contractor: the one permitted difference, authorized by OFFLINE-1
 
@@ -94,11 +111,46 @@ When this condition holds:
   resolution — unmatched-DT counts, the Unmatched DT Correction table's
   row set, and any Contractor-grouped summary in Additional Breakdown —
   may change consistently with that same improvement.
-- No other column's value, no row's inclusion/exclusion, and no
-  readiness/copy-gating outcome may change as a side effect of this
-  Contractor improvement. If a DT resolution change appears to affect
-  anything outside Contractor and its directly-derived counts, that is a
-  regression, not a permitted difference.
+- No other column's value and no row's inclusion/exclusion may change as
+  a side effect of this Contractor improvement. If a DT resolution change
+  appears to affect anything outside Contractor, its directly-derived
+  counts, and readiness/copy-gating (below), that is a regression, not a
+  permitted difference.
+
+#### Readiness/copy-gating: a permitted direct effect of the Contractor difference
+
+**Supervisor decision (post-implementation clarification):** the original
+wording above this section previously said "no readiness/copy-gating
+outcome may change as a side effect of this Contractor improvement." That
+was too strict and is now corrected — `computeGroupReadiness()`
+(`js/core/readiness.js`, never modified by this workstream) is a pure,
+deterministic function of the same validation counts already covered
+above, including `unmatchedDtCount`. Once `unmatchedDtCount` is legitimately
+permitted to improve, a group's readiness/copy-gating outcome improving
+*as the direct, deterministic result of that same drop* is not a side
+effect to guard against — it is the intended, unavoidable consequence of
+the permitted Contractor resolution, and is now explicitly authorized.
+The distinction that actually matters:
+
+- **PERMITTED DIRECT EFFECT:** a legitimate Unmatched→resolved Contractor
+  transition removes an `unmatchedDtCount` blocker for a group, and that
+  group's readiness/copy-gating outcome improves (e.g.
+  `ACTION_REQUIRED` → `READY_WITH_INFO`) as a result — provided every
+  *other* blocking-relevant validation count for that group (weight
+  integrity, low-net, duplicate NO.NOTA, missing Source/Grade, PILE ID/
+  Source conflicts, lost rows) is unchanged from the baseline, and
+  `js/core/readiness.js` itself is unmodified.
+- **REGRESSION:** readiness/copy-gating changes for any reason *other*
+  than a legitimate `unmatchedDtCount` improvement for that same group —
+  e.g. a different blocking category changed, a group with no Contractor
+  improvement still saw its readiness change, or `js/core/readiness.js`
+  was itself modified.
+
+A readiness change is evidence-checked, not merely asserted: it must be
+traceable to `unmatchedDtCount` strictly decreasing for that group with
+every other validation count identical — see
+`tests/offline1-baseline-parity.test.mjs`, which asserts exactly this for
+every group.
 
 A row whose DT ID was already matched at `5c6482b`, or that remains
 Unmatched under the new bundled snapshot, must show byte-identical
@@ -134,6 +186,12 @@ introduces no new permitted differences of any kind, Contractor included.
 - **PASS CRITERIA:** cache is used (List DT bar shows source `cache`,
   matches current behavior); bundled snapshot is not consulted; exact
   parity per above.
+- **Status: NOT RUN as a browser scenario** (no browser tooling available
+  in this Builder environment). **Equivalent verified:**
+  `tests/offline1-list-dt.test.mjs` scenario B1 — a non-empty
+  `localStorage` cache deterministically wins over the bundled snapshot
+  for the same normalized DT, via the unmodified `js/core/list-dt-
+  manager.js`.
 
 ### Scenario B — Fresh browser/profile with no List DT cache
 
@@ -145,6 +203,13 @@ introduces no new permitted differences of any kind, Contractor included.
   by OFFLINE-1) is used (List DT bar shows source `bundled`); contractor
   matches reflect the real bundled data; all other fields at exact
   parity.
+- **Status: NOT RUN as a browser scenario** (no browser tooling
+  available). **Equivalent verified:** `tests/offline1-list-dt.test.mjs`
+  scenario C1 (bundled source used with no cache, known DTs resolve) plus
+  the full-pipeline `tests/offline1-baseline-parity.test.mjs` against the
+  three real reference sample files — bundled snapshot resolved 337/337
+  HYNC, 109/109 SLNC, and 224/224 ESG previously-Unmatched rows, with
+  every other field at exact parity to the `5c6482b` baseline.
 
 ### Scenario C — External network disabled, local origin still reachable
 
@@ -172,6 +237,17 @@ introduces no new permitted differences of any kind, Contractor included.
   unavailable; Update List DT fails with the existing non-blocking
   failure message (`js/core/list-dt-manager.js` failure path); TSV copy
   works; exact parity otherwise.
+- **Status: NOT RUN** — this scenario requires a real browser plus a
+  verified external-network-disabled/local-origin-reachable condition;
+  neither is available in this Builder environment (no browser
+  automation, no ability to genuinely sever external network reachability
+  while confirming localhost stays up). **Equivalent verified at the code
+  level only:** `tests/offline1-list-dt.test.mjs` scenario E1 confirms
+  `loadListDt()` never calls the Google Apps Script endpoint on its own —
+  cleaning's List DT dependency is satisfiable with zero network calls.
+  This does **not** substitute for a genuine external-network-disabled
+  manual run, which remains outstanding before the OFFLINE REGRESSION
+  GATE can be fully signed off.
 
 ### Scenario D — Google Apps Script endpoint unavailable
 
@@ -182,6 +258,9 @@ introduces no new permitted differences of any kind, Contractor included.
 - **PASS CRITERIA:** both fail cleanly with the existing "Saved locally,
   pending Google Sheet sync" / update-failure messaging; cleaning is
   unaffected; no fake-success state.
+- **Status: NOT RUN** (no browser tooling available). `js/core/list-dt-
+  manager.js`'s failure-handling code path (`syncDtMappingsToGoogleSheet`,
+  `refreshFromEndpointInBackground`) was not modified by OFFLINE-1.
 
 ### Scenario E — localStorage cache unavailable/cleared
 
@@ -192,6 +271,13 @@ introduces no new permitted differences of any kind, Contractor included.
 - **PASS CRITERIA:** app falls back to bundled List DT without a fatal
   error; pending-sync queue starts empty (expected, since it was
   storage-backed); no cleaning-blocking crash.
+- **Status: NOT RUN as a browser scenario** (no browser tooling
+  available). **Equivalent verified:** `js/core/list-dt-manager.js`'s
+  `readLocalStorageCache()`/`readPendingSync()` already wrap
+  `localStorage` access in `try/catch` and return a safe empty value on
+  any throw (unmodified by OFFLINE-1); `tests/offline1-list-dt.test.mjs`
+  scenario C1 exercises the equivalent no-cache fallback path (falls back
+  to bundled without error).
 
 ### Scenario F — Bundled List DT fallback
 
@@ -202,6 +288,15 @@ introduces no new permitted differences of any kind, Contractor included.
 - **PASS CRITERIA:** matches expected content of the OFFLINE-1 bundled
   snapshot exactly; unmatched rows behave identically to current
   Unmatched-DT handling.
+- **Status: RUN (automated, deterministic equivalent).**
+  `tests/offline1-list-dt.test.mjs` scenarios A1–A5 (snapshot integrity:
+  non-empty, every record valid, only `dt_id`/`contractor` fields, no
+  normalized conflicts, deterministic `dt_id`-ascending order), C1
+  (bundled resolves a known DT), and D1 (a DT absent from the bundled
+  snapshot still resolves to `"Unmatched"`, never blank or an error) —
+  9/9 PASS. `tests/offline1-baseline-parity.test.mjs` additionally
+  confirms this holds across all 670 rows of the three real reference
+  sample files, not just synthetic cases.
 
 ### Scenario G — Manual List DT update failure
 
@@ -210,6 +305,12 @@ introduces no new permitted differences of any kind, Contractor included.
 - **PASS CRITERIA:** List DT bar retains its pre-attempt source/count/
   last-updated values; failure is surfaced without silently resetting to
   bundled or clearing the cache.
+- **Status: NOT RUN** (no browser tooling available). `js/core/list-dt-
+  manager.js`'s `refreshFromEndpointInBackground()` only calls
+  `writeLocalStorageCache()`/clears the in-memory `cached` variable
+  inside its success branch (`response.ok` and a non-empty
+  `records`array) — the failure branches return `{ ok: false, reason }`
+  without touching cache/source state, unmodified by OFFLINE-1.
 
 ### Scenario H — Pending DT corrections remain locally usable while offline
 
@@ -222,6 +323,13 @@ introduces no new permitted differences of any kind, Contractor included.
   affect cleaning output while offline; pending-sync count is unchanged
   and accurately reflects unsynced entries; no attempt to sync is made
   automatically.
+- **Status: NOT RUN** (no browser tooling available; depends on Scenario
+  C's real network condition). **Equivalent verified:** the existing
+  `tests/dt-correction.test.mjs` (tests C/D/E/F, unmodified by OFFLINE-1)
+  already proves a locally-applied correction remains usable for matching
+  even when the Google Sheet sync never succeeds — the same code path
+  Scenario H exercises, just not under a verified offline network
+  condition.
 
 ## OFFLINE-2 scenarios (PLANNED, after manifest + service worker land)
 

@@ -21,11 +21,16 @@ exists; see `docs/VERSIONING_POLICY.md`. The workstream's phases,
 protected behavior, and validation gates are defined in
 `docs/OFFLINE_V2_ROADMAP.md`. V2-1 (a small header subtitle displaying the
 current application version only, e.g. `v1.3.0` — never the workstream
-label) has been implemented and is awaiting Supervisor gate review. As of
-this writing, no
-offline List DT bundling and no PWA (manifest/service-worker) work has
-been implemented — the "Current MVP limitations" and "Offline behavior"
-sections below still describe the app's actual current behavior.
+label) has been implemented and passed its Supervisor gate review.
+OFFLINE-1 (replacing the previously empty bundled List DT with a real
+contractor-mapping snapshot) has also been implemented — automated
+regression evidence passes, but genuine manual/browser external-network
+validation is still pending (to be performed separately by the
+Supervisor/user) before the OFFLINE REGRESSION GATE is finally closed;
+see `docs/OFFLINE_V2_ROADMAP.md` and `docs/OFFLINE_TEST_PLAN.md`. No PWA
+(manifest/service-worker) work has been implemented yet (OFFLINE-2, not
+started) — the app still requires its local HTTP origin to remain
+reachable; see "Offline behavior" below.
 
 For day-to-day controlled operational use, see
 [docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md). For the release
@@ -603,7 +608,12 @@ local origin) is planned for the OFFLINE-2 phase of
 
 - Contractor matching uses, in priority order: the `localStorage` cache from
   a previous successful **Update List DT**, then the bundled
-  `data/default-list-dt.json`.
+  `data/default-list-dt.json` — which now ships a real, point-in-time
+  contractor-mapping snapshot (OFFLINE-1) rather than an empty list, so a
+  fresh browser with no List DT cache can still resolve most contractors
+  without any network access at all. This bundled snapshot is not
+  automatically kept in sync with the live Google Sheet; see "Current MVP
+  limitations" below for its refresh process.
 - If **Update List DT** fails (no internet, endpoint down, bad response), the
   app shows a failure message and keeps using whatever cached or bundled
   List DT it already has — cleaning is never blocked by a failed update.
@@ -638,10 +648,19 @@ local origin) is planned for the OFFLINE-2 phase of
 
 ## Current MVP limitations
 
-- `data/default-list-dt.json` ships empty; until **Update List DT** is run
-  successfully at least once (or a real bundled list is provided), every row
-  shows Contractor = "Unmatched". This does not affect row counts or
-  tonnage.
+- `data/default-list-dt.json` ships a real, point-in-time contractor-mapping
+  snapshot (OFFLINE-1) rather than an empty list — a fresh browser with no
+  List DT `localStorage` cache resolves known DT IDs without running
+  **Update List DT** first. This bundled snapshot is a manually-refreshed
+  fallback, not a live sync: it can go stale as the Google Sheet source of
+  truth changes, and is not automatically regenerated. Running **Update
+  List DT** (or restoring a previous `localStorage` cache) always takes
+  priority over it and is the way to get current data while online. See
+  `docs/OFFLINE_RISK_REGISTER.md` ("OFFLINE-1 bundled List DT snapshot
+  record", risk R-18) for the acquisition date, record counts, and the
+  manual refresh procedure. A DT ID absent from both the cache and the
+  bundled snapshot still shows Contractor = "Unmatched", exactly as before
+  — this does not affect row counts or tonnage.
 - `Source` / `Grade` parsing assumes the `"<code> (<grade>)"` pattern
   confirmed in the three reference sample files; a source file using a
   meaningfully different format for 规格 / KODE ORE may need the parser
@@ -651,14 +670,17 @@ local origin) is planned for the OFFLINE-2 phase of
 - Automated coverage lives in `tests/` as individually runnable `*.test.mjs`
   scripts — lost-row reconciliation, weight integrity, weight exception
   resolution, low net weight, DT correction, ESG full-width ORE
-  delimiters (69 cases total as of this writing; run each file directly
-  with Node, no test framework or `npm install` required — the count will
-  drift as test files are added, so treat it as a snapshot, not a
-  contract). This automated suite does not itself re-run against the
-  three real reference sample files in `samples/`; exact row-count/tonnage
-  parity against those files (see `docs/LEGACY_PARITY_PROFILE.md` for the
-  target values) is validated separately/manually, not by an automated
-  script in this repository.
+  delimiters, and (as of OFFLINE-1) bundled List DT integrity/cache-
+  priority/fallback and exact-parity baseline comparison against the real
+  reference sample files (91 cases total as of this writing; run each file
+  directly with Node, no test framework or `npm install` required — the
+  count will drift as test files are added, so treat it as a snapshot,
+  not a contract). As of OFFLINE-1, `tests/offline1-baseline-parity.test.mjs`
+  does run the full pipeline against the three real reference sample files
+  in `samples/` and assert exact row-count/tonnage parity against a
+  retained pre-OFFLINE-1 baseline (see `docs/OFFLINE_TEST_PLAN.md`); this
+  supplements, rather than replaces, the separate/manual validation
+  against `docs/LEGACY_PARITY_PROFILE.md`.
 - If a single uploaded file's report-date column (日期 / TANGGAL) itself
   holds more than one distinct value across its rows — a genuinely unusual
   file, not the normal case of row timestamps crossing midnight, which no
