@@ -175,6 +175,10 @@ resetBtn.addEventListener("click", () => {
   resultPage.reset();
   cleaningOverviewPage.reset();
   lastBucketedFiles = [];
+  // A reset must always land back on Input & Overview (Page 1) — leaving
+  // Results active after clearing shows an empty "Hasil Pembersihan" dead
+  // end instead of the normal empty import state.
+  switchToPage(MAIN_PAGE.INPUT_OVERVIEW);
   announce(t("header.allCleared"));
 });
 

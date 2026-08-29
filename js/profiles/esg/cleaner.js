@@ -38,6 +38,19 @@ function isParseableNumber(value) {
   return !Number.isNaN(Number(value));
 }
 
+// ESG-only KODE ORE parenthesis normalization. A newer ESG source file
+// spells KODE ORE's grade parentheses using the Unicode full-width forms
+// (U+FF08 "（" / U+FF09 "）") instead of ASCII "(" / ")" while otherwise
+// following the same "<source> (<grade>)" shape (e.g. "L31-21（NI:1.06)").
+// Only these two characters are substituted so parseSourceGrade() in
+// core/normalizers.js keeps parsing its usual ASCII delimiters unchanged —
+// nothing else about the value is touched, and this never runs for
+// HYNC/SLNC, which never call this function.
+function normalizeKodeOreParens(value) {
+  if (value === undefined || value === null) return value;
+  return String(value).replace(/（/g, "(").replace(/）/g, ")");
+}
+
 // ESG-only Source separator normalization. KODE ORE source segments arrive
 // with inconsistent hyphen/underscore separators (e.g. "L31-08", "L31_08",
 // "BR_C12-L10" all denote the same source). Canonical form depends on
@@ -148,7 +161,7 @@ export function clean(workbook, { joinContractor, listDt, weightIntegrityConfig,
       const pileId = cleanPileId(pileIdRaw);
       const dtIdRaw = dtIdColumn !== undefined ? row[dtIdColumn] : "";
       const kodeOre = kodeOreColumn !== undefined ? row[kodeOreColumn] : "";
-      const { source, grade } = parseSourceGrade(kodeOre);
+      const { source, grade } = parseSourceGrade(normalizeKodeOreParens(kodeOre));
       const { contractor, normalizedDtId } = joinContractor(dtIdRaw, listDt);
 
       // Row-level weight integrity (v1.1.0, DECISIONS.md D010): ESG Gross/
