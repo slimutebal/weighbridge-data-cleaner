@@ -1,6 +1,7 @@
 # Versioning Policy
 
-**Document status:** FROZEN at V2-0 (Documentation & Versioning Freeze).
+**Document status:** V2-0 GATE PASS. V2-1 (App Version Display) implemented,
+awaiting Supervisor V2-1 GATE review.
 **Baseline commit:** `5c6482b`.
 
 This document establishes the policy for how this repository names,
@@ -18,7 +19,7 @@ an explicit Supervisor decision (§2.4) rather than by guessing.
 | Git tag corresponding to `1.3.0` | **none** — not tagged |
 | Authoritative source for the application version | `config/app-config.json` |
 | Workstream label in progress | "V2 — Offline & PWA Readiness" (label only, not a release version) |
-| V2-1 planned UI-displayed string (not yet implemented) | `v1.3.0 · V2 Offline Track` |
+| V2-1 UI-displayed string (implemented, awaiting gate review) | `v1.3.0` (application header — version only, no workstream label) |
 
 **No git tag was created and `config/app-config.json` was not changed as
 part of resolving this status** — `1.3.0` is accepted as the current,
@@ -31,7 +32,7 @@ full resolution record.
 |---|---|---|---|
 | A | **Workstream label** | "V2 — Offline & PWA Readiness" | Names a roadmap/body of work (see `docs/OFFLINE_V2_ROADMAP.md`). Never a release number. |
 | B | **Application version** | `1.3.0`, `1.4.0-rc.1` | Semantic Versioning (SemVer 2.0.0): `MAJOR.MINOR.PATCH[-PRERELEASE]`. |
-| C | **UI-displayed version** | text rendered in the app | PLANNED (V2-1) to be read from a single source of truth at runtime — not yet implemented. |
+| C | **UI-displayed version** | text rendered in the app | IMPLEMENTED (V2-1), read from a single source of truth at runtime; awaiting Supervisor V2-1 GATE review. |
 | D | **Git tag / release identifier** | `v1.0.3` | The repository's record of what was actually tagged as released. |
 
 **Rule: "V2" (workstream label, A) must never be read as, or converted
@@ -149,7 +150,7 @@ recorded here as the authoritative interpretation:
 Items 3 and 4 remain **open** and are not resolved by this pass — see
 §4.
 
-## 3. Policy going forward (PLANNED, not yet implemented)
+## 3. Policy going forward (mixed status — see each subsection)
 
 ### 3.1 Single source of truth
 
@@ -166,31 +167,32 @@ Reasons:
   for this workstream).
 
 The version-status ambiguity that previously blocked V2-1 (§2.3 items 1–2)
-is resolved as of this correction pass. **No code change is made in this
-pass** — `index.html` and every JS/CSS file remain untouched. V2-1
-(actually reading and displaying this field in the UI) remains a separate,
-not-yet-started phase; this document only confirms the policy and value
-it will use once implemented.
+was resolved as of the V2-0 correction pass, with no code change made in
+that pass. V2-1 (actually reading and displaying this field in the UI) has
+since been implemented — a small header subtitle in `index.html`/
+`css/app.css`/`js/main.js` — and awaits Supervisor V2-1 GATE review.
 
-### 3.2 How the UI will eventually consume it (PLANNED — V2-1, not V2-0)
+### 3.2 How the UI consumes it (IMPLEMENTED — V2-1)
 
-When V2-1 is implemented, the UI-displayed version (identifier C) must be
-read from `config/app-config.json` at load time through the existing
-`loadAppConfig()` path — never hardcoded a second time in `index.html`,
-a JS constant, or a CSS-generated string. If `app-config.json` is
-unavailable (e.g. offline before OFFLINE-1/OFFLINE-2 land), the version
-display must degrade gracefully (e.g. omitted or a neutral placeholder),
-consistent with `loadAppConfig()`'s existing fallback to `{}` on fetch
-failure — it must never block cleaning or show a stale hardcoded value in
-its place.
+The UI-displayed version (identifier C) is read from
+`config/app-config.json` at load time through the existing
+`loadAppConfig()` path (the `appConfig` already loaded once in
+`js/main.js`) — never hardcoded a second time in `index.html`, a JS
+constant, or a CSS-generated string. If `app-config.json` is unavailable
+(e.g. offline before OFFLINE-1/OFFLINE-2 land), the version subtitle is
+omitted entirely, consistent with `loadAppConfig()`'s existing fallback to
+`{}` on fetch failure — it never blocks cleaning or shows a stale
+hardcoded value in its place.
 
-**Planned display string (V2-1, not yet implemented):** `v1.3.0 · V2
-Offline Track` — the current `config/app-config.json` version prefixed
-with `v`, followed by the active workstream label as a secondary,
-visually distinct suffix, so the release version and the workstream label
-are never presented as a single conflated identifier. This string is
-documented here for future consistency only; no UI element renders it as
-of this correction pass.
+**Display string (V2-1, implemented):** `v1.3.0` — the current
+`config/app-config.json` version prefixed with `v`, and nothing else. Per
+Supervisor decision, the application header displays only the application
+version; the active workstream label (identifier A) must never appear
+beside it in the header, so the two identifiers cannot be read as a
+single conflated string. The workstream label remains documentation/
+roadmap metadata only (`docs/OFFLINE_V2_ROADMAP.md`). Rendered as a small
+muted subtitle directly beneath the app title in the header
+(`#app-version-subtitle`).
 
 ### 3.3 How README/release documentation should refer to it (PLANNED)
 
@@ -259,8 +261,10 @@ Standard Semantic Versioning 2.0.0 applies:
   a tag for it).
 - Any new release version number for future work, including anything in
   the V2 workstream.
-- Actual implementation of the V2-1 UI version display (the string in
-  §3.2 is planned/documented only).
+- Whether V2-1 GATE PASS should be recorded — V2-1 (the UI version
+  display, §3.2) is implemented and awaiting Supervisor gate review, not
+  yet gate-approved. OFFLINE-1 and OFFLINE-2 remain PLANNED / NOT STARTED
+  and may not begin before V2-1 GATE passes.
 
 Resolved by the Supervisor in this correction pass (see §2.4): the latest
 tagged release is `v1.0.3`; the current application version at HEAD is

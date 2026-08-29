@@ -39,6 +39,17 @@ const pageResults = document.getElementById("page-results");
 const cleaningOverviewContainer = document.getElementById("cleaning-overview-page");
 const page1TitleEl = document.getElementById("page1-title");
 const page1SubtitleEl = document.getElementById("page1-subtitle");
+const appVersionSubtitleEl = document.getElementById("app-version-subtitle");
+
+// App version subtitle (V2-1) — reads the current application version from
+// config/app-config.json via the appConfig already loaded above; never a
+// second version source. A missing/blank version (including the {} fallback
+// loadAppConfig() returns on fetch failure) leaves the subtitle hidden
+// rather than showing "undefined" or a hardcoded guess.
+if (typeof appConfig.version === "string" && appConfig.version.trim()) {
+  appVersionSubtitleEl.textContent = `v${appConfig.version.trim()}`;
+  appVersionSubtitleEl.classList.remove("is-hidden");
+}
 
 // Main Page 1 <-> Main Page 2 navigation (UI-5A, merged nav UI-5B
 // correction). Presentation state only — switching pages never clears

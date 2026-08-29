@@ -14,16 +14,18 @@ real-file evidence can continue to be appended to
 `docs/PILOT_VALIDATION_LOG.md`. See `docs/VERSIONING_POLICY.md` for the
 full version/tag reconciliation.
 
-A new documentation-only workstream, **V2 — Offline & PWA Readiness**, is
-now planned on top of this baseline. "V2" is a workstream label only — it
-does **not** mean the application version is `2.0.0`, or that any
-`v2.0.0` git tag exists; see `docs/VERSIONING_POLICY.md`. The
-workstream's phases, protected behavior,
-and validation gates are defined in `docs/OFFLINE_V2_ROADMAP.md`. As of
-this writing, no offline List DT bundling and no PWA
-(manifest/service-worker) work has been implemented — the "Current MVP
-limitations" and "Offline behavior" sections below still describe the
-app's actual current behavior.
+A new workstream, **V2 — Offline & PWA Readiness**, is now underway on
+top of this baseline. "V2" is a workstream label only — it does **not**
+mean the application version is `2.0.0`, or that any `v2.0.0` git tag
+exists; see `docs/VERSIONING_POLICY.md`. The workstream's phases,
+protected behavior, and validation gates are defined in
+`docs/OFFLINE_V2_ROADMAP.md`. V2-1 (a small header subtitle displaying the
+current application version only, e.g. `v1.3.0` — never the workstream
+label) has been implemented and is awaiting Supervisor gate review. As of
+this writing, no
+offline List DT bundling and no PWA (manifest/service-worker) work has
+been implemented — the "Current MVP limitations" and "Offline behavior"
+sections below still describe the app's actual current behavior.
 
 For day-to-day controlled operational use, see
 [docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md). For the release
@@ -646,11 +648,17 @@ local origin) is planned for the OFFLINE-2 phase of
   extended (see `docs/CLEANING_LOGIC_SPEC.md` §17, R-1).
 - No XLSX export, no PWA/offline install prompt, no desktop packaging —
   output is TSV-to-clipboard only, by design for this MVP.
-- Automated coverage lives in `tests/` (lost-row reconciliation, weight
-  integrity, weight exception resolution, low net weight, DT correction —
-  61 cases total) and is re-run against the three real reference sample
-  files in `samples/` for exact row-count/tonnage parity (see
-  `docs/LEGACY_PARITY_PROFILE.md` for the target values).
+- Automated coverage lives in `tests/` as individually runnable `*.test.mjs`
+  scripts — lost-row reconciliation, weight integrity, weight exception
+  resolution, low net weight, DT correction, ESG full-width ORE
+  delimiters (69 cases total as of this writing; run each file directly
+  with Node, no test framework or `npm install` required — the count will
+  drift as test files are added, so treat it as a snapshot, not a
+  contract). This automated suite does not itself re-run against the
+  three real reference sample files in `samples/`; exact row-count/tonnage
+  parity against those files (see `docs/LEGACY_PARITY_PROFILE.md` for the
+  target values) is validated separately/manually, not by an automated
+  script in this repository.
 - If a single uploaded file's report-date column (日期 / TANGGAL) itself
   holds more than one distinct value across its rows — a genuinely unusual
   file, not the normal case of row timestamps crossing midnight, which no

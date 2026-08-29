@@ -1,6 +1,7 @@
 # V2 Workstream Roadmap — Offline & PWA Readiness
 
-**Document status:** FROZEN at V2-0 (Documentation & Versioning Freeze).
+**Document status:** V2-0 GATE PASS. V2-1 (App Version Display) implemented,
+awaiting Supervisor V2-1 GATE review.
 **Baseline commit:** `5c6482b` (`fix(esg,ui): support fullwidth ore delimiters and reset navigation`).
 
 ## Naming clarification (read first)
@@ -109,13 +110,13 @@ difference).
 BASELINE (5c6482b)
    │
    ▼
-V2-0 — Documentation & Versioning Freeze   [THIS PHASE]
+V2-0 — Documentation & Versioning Freeze   [PASS]
    │
    ▼
 V2-0 GATE
    │
    ▼
-V2-1 — App Version Display
+V2-1 — App Version Display   [CURRENT — AWAITING GATE]
    │
    ▼
 V2-1 GATE
@@ -144,7 +145,7 @@ be started before its predecessor's gate has passed.
 
 ## 8. Phase definitions: entry/exit criteria
 
-### V2-0 — Documentation & Versioning Freeze [CURRENT]
+### V2-0 — Documentation & Versioning Freeze [PASS]
 
 - **Entry criteria:** baseline commit confirmed, worktree clean.
 - **Work:** documentation only — this roadmap, the versioning policy, the
@@ -168,22 +169,27 @@ be started before its predecessor's gate has passed.
   Supervisor's §2.4 confirmation that `v1.0.3` is the latest tag and
   `1.3.0` is the current correctly-untagged application version.
 
-### V2-1 — App Version Display
+### V2-1 — App Version Display [CURRENT — AWAITING GATE]
 
 - **Entry criteria:** V2-0 GATE passed; `docs/VERSIONING_POLICY.md`
   approved as the source-of-truth policy. The current version value
   (`1.3.0`, from `config/app-config.json`, per `VERSIONING_POLICY.md` §0)
   is already resolved as of the V2-0 correction pass, so this entry
   criterion is satisfied on that point.
-- **Work (PLANNED, not yet implemented):** surface the authoritative
-  application version (per `docs/VERSIONING_POLICY.md`) in the UI — e.g.
-  in the header or Settings dialog — read from one source of truth
-  (`config/app-config.json` via `loadAppConfig()`), never hardcoded a
-  second time in markup or a separate JS constant. Planned display string:
-  `v1.3.0 · V2 Offline Track` (`docs/VERSIONING_POLICY.md` §3.2).
+- **Work (IMPLEMENTED, awaiting V2-1 GATE review):** surface the
+  authoritative application version (per `docs/VERSIONING_POLICY.md`) in
+  the UI header, directly beneath the app title — read from one source of
+  truth (`config/app-config.json` via the `appConfig` already loaded by
+  `loadAppConfig()` in `js/main.js`), never hardcoded a second time in
+  markup or a separate JS constant. Display string: `v1.3.0`
+  (`docs/VERSIONING_POLICY.md` §3.2) — the application version only; per
+  Supervisor decision the workstream label never appears in the
+  application header. If the version is absent (e.g. `loadAppConfig()`'s
+  `{}` fallback on fetch failure), the subtitle is omitted rather than
+  showing a fake or hardcoded value.
 - **Exit criteria:** the UI-displayed version matches the authoritative
   source with no drift, verified after a full rebuild/reload with no
-  cleaning-logic or output changes.
+  cleaning-logic or output changes. Pending Supervisor V2-1 GATE review.
 - **STOP CONDITION:** if the authoritative version value has changed or
   become newly ambiguous by the time V2-1 actually starts (e.g. a tag or
   config bump happened in between), V2-1 cannot proceed on a stale
