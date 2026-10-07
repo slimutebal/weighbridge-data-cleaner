@@ -48,7 +48,7 @@ const appVersionSubtitleEl = document.getElementById("app-version-subtitle");
 // loadAppConfig() returns on fetch failure) leaves the subtitle hidden
 // rather than showing "undefined" or a hardcoded guess.
 if (typeof appConfig.version === "string" && appConfig.version.trim()) {
-  appVersionSubtitleEl.textContent = `v${appConfig.version.trim()}`;
+  appVersionSubtitleEl.textContent = `v${appConfig.version.trim()} by HPAL team`;
   appVersionSubtitleEl.classList.remove("is-hidden");
 }
 
